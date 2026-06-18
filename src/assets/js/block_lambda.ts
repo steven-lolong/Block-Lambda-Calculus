@@ -24,6 +24,9 @@ const blocklyDiv = requireElement<HTMLDivElement>('blocklyDiv');
 const toolboxPanel = requireElement<HTMLElement>('toolboxPanel');
 const codeOutput = requireElement<HTMLElement>('codeOutput');
 const statusLine = requireElement<HTMLElement>('statusLine');
+const workspaceTitle = requireElement<HTMLElement>('workspaceTitle');
+
+let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
@@ -170,6 +173,30 @@ function setStatus(message: string): void {
   statusLine.textContent = message;
 }
 
+function getDisplayFileName(fileName: string): string {
+  return fileName.replace(/\.blc$/i, '');
+}
+
+function setWorkspaceTitle(fileName?: string): void {
+  const title = fileName ? getDisplayFileName(fileName) : 'Workspace';
+  workspaceTitle.textContent = title;
+  workspaceTitle.title = title;
+  document.title = `${title} - Block Lambda Calculus IDE`;
+}
+
+function normalizeBlcFilename(value: string): string {
+  const trimmed = value.trim().replace(/[\\/:*?"<>|]+/g, '-');
+  const baseName = trimmed.length > 0 ? trimmed : 'block-lambda-workspace';
+  return /\.blc$/i.test(baseName) ? baseName : `${baseName}.blc`;
+}
+
+function askForSaveFileName(): string | null {
+  const suggestedName = currentWorkspaceFileName || 'block-lambda-workspace.blc';
+  const answer = window.prompt('Save workspace as .blc file:', suggestedName);
+  if (answer === null) return null;
+  return normalizeBlcFilename(answer);
+}
+
 function refreshCode(): void {
   const code = generateLambdaCode(workspace);
   codeOutput.innerHTML = highlightLambdaCode(code);
@@ -177,6 +204,8 @@ function refreshCode(): void {
 
 function clearWorkspace(): void {
   workspace.clear();
+  currentWorkspaceFileName = 'block-lambda-workspace.blc';
+  setWorkspaceTitle();
   refreshCode();
   resizeWorkspace();
   setStatus('Workspace cleared.');
@@ -195,12 +224,19 @@ function downloadTextFile(filename: string, content: string, mimeType = 'applica
 }
 
 function saveWorkspace(): void {
+  const fileName = askForSaveFileName();
+  if (!fileName) {
+    setStatus('Save cancelled.');
+    return;
+  }
+
   const workspaceState = Blockly.serialization.workspaces.save(workspace);
   const serialized = JSON.stringify(workspaceState, null, 2);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  downloadTextFile(`block-lambda-workspace-${timestamp}.blc`, serialized, 'application/x-block-lambda');
+  downloadTextFile(fileName, serialized, 'application/x-block-lambda');
+  currentWorkspaceFileName = fileName;
+  setWorkspaceTitle(fileName);
   saveWorkspaceToAutosave(false);
-  setStatus('Workspace .blc file downloaded and local autosave updated.');
+  setStatus(`Workspace saved as ${fileName}. Local autosave updated.`);
 }
 
 function saveWorkspaceToAutosave(announce = false): void {
@@ -272,6 +308,8 @@ async function loadWorkspace(): Promise<void> {
     const workspaceState = JSON.parse(serialized) as Record<string, unknown>;
     workspace.clear();
     Blockly.serialization.workspaces.load(workspaceState, workspace);
+    currentWorkspaceFileName = normalizeBlcFilename(file.name);
+    setWorkspaceTitle(currentWorkspaceFileName);
     saveWorkspaceToAutosave(false);
     refreshCode();
     resizeWorkspace();
@@ -295,6 +333,8 @@ function loadAutosave(): void {
     const workspaceState = JSON.parse(serialized) as Record<string, unknown>;
     workspace.clear();
     Blockly.serialization.workspaces.load(workspaceState, workspace);
+    currentWorkspaceFileName = 'autosave-recovery.blc';
+    setWorkspaceTitle(currentWorkspaceFileName);
     refreshCode();
     resizeWorkspace();
     const savedAtText = savedAt ? ` from ${new Date(savedAt).toLocaleString()}` : '';
@@ -351,6 +391,7 @@ function createStarterProgram(): void {
 }
 
 createStarterProgram();
+setWorkspaceTitle();
 refreshCode();
 saveWorkspaceToAutosave(false);
 resizeWorkspace();

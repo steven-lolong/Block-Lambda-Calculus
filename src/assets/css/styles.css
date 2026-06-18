@@ -463,7 +463,21 @@ html[data-theme='dark'] {
 }
 
 .workspace-panel {
+  display: grid;
+  grid-template-rows: 48px minmax(0, 1fr);
   background: var(--workspace-bg);
+}
+
+.workspace-header {
+  color: var(--panel-header-fg);
+  background: rgba(127, 127, 127, 0.06);
+}
+
+.workspace-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .blockly-area,
@@ -474,6 +488,7 @@ html[data-theme='dark'] {
 
 .blockly-area {
   position: relative;
+  min-height: 0;
 }
 
 .blockly-canvas {
