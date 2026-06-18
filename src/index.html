@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#111111" />
+    <meta name="theme-color" content="#070b18" />
     <meta
       name="description"
       content="Block Lambda: a block-based IDE for Lambda Calculus."
@@ -22,58 +22,73 @@
         </a>
 
         <button id="menuToggle" class="menu-toggle ghost-button" type="button" aria-controls="topbarActions" aria-expanded="false">
-          Menu
+          ☰ Menu
         </button>
 
         <div id="topbarActions" class="topbar-actions">
-          <button id="toggleToolbox" class="ghost-button" type="button" aria-expanded="true">
-            Hide Toolbox
-          </button>
-          <button id="toggleCode" class="ghost-button" type="button" aria-expanded="true">
-            Hide Code
-          </button>
-          <label class="theme-control" for="themeSelect">
-            <span>Theme</span>
-            <select id="themeSelect" aria-label="Select color theme">
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
+          <div class="action-group file-actions" aria-label="File actions">
+            <button id="saveWorkspace" class="ghost-button accent-button" type="button">
+              <span class="button-icon" aria-hidden="true">💾</span> Save
+            </button>
+            <button id="loadWorkspace" class="ghost-button" type="button">
+              <span class="button-icon" aria-hidden="true">📂</span> Load File
+            </button>
+            <button id="loadAutosave" class="ghost-button" type="button">
+              <span class="button-icon" aria-hidden="true">↺</span> Load Autosave
+            </button>
+          </div>
+
+          <div class="action-group view-actions" aria-label="View actions">
+            <button id="toggleToolbox" class="ghost-button" type="button" aria-expanded="true">
+              <span class="button-icon" aria-hidden="true">◀</span> Hide Toolbox
+            </button>
+            <button id="toggleCode" class="ghost-button" type="button" aria-expanded="true">
+              <span class="button-icon" aria-hidden="true">▶</span> Hide Code
+            </button>
+          </div>
+
+          <div class="action-group run-actions" aria-label="Workspace actions">
+            <button id="refreshCode" class="ghost-button" type="button">
+              <span class="button-icon" aria-hidden="true">⟳</span> Refresh Code
+            </button>
+            <button id="clearWorkspace" class="ghost-button danger-button" type="button">
+              <span class="button-icon" aria-hidden="true">🗑</span> Clear Workspace
+            </button>
+            <button id="aboutApp" class="ghost-button" type="button">
+              <span class="button-icon" aria-hidden="true">ⓘ</span> About
+            </button>
+          </div>
+
+          <label class="theme-switch" for="themeToggle">
+            <span class="theme-switch-label">Night</span>
+            <input id="themeToggle" type="checkbox" aria-label="Toggle night theme" />
+            <span class="theme-slider" aria-hidden="true">
+              <span class="theme-sun">☀</span>
+              <span class="theme-moon">☾</span>
+            </span>
           </label>
-          <button id="saveWorkspace" class="ghost-button" type="button">
-            Save
-          </button>
-          <button id="loadWorkspace" class="ghost-button" type="button">
-            Load File
-          </button>
-          <button id="loadAutosave" class="ghost-button" type="button">
-            Load Autosave
-          </button>
-          <button id="aboutApp" class="ghost-button" type="button">
-            About
-          </button>
-          <button id="refreshCode" class="ghost-button" type="button">
-            Refresh Code
-          </button>
-          <button id="clearWorkspace" class="primary-button" type="button">
-            Clear Workspace
-          </button>
         </div>
       </header>
 
       <main class="ide-grid" aria-label="Block Lambda IDE">
         <aside id="toolboxPanel" class="toolbox-panel" aria-label="Blockly toolbox">
-          <div class="panel-header">
-            <span>Toolbox</span>
+          <div class="panel-header toolbox-header">
+            <span><span class="panel-icon" aria-hidden="true">▦</span> Toolbox</span>
+            <button id="toggleToolboxPanel" class="small-button icon-only panel-hide-button" type="button" aria-label="Hide toolbox" title="Hide toolbox">◀</button>
           </div>
-          <div class="toolbox-note">
-            Categories are collapsible. Drag a block card into the workspace, or click it to insert.
-          </div>
+          <label class="toolbox-search" for="toolboxSearch">
+            <input id="toolboxSearch" type="search" placeholder="Search blocks..." aria-label="Search blocks" />
+            <span aria-hidden="true">⌕</span>
+          </label>
         </aside>
 
         <section class="workspace-panel" aria-label="Blockly workspace">
           <div class="panel-header workspace-header">
-            <span id="workspaceTitle" class="workspace-title">Workspace</span>
+            <span><span class="panel-icon" aria-hidden="true">⬡</span> <span id="workspaceTitle" class="workspace-title">Workspace</span></span>
+            <div class="workspace-controls">
+              <span id="workspaceFileLabel" class="workspace-badge workspace-file-label" title="Current workspace file"></span>
+              <span id="zoomLabel" class="workspace-badge" title="Blockly zoom level">92%</span>
+            </div>
           </div>
           <div id="blocklyArea" class="blockly-area">
             <div id="blocklyDiv" class="blockly-canvas" aria-label="Blockly workspace canvas"></div>
@@ -83,18 +98,34 @@
         <aside id="codePanel" class="code-panel" aria-label="Generated text code">
           <div id="resizeHandle" class="resize-handle" aria-hidden="true"></div>
           <div class="panel-header code-header">
-            <span>Generated Lambda Code</span>
-            <button id="copyCode" class="small-button" type="button">Copy</button>
+            <span><span class="panel-icon" aria-hidden="true">&lt;/&gt;</span> Generated λ-Calculus Code</span>
+            <div class="code-header-actions">
+              <button id="copyCode" class="small-button icon-only" type="button" aria-label="Copy generated code">Copy</button>
+              <button id="toggleCodePanel" class="small-button icon-only panel-hide-button" type="button" aria-label="Hide generated code" title="Hide generated code">▶</button>
+            </div>
           </div>
           <pre class="code-output"><code id="codeOutput">-- Generated code appears here</code></pre>
-          <div id="statusLine" class="status-line" role="status" aria-live="polite">Ready.</div>
         </aside>
       </main>
+
+      <footer class="statusbar" aria-label="IDE status">
+        <span class="status-pill"><span class="status-dot"></span> Autosave <span id="autosaveTime">Just now</span></span>
+        <label class="status-pill autosave-interval-control" for="autosaveInterval">
+          <span aria-hidden="true">⏱</span>
+          <span>Interval</span>
+          <input id="autosaveInterval" class="autosave-slider" type="range" min="2" max="20" step="1" value="2" aria-label="Autosave interval in minutes" />
+          <span id="autosaveIntervalLabel" class="autosave-interval-label">2 minutes</span>
+        </label>
+        <span id="statusLine" class="status-pill status-line" role="status" aria-live="polite">Ready.</span>
+        <span class="status-pill"><span aria-hidden="true">⬡</span> Blocks: <strong id="blockCount">0</strong></span>
+        <span class="status-tip"><span aria-hidden="true">💡</span> Tip: Use abstraction (λ) to create functions and application to apply them.</span>
+        <span class="status-version">Block Lambda v1.0.0 <span class="status-logo-wrap" aria-label="Block Lambda logo"><img class="status-logo status-logo-light" src="assets/images/logo.svg" alt="" /><img class="status-logo status-logo-dark" src="assets/images/logo-dark.svg" alt="" /></span></span>
+      </footer>
 
       <dialog id="aboutDialog" class="about-dialog" aria-labelledby="aboutDialogTitle">
         <div class="about-card">
           <div class="about-header">
-            <img src="assets/images/logo.svg" alt="" class="about-logo" />
+            <img src="assets/images/logo.svg" alt="" class="about-logo about-logo-light" /><img src="assets/images/logo-dark.svg" alt="" class="about-logo about-logo-dark" />
             <div>
               <h2 id="aboutDialogTitle">Block Lambda</h2>
               <p>Block-Based λ-Calculus</p>

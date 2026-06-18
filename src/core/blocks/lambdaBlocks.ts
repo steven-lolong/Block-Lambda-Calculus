@@ -4,7 +4,6 @@ export function registerLambdaBlocks(): void {
   Blockly.Blocks['lambda_variable'] = {
     init: function () {
       this.appendDummyInput()
-        .appendField('var')
         .appendField(new Blockly.FieldTextInput('x'), 'NAME');
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_term');
@@ -17,7 +16,8 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendDummyInput()
         .appendField('λ')
-        .appendField(new Blockly.FieldTextInput('x'), 'PARAM');
+        .appendField(new Blockly.FieldTextInput('x'), 'PARAM')
+        .appendField('.');
       this.appendValueInput('BODY')
         .setCheck('LambdaTerm')
         .appendField('body');
@@ -32,10 +32,10 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendValueInput('FUNC')
         .setCheck('LambdaTerm')
-        .appendField('apply');
+        .appendField('func');
       this.appendValueInput('ARG')
         .setCheck('LambdaTerm')
-        .appendField('to');
+        .appendField('arg');
       this.setOutput(true, 'LambdaTerm');
       this.setInputsInline(false);
       this.setStyle('lambda_term');
@@ -71,7 +71,7 @@ export function registerLambdaBlocks(): void {
         .appendField('in');
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_binding');
-      this.setTooltip('Let expression: let id = value in body');
+      this.setTooltip('Let binding: let id = value in body');
       this.setHelpUrl('');
     }
   };
@@ -99,6 +99,70 @@ export function registerLambdaBlocks(): void {
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_literal');
       this.setTooltip('A boolean literal for examples and encodings.');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_number_operator'] = {
+    init: function () {
+      this.appendValueInput('LEFT')
+        .setCheck('LambdaTerm')
+        .appendField('number');
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ['+', '+'],
+          ['−', '-'],
+          ['×', '*'],
+          ['÷', '/']
+        ]), 'OP');
+      this.appendValueInput('RIGHT')
+        .setCheck('LambdaTerm')
+        .appendField('number');
+      this.setInputsInline(true);
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_operator');
+      this.setTooltip('Numeric operator: left op right.');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_boolean_operator'] = {
+    init: function () {
+      this.appendValueInput('LEFT')
+        .setCheck('LambdaTerm')
+        .appendField('boolean');
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ['and', 'and'],
+          ['or', 'or'],
+          ['=', '=']
+        ]), 'OP');
+      this.appendValueInput('RIGHT')
+        .setCheck('LambdaTerm')
+        .appendField('boolean');
+      this.setInputsInline(true);
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_operator');
+      this.setTooltip('Boolean operator: left and/or/= right.');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_if'] = {
+    init: function () {
+      this.appendValueInput('COND')
+        .setCheck('LambdaTerm')
+        .appendField('if');
+      this.appendValueInput('THEN')
+        .setCheck('LambdaTerm')
+        .appendField('then');
+      this.appendValueInput('ELSE')
+        .setCheck('LambdaTerm')
+        .appendField('else');
+      this.setOutput(true, 'LambdaTerm');
+      this.setInputsInline(false);
+      this.setStyle('lambda_control');
+      this.setTooltip('Conditional expression: if condition then true-branch else false-branch.');
       this.setHelpUrl('');
     }
   };

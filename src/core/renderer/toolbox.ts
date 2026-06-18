@@ -13,28 +13,55 @@ type ToolboxCategory = {
 
 const TOOLBOX: ToolboxCategory[] = [
   {
-    name: 'Lambda Terms',
+    name: 'Variables',
     blocks: [
-      { type: 'lambda_variable', label: 'Variable', description: 'x' },
-      { type: 'lambda_abstraction', label: 'Abstraction', description: 'λx. body' },
-      { type: 'lambda_application', label: 'Application', description: 'f x' },
-      { type: 'lambda_parentheses', label: 'Parentheses', description: '(term)' }
+      { type: 'lambda_variable', label: 'λ x .', description: 'x' }
     ]
   },
   {
-    name: 'Bindings',
+    name: 'Abstraction',
     blocks: [
-      { type: 'lambda_let', label: 'Let Binding', description: 'let id = value in body' }
+      { type: 'lambda_abstraction', label: 'λ x .', description: 'body' }
     ]
   },
   {
-    name: 'Values',
+    name: 'Application',
     blocks: [
-      { type: 'lambda_number', label: 'Number', description: '0, 1, 2, ...' },
-      { type: 'lambda_boolean', label: 'Boolean', description: 'true / false' }
+      { type: 'lambda_application', label: 'func arg', description: 'func · arg' },
+      { type: 'lambda_parentheses', label: '( term )', description: 'grouping' }
+    ]
+  },
+  {
+    name: 'Let Binding',
+    blocks: [
+      { type: 'lambda_let', label: '≔ let x = in', description: 'bind value' }
+    ]
+  },
+  {
+    name: 'Operators',
+    blocks: [
+      { type: 'lambda_number_operator', label: 'number + number', description: '+ − × ÷' },
+      { type: 'lambda_boolean_operator', label: 'boolean and boolean', description: 'and / or / =' },
+      { type: 'lambda_if', label: 'if then else', description: 'conditional' }
+    ]
+  },
+  {
+    name: 'Literals',
+    blocks: [
+      { type: 'lambda_boolean', label: 'True / False', description: 'boolean' },
+      { type: 'lambda_number', label: '0 1 2', description: 'number' }
     ]
   }
 ];
+
+const CATEGORY_ICONS: Record<string, string> = {
+  Variables: 'λ',
+  Abstraction: '↦',
+  Application: '◇',
+  'Let Binding': '≔',
+  Operators: '±',
+  Literals: '#'
+};
 
 type ActiveDrag = {
   blockType: string;
@@ -224,10 +251,11 @@ export function renderToolbox(
   TOOLBOX.forEach((category, index) => {
     const details = document.createElement('details');
     details.className = 'toolbox-category';
-    details.open = index === 0;
+    details.dataset.category = category.name;
+    details.open = true;
 
     const summary = document.createElement('summary');
-    summary.textContent = category.name;
+    summary.innerHTML = `<span class="category-icon" aria-hidden="true">${CATEGORY_ICONS[category.name] ?? '•'}</span> ${category.name}`;
     details.appendChild(summary);
 
     category.blocks.forEach((toolboxBlock) => {
@@ -236,6 +264,7 @@ export function renderToolbox(
       button.type = 'button';
       button.draggable = false;
       button.dataset.blockType = toolboxBlock.type;
+      button.dataset.searchText = `${category.name} ${toolboxBlock.label} ${toolboxBlock.description} ${toolboxBlock.type}`.toLowerCase();
       button.innerHTML = `
         <span class="toolbox-block-label">${toolboxBlock.label}</span>
         <span class="toolbox-block-description">${toolboxBlock.description}</span>
@@ -271,6 +300,26 @@ export function renderToolbox(
     list.appendChild(details);
   });
 
+  const note = document.createElement('div');
+  note.className = 'toolbox-note';
+  note.textContent = 'Drag blocks to the workspace';
+
   fragment.appendChild(list);
+  fragment.appendChild(note);
   container.appendChild(fragment);
+
+  const searchInput = document.getElementById('toolboxSearch') as HTMLInputElement | null;
+  searchInput?.addEventListener('input', () => {
+    const query = searchInput.value.trim().toLowerCase();
+    container.querySelectorAll<HTMLElement>('.toolbox-category').forEach((categoryElement) => {
+      let hasVisibleBlock = false;
+      categoryElement.querySelectorAll<HTMLElement>('.toolbox-block').forEach((blockElement) => {
+        const searchText = blockElement.dataset.searchText ?? '';
+        const visible = query.length === 0 || searchText.includes(query);
+        blockElement.hidden = !visible;
+        hasVisibleBlock = hasVisibleBlock || visible;
+      });
+      categoryElement.hidden = !hasVisibleBlock;
+    });
+  });
 }

@@ -43,6 +43,27 @@ function term(block: Blockly.Block | null): string {
     case 'lambda_boolean':
       return field(block, 'VALUE', 'true');
 
+    case 'lambda_number_operator': {
+      const left = term(child(block, 'LEFT'));
+      const operator = field(block, 'OP', '+');
+      const right = term(child(block, 'RIGHT'));
+      return `(${left} ${operator} ${right})`;
+    }
+
+    case 'lambda_boolean_operator': {
+      const left = term(child(block, 'LEFT'));
+      const operator = field(block, 'OP', 'and');
+      const right = term(child(block, 'RIGHT'));
+      return `(${left} ${operator} ${right})`;
+    }
+
+    case 'lambda_if': {
+      const condition = term(child(block, 'COND'));
+      const thenBranch = term(child(block, 'THEN'));
+      const elseBranch = term(child(block, 'ELSE'));
+      return `if ${condition} then ${thenBranch} else ${elseBranch}`;
+    }
+
     default:
       return `/* unsupported block: ${block.type} */`;
   }

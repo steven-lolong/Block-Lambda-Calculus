@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly';
 
-export type IdeThemeMode = 'system' | 'light' | 'dark';
+export type IdeThemeMode = 'light' | 'dark';
 
 type PanelControlOptions = {
   lightTheme: Blockly.Theme;
@@ -17,21 +17,13 @@ const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
 
 function readThemeMode(): IdeThemeMode {
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark' || stored === 'system') {
-    return stored;
-  }
-  return 'system';
+  return stored === 'light' ? 'light' : 'dark';
 }
 
-function resolveThemeMode(mode: IdeThemeMode): 'light' | 'dark' {
-  if (mode !== 'system') return mode;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function updateBrowserThemeColor(resolvedTheme: 'light' | 'dark'): void {
+function updateBrowserThemeColor(resolvedTheme: IdeThemeMode): void {
   const metaThemeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (metaThemeColor) {
-    metaThemeColor.content = resolvedTheme === 'dark' ? '#050506' : '#ffffff';
+    metaThemeColor.content = resolvedTheme === 'dark' ? '#24273a' : '#eff1f5';
   }
 }
 
@@ -40,13 +32,14 @@ function applyTheme(
   mode: IdeThemeMode,
   lightTheme: Blockly.Theme,
   darkTheme: Blockly.Theme,
-  onResize: () => void
+  onResize: () => void,
+  themeToggle?: HTMLInputElement | null
 ): void {
-  const resolved = resolveThemeMode(mode);
-  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.theme = mode;
   document.documentElement.dataset.themeMode = mode;
-  workspace.setTheme(resolved === 'dark' ? darkTheme : lightTheme);
-  updateBrowserThemeColor(resolved);
+  if (themeToggle) themeToggle.checked = mode === 'dark';
+  workspace.setTheme(mode === 'dark' ? darkTheme : lightTheme);
+  updateBrowserThemeColor(mode);
   onResize();
   window.setTimeout(onResize, 80);
 }
@@ -79,7 +72,8 @@ export function setupWorkspaceAutoResize(
       resizeRoot.closest('.workspace-panel'),
       resizeRoot.closest('.ide-grid'),
       document.getElementById('app'),
-      document.querySelector('.topbar')
+      document.querySelector('.topbar'),
+      document.querySelector('.app-shell')
     ];
 
     observedElements.forEach((element) => {
@@ -112,7 +106,9 @@ export function setupPanelControls(
   const app = document.getElementById('app');
   const menuToggle = document.getElementById('menuToggle') as HTMLButtonElement | null;
   const toggleToolbox = document.getElementById('toggleToolbox') as HTMLButtonElement | null;
+  const toggleToolboxPanel = document.getElementById('toggleToolboxPanel') as HTMLButtonElement | null;
   const toggleCode = document.getElementById('toggleCode') as HTMLButtonElement | null;
+  const toggleCodePanel = document.getElementById('toggleCodePanel') as HTMLButtonElement | null;
   const refreshCode = document.getElementById('refreshCode') as HTMLButtonElement | null;
   const clearWorkspace = document.getElementById('clearWorkspace') as HTMLButtonElement | null;
   const saveWorkspace = document.getElementById('saveWorkspace') as HTMLButtonElement | null;
@@ -122,7 +118,7 @@ export function setupPanelControls(
   const aboutDialog = document.getElementById('aboutDialog') as HTMLDialogElement | null;
   const closeAboutDialog = document.getElementById('closeAboutDialog') as HTMLButtonElement | null;
   const copyCode = document.getElementById('copyCode') as HTMLButtonElement | null;
-  const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement | null;
+  const themeToggle = document.getElementById('themeToggle') as HTMLInputElement | null;
   const codeOutput = document.getElementById('codeOutput');
   const codePanel = document.getElementById('codePanel');
   const resizeHandle = document.getElementById('resizeHandle');
@@ -133,29 +129,63 @@ export function setupPanelControls(
     [0, 80, 180, 320].forEach((delay) => window.setTimeout(options.onResize, delay));
   };
 
+  const renderToolboxToggleState = () => {
+    const hidden = app?.classList.contains('toolbox-hidden') ?? false;
+    if (toggleToolbox) {
+      toggleToolbox.innerHTML = hidden
+        ? '<span class="button-icon" aria-hidden="true">▶</span> Show Toolbox'
+        : '<span class="button-icon" aria-hidden="true">◀</span> Hide Toolbox';
+      toggleToolbox.setAttribute('aria-expanded', String(!hidden));
+      toggleToolbox.setAttribute('aria-label', hidden ? 'Show toolbox' : 'Hide toolbox');
+    }
+    if (toggleToolboxPanel) {
+      toggleToolboxPanel.textContent = '◀';
+      toggleToolboxPanel.setAttribute('aria-label', hidden ? 'Toolbox hidden' : 'Hide toolbox');
+      toggleToolboxPanel.title = hidden ? 'Toolbox hidden' : 'Hide toolbox';
+    }
+  };
+
+  const renderCodeToggleState = () => {
+    const hidden = app?.classList.contains('code-hidden') ?? false;
+    if (toggleCode) {
+      toggleCode.innerHTML = hidden
+        ? '<span class="button-icon" aria-hidden="true">◀</span> Show Code'
+        : '<span class="button-icon" aria-hidden="true">▶</span> Hide Code';
+      toggleCode.setAttribute('aria-expanded', String(!hidden));
+      toggleCode.setAttribute('aria-label', hidden ? 'Show generated code' : 'Hide generated code');
+    }
+    if (toggleCodePanel) {
+      toggleCodePanel.textContent = '▶';
+      toggleCodePanel.setAttribute('aria-label', hidden ? 'Code panel hidden' : 'Hide generated code');
+      toggleCodePanel.title = hidden ? 'Code panel hidden' : 'Hide generated code';
+    }
+  };
+
+  const toggleToolboxVisibility = () => {
+    app?.classList.toggle('toolbox-hidden');
+    renderToolboxToggleState();
+    updateLayout();
+  };
+
   menuToggle?.addEventListener('click', () => {
     app?.classList.toggle('menu-open');
     const isOpen = app?.classList.contains('menu-open') ?? false;
     menuToggle.setAttribute('aria-expanded', String(isOpen));
-    menuToggle.textContent = isOpen ? 'Close Menu' : 'Menu';
+    menuToggle.innerHTML = isOpen ? '<span class="button-icon" aria-hidden="true">✕</span> Close' : '<span class="button-icon" aria-hidden="true">☰</span> Menu';
     updateLayout();
   });
 
-  toggleToolbox?.addEventListener('click', () => {
-    app?.classList.toggle('toolbox-hidden');
-    const hidden = app?.classList.contains('toolbox-hidden') ?? false;
-    toggleToolbox.textContent = hidden ? 'Show Toolbox' : 'Hide Toolbox';
-    toggleToolbox.setAttribute('aria-expanded', String(!hidden));
-    updateLayout();
-  });
+  toggleToolbox?.addEventListener('click', toggleToolboxVisibility);
+  toggleToolboxPanel?.addEventListener('click', toggleToolboxVisibility);
 
-  toggleCode?.addEventListener('click', () => {
+  const toggleCodeVisibility = () => {
     app?.classList.toggle('code-hidden');
-    const hidden = app?.classList.contains('code-hidden') ?? false;
-    toggleCode.textContent = hidden ? 'Show Code' : 'Hide Code';
-    toggleCode.setAttribute('aria-expanded', String(!hidden));
+    renderCodeToggleState();
     updateLayout();
-  });
+  };
+
+  toggleCode?.addEventListener('click', toggleCodeVisibility);
+  toggleCodePanel?.addEventListener('click', toggleCodeVisibility);
 
   refreshCode?.addEventListener('click', () => {
     options.onRefreshCode();
@@ -199,7 +229,7 @@ export function setupPanelControls(
   });
 
   copyCode?.addEventListener('click', async () => {
-    const code = codeOutput?.textContent ?? '';
+    const code = codeOutput instanceof HTMLElement ? (codeOutput.dataset.rawCode ?? codeOutput.textContent ?? '') : '';
     await navigator.clipboard.writeText(code);
     copyCode.textContent = 'Copied';
     window.setTimeout(() => {
@@ -208,25 +238,18 @@ export function setupPanelControls(
   });
 
   const savedThemeMode = readThemeMode();
-  if (themeSelect) themeSelect.value = savedThemeMode;
-  applyTheme(workspace, savedThemeMode, options.lightTheme, options.darkTheme, options.onResize);
+  applyTheme(workspace, savedThemeMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
 
-  themeSelect?.addEventListener('change', () => {
-    const nextMode = themeSelect.value as IdeThemeMode;
+  themeToggle?.addEventListener('change', () => {
+    const nextMode: IdeThemeMode = themeToggle.checked ? 'dark' : 'light';
     window.localStorage.setItem(THEME_STORAGE_KEY, nextMode);
-    applyTheme(workspace, nextMode, options.lightTheme, options.darkTheme, options.onResize);
+    applyTheme(workspace, nextMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
     window.dispatchEvent(new CustomEvent('block-lambda:refresh-code'));
     updateLayout();
   });
 
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    const currentMode = readThemeMode();
-    if (currentMode === 'system') {
-      applyTheme(workspace, 'system', options.lightTheme, options.darkTheme, options.onResize);
-      window.dispatchEvent(new CustomEvent('block-lambda:refresh-code'));
-      updateLayout();
-    }
-  });
+  renderToolboxToggleState();
+  renderCodeToggleState();
 
   if (!codePanel || !resizeHandle) return;
 

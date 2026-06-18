@@ -10,7 +10,8 @@ registerLambdaBlocks();
 
 const AUTOSAVE_STORAGE_KEY = 'block-lambda-autosave-workspace';
 const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
-const AUTOSAVE_DELAY_MS = 600;
+const AUTOSAVE_INTERVAL_STORAGE_KEY = 'block-lambda-autosave-interval-minutes';
+const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -20,52 +21,83 @@ function requireElement<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
+function clampAutosaveInterval(value: number): number {
+  if (!Number.isFinite(value)) return AUTOSAVE_DEFAULT_INTERVAL_MINUTES;
+  return Math.min(Math.max(Math.round(value), 2), 20);
+}
+
+function readAutosaveIntervalMinutes(): number {
+  const stored = window.localStorage.getItem(AUTOSAVE_INTERVAL_STORAGE_KEY);
+  return clampAutosaveInterval(stored ? Number(stored) : AUTOSAVE_DEFAULT_INTERVAL_MINUTES);
+}
+
+function formatAutosaveInterval(minutes: number): string {
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
 const blocklyDiv = requireElement<HTMLDivElement>('blocklyDiv');
 const toolboxPanel = requireElement<HTMLElement>('toolboxPanel');
 const codeOutput = requireElement<HTMLElement>('codeOutput');
 const statusLine = requireElement<HTMLElement>('statusLine');
 const workspaceTitle = requireElement<HTMLElement>('workspaceTitle');
+const workspaceFileLabel = requireElement<HTMLElement>('workspaceFileLabel');
+const zoomLabel = requireElement<HTMLElement>('zoomLabel');
+const blockCount = requireElement<HTMLElement>('blockCount');
+const autosaveTime = requireElement<HTMLElement>('autosaveTime');
+const autosaveInterval = requireElement<HTMLInputElement>('autosaveInterval');
+const autosaveIntervalLabel = requireElement<HTMLElement>('autosaveIntervalLabel');
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
+let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
   base: Blockly.Themes.Classic,
   blockStyles: {
     lambda_term: {
-      colourPrimary: '#1f2937',
-      colourSecondary: '#4b5563',
-      colourTertiary: '#111827'
+      colourPrimary: '#8839ef',
+      colourSecondary: '#7287fd',
+      colourTertiary: '#c6a0f6'
     },
     lambda_binding: {
-      colourPrimary: '#374151',
-      colourSecondary: '#6b7280',
-      colourTertiary: '#111827'
+      colourPrimary: '#1e66f5',
+      colourSecondary: '#209fb5',
+      colourTertiary: '#8aadf4'
     },
     lambda_grouping: {
-      colourPrimary: '#6b7280',
-      colourSecondary: '#9ca3af',
-      colourTertiary: '#374151'
+      colourPrimary: '#179299',
+      colourSecondary: '#40a02b',
+      colourTertiary: '#8bd5ca'
     },
     lambda_literal: {
-      colourPrimary: '#52525b',
-      colourSecondary: '#71717a',
-      colourTertiary: '#27272a'
+      colourPrimary: '#df8e1d',
+      colourSecondary: '#fe640b',
+      colourTertiary: '#eed49f'
+    },
+    lambda_operator: {
+      colourPrimary: '#179299',
+      colourSecondary: '#04a5e5',
+      colourTertiary: '#40a02b'
+    },
+    lambda_control: {
+      colourPrimary: '#ea76cb',
+      colourSecondary: '#8839ef',
+      colourTertiary: '#7287fd'
     }
   },
   componentStyles: {
-    workspaceBackgroundColour: '#f7f7f8',
-    toolboxBackgroundColour: '#ffffff',
-    toolboxForegroundColour: '#111827',
-    flyoutBackgroundColour: '#ffffff',
-    flyoutForegroundColour: '#111827',
+    workspaceBackgroundColour: '#eff1f5',
+    toolboxBackgroundColour: '#e6e9ef',
+    toolboxForegroundColour: '#4c4f69',
+    flyoutBackgroundColour: '#eff1f5',
+    flyoutForegroundColour: '#4c4f69',
     flyoutOpacity: 1,
-    scrollbarColour: '#6b7280',
-    scrollbarOpacity: 0.55,
-    insertionMarkerColour: '#111827',
-    insertionMarkerOpacity: 0.25,
-    cursorColour: '#111827',
-    markerColour: '#111827'
+    scrollbarColour: '#8c8fa1',
+    scrollbarOpacity: 0.62,
+    insertionMarkerColour: '#8839ef',
+    insertionMarkerOpacity: 0.30,
+    cursorColour: '#8839ef',
+    markerColour: '#179299'
   }
 });
 
@@ -74,39 +106,49 @@ const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
   base: Blockly.Themes.Classic,
   blockStyles: {
     lambda_term: {
-      colourPrimary: '#d1d5db',
-      colourSecondary: '#9ca3af',
-      colourTertiary: '#f9fafb'
+      colourPrimary: '#c6a0f6',
+      colourSecondary: '#b7bdf8',
+      colourTertiary: '#f5bde6'
     },
     lambda_binding: {
-      colourPrimary: '#a3a3a3',
-      colourSecondary: '#d4d4d8',
-      colourTertiary: '#f5f5f5'
+      colourPrimary: '#8aadf4',
+      colourSecondary: '#7dc4e4',
+      colourTertiary: '#91d7e3'
     },
     lambda_grouping: {
-      colourPrimary: '#71717a',
-      colourSecondary: '#a1a1aa',
-      colourTertiary: '#d4d4d8'
+      colourPrimary: '#8bd5ca',
+      colourSecondary: '#a6da95',
+      colourTertiary: '#91d7e3'
     },
     lambda_literal: {
-      colourPrimary: '#e5e7eb',
-      colourSecondary: '#9ca3af',
-      colourTertiary: '#ffffff'
+      colourPrimary: '#eed49f',
+      colourSecondary: '#f5a97f',
+      colourTertiary: '#f4dbd6'
+    },
+    lambda_operator: {
+      colourPrimary: '#8bd5ca',
+      colourSecondary: '#91d7e3',
+      colourTertiary: '#a6da95'
+    },
+    lambda_control: {
+      colourPrimary: '#f5bde6',
+      colourSecondary: '#c6a0f6',
+      colourTertiary: '#b7bdf8'
     }
   },
   componentStyles: {
-    workspaceBackgroundColour: '#18181b',
-    toolboxBackgroundColour: '#09090b',
-    toolboxForegroundColour: '#f4f4f5',
-    flyoutBackgroundColour: '#222226',
-    flyoutForegroundColour: '#f5f5f5',
+    workspaceBackgroundColour: '#24273a',
+    toolboxBackgroundColour: '#1e2030',
+    toolboxForegroundColour: '#cad3f5',
+    flyoutBackgroundColour: '#24273a',
+    flyoutForegroundColour: '#cad3f5',
     flyoutOpacity: 1,
-    scrollbarColour: '#a1a1aa',
-    scrollbarOpacity: 0.62,
-    insertionMarkerColour: '#ffffff',
-    insertionMarkerOpacity: 0.28,
-    cursorColour: '#ffffff',
-    markerColour: '#ffffff'
+    scrollbarColour: '#6e738d',
+    scrollbarOpacity: 0.72,
+    insertionMarkerColour: '#c6a0f6',
+    insertionMarkerOpacity: 0.34,
+    cursorColour: '#91d7e3',
+    markerColour: '#8bd5ca'
   }
 });
 
@@ -115,7 +157,7 @@ const workspace = Blockly.inject(blocklyDiv, {
   grid: {
     spacing: 24,
     length: 3,
-    colour: '#b8b8bf',
+    colour: '#6e738d',
     snap: true
   },
   move: {
@@ -152,20 +194,29 @@ function tokenSpan(className: string, value: string): string {
 }
 
 function highlightLambdaCode(code: string): string {
-  const tokenPattern = /(--[^\n]*|\b(?:let|in|true|false)\b|[λ.()=]|\b\d+(?:\.\d+)?\b|[A-Za-z_][A-Za-z0-9_']*|□|\s+|.)/gu;
+  const tokenPattern = /(--[^\n]*|\b(?:let|in|if|then|else|and|or|true|false)\b|[λ.()=+\-*/]|\b\d+(?:\.\d+)?\b|[A-Za-z_][A-Za-z0-9_']*|□|\s+|.)/gu;
   const tokens = code.match(tokenPattern) ?? [];
 
   return tokens.map((token) => {
     if (/^--/.test(token)) return tokenSpan('syntax-comment', token);
     if (/^\s+$/.test(token)) return escapeHtml(token);
     if (token === '□') return tokenSpan('syntax-hole', token);
-    if (/^(?:let|in|true|false|[λ.()=]|\d+(?:\.\d+)?)$/.test(token)) {
+    if (/^(?:let|in|if|then|else|and|or|true|false|[λ.()=+\-*/]|\d+(?:\.\d+)?)$/.test(token)) {
       return tokenSpan('syntax-terminal', token);
     }
     if (/^[A-Za-z_][A-Za-z0-9_']*$/.test(token)) {
       return tokenSpan('syntax-nonterminal', token);
     }
     return escapeHtml(token);
+  }).join('');
+}
+
+function renderHighlightedCodeLines(code: string): string {
+  const sourceLines = code.split('\n');
+  const totalLines = Math.max(sourceLines.length, 5);
+  return Array.from({ length: totalLines }, (_, index) => {
+    const line = sourceLines[index] ?? '';
+    return `<span class="code-line"><span class="line-number" aria-hidden="true">${index + 1}</span><span class="line-code">${highlightLambdaCode(line) || '&nbsp;'}</span></span>`;
   }).join('');
 }
 
@@ -178,10 +229,18 @@ function getDisplayFileName(fileName: string): string {
 }
 
 function setWorkspaceTitle(fileName?: string): void {
-  const title = fileName ? getDisplayFileName(fileName) : 'Workspace';
-  workspaceTitle.textContent = title;
-  workspaceTitle.title = title;
-  document.title = `${title} - Block Lambda Calculus IDE`;
+  const fileLabel = fileName ? getDisplayFileName(fileName) : '';
+  workspaceTitle.textContent = 'Workspace';
+  workspaceTitle.title = 'Workspace';
+  workspaceFileLabel.textContent = fileLabel;
+  workspaceFileLabel.title = fileName ?? 'No workspace file loaded';
+  document.title = fileName ? `${fileLabel} - Block Lambda Calculus IDE` : 'Block Lambda Calculus IDE';
+}
+
+function updateZoomLabel(): void {
+  const zoomPercent = Math.round(workspace.getScale() * 100);
+  zoomLabel.textContent = `${zoomPercent}%`;
+  zoomLabel.title = `Blockly zoom level: ${zoomPercent}%`;
 }
 
 function normalizeBlcFilename(value: string): string {
@@ -197,9 +256,22 @@ function askForSaveFileName(): string | null {
   return normalizeBlcFilename(answer);
 }
 
+function updateAutosaveIntervalUi(): void {
+  autosaveInterval.value = String(autosaveIntervalMinutes);
+  autosaveIntervalLabel.textContent = formatAutosaveInterval(autosaveIntervalMinutes);
+  autosaveInterval.title = `Autosave interval: ${formatAutosaveInterval(autosaveIntervalMinutes)}`;
+}
+
+function updateBlockCount(): void {
+  blockCount.textContent = String(workspace.getAllBlocks(false).length);
+}
+
 function refreshCode(): void {
   const code = generateLambdaCode(workspace);
-  codeOutput.innerHTML = highlightLambdaCode(code);
+  codeOutput.dataset.rawCode = code;
+  codeOutput.innerHTML = renderHighlightedCodeLines(code);
+  updateBlockCount();
+  updateZoomLabel();
 }
 
 function clearWorkspace(): void {
@@ -247,8 +319,11 @@ function saveWorkspaceToAutosave(announce = false): void {
     window.localStorage.setItem(AUTOSAVE_STORAGE_KEY, serialized);
     window.localStorage.setItem(AUTOSAVE_TIME_STORAGE_KEY, savedAt);
 
+    const savedAtLabel = new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    autosaveTime.textContent = announce ? savedAtLabel : 'Just now';
+
     if (announce) {
-      setStatus(`Autosaved locally at ${new Date(savedAt).toLocaleTimeString()}.`);
+      setStatus(`Autosaved locally at ${savedAtLabel}.`);
     }
   } catch (error) {
     console.error(error);
@@ -263,10 +338,11 @@ function scheduleAutosave(): void {
     window.clearTimeout(autosaveTimer);
   }
 
+  const delayMs = autosaveIntervalMinutes * 60 * 1000;
   autosaveTimer = window.setTimeout(() => {
     saveWorkspaceToAutosave(true);
     autosaveTimer = undefined;
-  }, AUTOSAVE_DELAY_MS);
+  }, delayMs);
 }
 
 function openFilePicker(): Promise<File | null> {
@@ -360,7 +436,18 @@ setupPanelControls(workspace, {
   onResize: resizeWorkspace
 });
 
+autosaveInterval.addEventListener('input', () => {
+  autosaveIntervalMinutes = clampAutosaveInterval(Number(autosaveInterval.value));
+  window.localStorage.setItem(AUTOSAVE_INTERVAL_STORAGE_KEY, String(autosaveIntervalMinutes));
+  updateAutosaveIntervalUi();
+  if (autosaveTimer !== undefined) {
+    scheduleAutosave();
+  }
+  setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
+});
+
 workspace.addChangeListener((event) => {
+  updateZoomLabel();
   if (event.isUiEvent) return;
   refreshCode();
   scheduleAutosave();
@@ -391,6 +478,7 @@ function createStarterProgram(): void {
 }
 
 createStarterProgram();
+updateAutosaveIntervalUi();
 setWorkspaceTitle();
 refreshCode();
 saveWorkspaceToAutosave(false);

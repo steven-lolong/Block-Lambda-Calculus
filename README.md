@@ -8,16 +8,9 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - left collapsible Blockly toolbox,
   - middle Blockly workspace,
   - right generated text-code panel.
-- Hide/show toolbox panel with automatic Blockly workspace resize.
-- Hide/show generated-code panel with automatic Blockly workspace resize.
+- Hide/show toolbox panel.
+- Hide/show generated-code panel.
 - Resizable right code panel.
-- Light, dark, and system theme modes.
-- Drag-and-drop block creation from the toolbox into the workspace.
-- Save workspace to a `.blc` file and load a `.blc` file from disk.
-- Automatic local browser autosave for recovery when the user forgets to save manually.
-- Load Autosave action to restore the latest local browser backup.
-- About menu item with a modal dialog for project information.
-- Clear Workspace button that removes all blocks and refreshes generated code.
 - Custom Lambda Calculus blocks:
   - variable,
   - abstraction,
@@ -25,9 +18,17 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - parentheses,
   - let binding,
   - number,
-  - boolean.
-- Generated Lambda Calculus text code.
-- Black, gray, and white visual design.
+  - boolean,
+  - numeric operator,
+  - boolean operator,
+  - if/then/else conditional.
+- Generated Lambda Calculus text code with syntax highlighting.
+- Stable three-column IDE design with polished neon-glass colors.
+- Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
+- Responsive top menu with grouped file, view, workspace, and theme actions.
+- Searchable custom toolbox.
+- Theme-aware Blockly colors while preserving the current Blockly renderer/shape style.
+- Manual `.blc` workspace save/load plus local autosave recovery.
 - Logo, favicon, dark/light variants, and 512×512 PWA icon.
 - Webpack output bundle name: `block_lambda.js`.
 
@@ -95,8 +96,8 @@ npm run typecheck
 - `src/assets/css/styles.css` — full IDE styling.
 - `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks.
 - `src/core/generator/lambdaGenerator.ts` — block-to-text generator.
-- `src/core/renderer/toolbox.ts` — collapsible toolbox renderer with click and drag/drop insertion.
-- `src/core/ui/layout.ts` — hide/show, theme switching, `.blc` file actions, local autosave recovery, About modal, clear workspace, and automatic Blockly resize behavior.
+- `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
+- `src/core/ui/layout.ts` — hide/show and resize UI behavior.
 
 ## Logo assets
 
@@ -116,12 +117,16 @@ npm run typecheck
 
 ## Notes
 
-The toolbox is implemented as a custom collapsible left panel. Users can either click a block card or drag it into the workspace. The workspace uses a `ResizeObserver` and resize callbacks after panel toggles, right-panel dragging, theme changes, and browser resizing so Blockly fits the middle column automatically.
+The toolbox is implemented as a custom collapsible left panel. Clicking or dragging a block in the toolbox creates the corresponding Blockly block in the center workspace. The UI uses a neon-glass dark-first design, but the Blockly renderer remains the existing `zelos` renderer so the block render/shape style stays consistent.
 
-## Workspace persistence
+## UI Design Update
 
-- **Save** exports the current Blockly serialization state to a `.blc` file.
-- **Load File** imports a previously saved `.blc` file from disk.
-- **Autosave** writes the latest workspace state to browser `localStorage` after edits.
-- **Load Autosave** restores the most recent local browser autosave from the same browser/device.
+The IDE keeps the stable three-column application shell and applies a more polished color and menu system:
 
+- Catppuccin Macchiato-inspired palette with soft violet, blue, teal, green, amber, and rose accents.
+- Cleaner icon-based top menu grouped by File, View, Workspace, and Theme actions.
+- Left toolbox with search, color-coded categories, and drag/click block insertion.
+- Middle Workspace panel with a persistent file-aware title.
+- Right generated-code panel with line numbers and theme-aware syntax highlighting.
+- Bottom status bar with autosave indicator, user-configurable autosave interval, block count, tip text, version, and theme-aware logo.
+- Blockly remains on the current renderer (`zelos`); only the UI colors and block theme colors were updated.
