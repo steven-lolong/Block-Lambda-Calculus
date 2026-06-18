@@ -1,0 +1,22 @@
+{
+  "name": "Block Lambda Calculus IDE",
+  "short_name": "Block Lambda",
+  "description": "A block-based IDE for Lambda Calculus.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111112",
+  "theme_color": "#111112",
+  "icons": [
+    {
+      "src": "assets/images/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/images/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}

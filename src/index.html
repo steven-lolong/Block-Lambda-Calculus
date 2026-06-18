@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111111" />
+    <meta
+      name="description"
+      content="Block Lambda: a block-based IDE for Lambda Calculus."
+    />
+    <title>Block Lambda Calculus IDE</title>
+    <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="assets/images/favicon.ico" />
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="topbar" aria-label="Application header">
+        <a class="brand" href="#" aria-label="Block Lambda home">
+          <img class="brand-logo brand-logo-light" src="assets/images/navbar-logo.svg" alt="Block Lambda logo" />
+          <img class="brand-logo brand-logo-dark" src="assets/images/navbar-logo-dark.svg" alt="Block Lambda logo" />
+        </a>
+
+        <button id="menuToggle" class="menu-toggle ghost-button" type="button" aria-controls="topbarActions" aria-expanded="false">
+          Menu
+        </button>
+
+        <div id="topbarActions" class="topbar-actions">
+          <button id="toggleToolbox" class="ghost-button" type="button" aria-expanded="true">
+            Hide Toolbox
+          </button>
+          <button id="toggleCode" class="ghost-button" type="button" aria-expanded="true">
+            Hide Code
+          </button>
+          <label class="theme-control" for="themeSelect">
+            <span>Theme</span>
+            <select id="themeSelect" aria-label="Select color theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <button id="saveWorkspace" class="ghost-button" type="button">
+            Save
+          </button>
+          <button id="loadWorkspace" class="ghost-button" type="button">
+            Load File
+          </button>
+          <button id="loadAutosave" class="ghost-button" type="button">
+            Load Autosave
+          </button>
+          <button id="aboutApp" class="ghost-button" type="button">
+            About
+          </button>
+          <button id="refreshCode" class="ghost-button" type="button">
+            Refresh Code
+          </button>
+          <button id="clearWorkspace" class="primary-button" type="button">
+            Clear Workspace
+          </button>
+        </div>
+      </header>
+
+      <main class="ide-grid" aria-label="Block Lambda IDE">
+        <aside id="toolboxPanel" class="toolbox-panel" aria-label="Blockly toolbox">
+          <div class="panel-header">
+            <span>Toolbox</span>
+          </div>
+          <div class="toolbox-note">
+            Categories are collapsible. Drag a block card into the workspace, or click it to insert.
+          </div>
+        </aside>
+
+        <section class="workspace-panel" aria-label="Blockly workspace">
+          <div id="blocklyArea" class="blockly-area">
+            <div id="blocklyDiv" class="blockly-canvas" aria-label="Blockly workspace canvas"></div>
+          </div>
+        </section>
+
+        <aside id="codePanel" class="code-panel" aria-label="Generated text code">
+          <div id="resizeHandle" class="resize-handle" aria-hidden="true"></div>
+          <div class="panel-header code-header">
+            <span>Generated Lambda Code</span>
+            <button id="copyCode" class="small-button" type="button">Copy</button>
+          </div>
+          <pre class="code-output"><code id="codeOutput">-- Generated code appears here</code></pre>
+          <div id="statusLine" class="status-line" role="status" aria-live="polite">Ready.</div>
+        </aside>
+      </main>
+
+      <dialog id="aboutDialog" class="about-dialog" aria-labelledby="aboutDialogTitle">
+        <div class="about-card">
+          <div class="about-header">
+            <img src="assets/images/logo.svg" alt="" class="about-logo" />
+            <div>
+              <h2 id="aboutDialogTitle">Block Lambda</h2>
+              <p>Block-Based λ-Calculus</p>
+            </div>
+          </div>
+          <div class="about-body">
+            <p>
+              Block Lambda is a web-based IDE for experimenting with Lambda Calculus through
+              Blockly-style visual blocks and generated textual code.
+            </p>
+            <p>
+              Workspaces can be saved as <strong>.blc</strong> files and loaded again from disk.
+              The IDE also keeps an automatic browser backup in local storage so recent work can
+              be recovered if a manual save was forgotten.
+            </p>
+            <dl>
+              <div>
+                <dt>Project</dt>
+                <dd>Blok-LambdaCalculus</dd>
+              </div>
+              <div>
+                <dt>Technology</dt>
+                <dd>TypeScript, npm, webpack, Blockly</dd>
+              </div>
+            </dl>
+          </div>
+          <form method="dialog" class="about-footer">
+            <button id="closeAboutDialog" class="primary-button" type="submit">Close</button>
+          </form>
+        </div>
+      </dialog>
+    </div>
+  </body>
+</html>

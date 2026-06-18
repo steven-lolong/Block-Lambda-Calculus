@@ -1,0 +1,105 @@
+import * as Blockly from 'blockly';
+
+export function registerLambdaBlocks(): void {
+  Blockly.Blocks['lambda_variable'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField('var')
+        .appendField(new Blockly.FieldTextInput('x'), 'NAME');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_term');
+      this.setTooltip('A lambda-calculus variable.');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_abstraction'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField('λ')
+        .appendField(new Blockly.FieldTextInput('x'), 'PARAM');
+      this.appendValueInput('BODY')
+        .setCheck('LambdaTerm')
+        .appendField('body');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_binding');
+      this.setTooltip('Lambda abstraction: λx. body');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_application'] = {
+    init: function () {
+      this.appendValueInput('FUNC')
+        .setCheck('LambdaTerm')
+        .appendField('apply');
+      this.appendValueInput('ARG')
+        .setCheck('LambdaTerm')
+        .appendField('to');
+      this.setOutput(true, 'LambdaTerm');
+      this.setInputsInline(false);
+      this.setStyle('lambda_term');
+      this.setTooltip('Function application: f x');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_parentheses'] = {
+    init: function () {
+      this.appendValueInput('TERM')
+        .setCheck('LambdaTerm')
+        .appendField('(')
+        .appendField('term')
+        .appendField(')');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_grouping');
+      this.setTooltip('Explicit grouping for a lambda term.');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_let'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField('let')
+        .appendField(new Blockly.FieldTextInput('id'), 'NAME');
+      this.appendValueInput('VALUE')
+        .setCheck('LambdaTerm')
+        .appendField('=');
+      this.appendValueInput('BODY')
+        .setCheck('LambdaTerm')
+        .appendField('in');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_binding');
+      this.setTooltip('Let expression: let id = value in body');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_number'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField('number')
+        .appendField(new Blockly.FieldNumber(0), 'VALUE');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_literal');
+      this.setTooltip('A numeric literal for examples and encodings.');
+      this.setHelpUrl('');
+    }
+  };
+
+  Blockly.Blocks['lambda_boolean'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField('boolean')
+        .appendField(new Blockly.FieldDropdown([
+          ['true', 'true'],
+          ['false', 'false']
+        ]), 'VALUE');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_literal');
+      this.setTooltip('A boolean literal for examples and encodings.');
+      this.setHelpUrl('');
+    }
+  };
+}

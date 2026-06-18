@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 320 320" role="img" aria-label="Block Lambda logo icon">
+  <defs>
+    <mask id="block-cut">
+      <rect width="320" height="320" fill="black"/>
+      <rect x="40" y="60" width="220" height="220" rx="28" fill="white"/>
+      <circle cx="150" cy="52" r="26" fill="white"/>
+      <circle cx="278" cy="180" r="28" fill="white"/>
+      <circle cx="150" cy="280" r="28" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="320" height="320" fill="none"/>
+  <rect x="0" y="0" width="320" height="320" fill="#111111" mask="url(#block-cut)"/>
+  <text x="150" y="214" text-anchor="middle" font-size="150" font-family="Inter, Arial, Helvetica, sans-serif" font-weight="800" fill="#ffffff">λ</text>
+</svg>
