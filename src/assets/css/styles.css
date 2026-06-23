@@ -610,6 +610,29 @@ html[data-theme='light'] .toolbox-category {
 }
 
 .workspace-header { min-width: 0; }
+.workspace-header-left {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-restore-button {
+  flex: 0 0 auto;
+  color: var(--text-main);
+  border-color: rgba(198, 160, 246, 0.36);
+  background: linear-gradient(135deg, rgba(198, 160, 246, 0.18), rgba(145, 215, 227, 0.10));
+  font-weight: 900;
+}
+
+.workspace-restore-button:hover {
+  border-color: var(--panel-border-bright);
+  background: linear-gradient(135deg, rgba(198, 160, 246, 0.26), rgba(145, 215, 227, 0.16));
+}
+
+.workspace-restore-button[hidden] {
+  display: none !important;
+}
 .workspace-title {
   display: inline-block;
   max-width: min(48vw, 520px);
@@ -967,6 +990,7 @@ html[data-theme='dark'] .about-logo-dark { display: block; }
   .code-hidden .ide-grid,
   .toolbox-hidden.code-hidden .ide-grid { padding: 10px; gap: 10px; }
   .workspace-header { align-items: flex-start; flex-direction: column; padding-block: 10px; }
+  .workspace-header-left { width: 100%; flex-wrap: wrap; }
   .workspace-controls { display: flex; flex-wrap: wrap; }
   .workspace-panel { height: 62svh; min-height: 340px; }
   .toolbox-hidden .workspace-panel,

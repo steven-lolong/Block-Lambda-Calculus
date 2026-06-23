@@ -105,10 +105,10 @@ export function setupPanelControls(
 ): void {
   const app = document.getElementById('app');
   const menuToggle = document.getElementById('menuToggle') as HTMLButtonElement | null;
-  const toggleToolbox = document.getElementById('toggleToolbox') as HTMLButtonElement | null;
   const toggleToolboxPanel = document.getElementById('toggleToolboxPanel') as HTMLButtonElement | null;
-  const toggleCode = document.getElementById('toggleCode') as HTMLButtonElement | null;
+  const showToolboxFromWorkspace = document.getElementById('showToolboxFromWorkspace') as HTMLButtonElement | null;
   const toggleCodePanel = document.getElementById('toggleCodePanel') as HTMLButtonElement | null;
+  const showCodeFromWorkspace = document.getElementById('showCodeFromWorkspace') as HTMLButtonElement | null;
   const refreshCode = document.getElementById('refreshCode') as HTMLButtonElement | null;
   const clearWorkspace = document.getElementById('clearWorkspace') as HTMLButtonElement | null;
   const saveWorkspace = document.getElementById('saveWorkspace') as HTMLButtonElement | null;
@@ -131,33 +131,33 @@ export function setupPanelControls(
 
   const renderToolboxToggleState = () => {
     const hidden = app?.classList.contains('toolbox-hidden') ?? false;
-    if (toggleToolbox) {
-      toggleToolbox.innerHTML = hidden
-        ? '<span class="button-icon" aria-hidden="true">▶</span> Show Toolbox'
-        : '<span class="button-icon" aria-hidden="true">◀</span> Hide Toolbox';
-      toggleToolbox.setAttribute('aria-expanded', String(!hidden));
-      toggleToolbox.setAttribute('aria-label', hidden ? 'Show toolbox' : 'Hide toolbox');
-    }
     if (toggleToolboxPanel) {
       toggleToolboxPanel.textContent = '◀';
-      toggleToolboxPanel.setAttribute('aria-label', hidden ? 'Toolbox hidden' : 'Hide toolbox');
-      toggleToolboxPanel.title = hidden ? 'Toolbox hidden' : 'Hide toolbox';
+      toggleToolboxPanel.setAttribute('aria-expanded', String(!hidden));
+      toggleToolboxPanel.setAttribute('aria-label', 'Hide toolbox');
+      toggleToolboxPanel.title = 'Hide toolbox';
+    }
+    if (showToolboxFromWorkspace) {
+      showToolboxFromWorkspace.hidden = !hidden;
+      showToolboxFromWorkspace.setAttribute('aria-expanded', String(!hidden));
+      showToolboxFromWorkspace.setAttribute('aria-label', 'Show toolbox');
+      showToolboxFromWorkspace.title = 'Show toolbox';
     }
   };
 
   const renderCodeToggleState = () => {
     const hidden = app?.classList.contains('code-hidden') ?? false;
-    if (toggleCode) {
-      toggleCode.innerHTML = hidden
-        ? '<span class="button-icon" aria-hidden="true">◀</span> Show Code'
-        : '<span class="button-icon" aria-hidden="true">▶</span> Hide Code';
-      toggleCode.setAttribute('aria-expanded', String(!hidden));
-      toggleCode.setAttribute('aria-label', hidden ? 'Show generated code' : 'Hide generated code');
-    }
     if (toggleCodePanel) {
       toggleCodePanel.textContent = '▶';
-      toggleCodePanel.setAttribute('aria-label', hidden ? 'Code panel hidden' : 'Hide generated code');
-      toggleCodePanel.title = hidden ? 'Code panel hidden' : 'Hide generated code';
+      toggleCodePanel.setAttribute('aria-expanded', String(!hidden));
+      toggleCodePanel.setAttribute('aria-label', 'Hide generated code');
+      toggleCodePanel.title = 'Hide generated code';
+    }
+    if (showCodeFromWorkspace) {
+      showCodeFromWorkspace.hidden = !hidden;
+      showCodeFromWorkspace.setAttribute('aria-expanded', String(!hidden));
+      showCodeFromWorkspace.setAttribute('aria-label', 'Show generated code');
+      showCodeFromWorkspace.title = 'Show generated code';
     }
   };
 
@@ -175,8 +175,8 @@ export function setupPanelControls(
     updateLayout();
   });
 
-  toggleToolbox?.addEventListener('click', toggleToolboxVisibility);
   toggleToolboxPanel?.addEventListener('click', toggleToolboxVisibility);
+  showToolboxFromWorkspace?.addEventListener('click', toggleToolboxVisibility);
 
   const toggleCodeVisibility = () => {
     app?.classList.toggle('code-hidden');
@@ -184,8 +184,8 @@ export function setupPanelControls(
     updateLayout();
   };
 
-  toggleCode?.addEventListener('click', toggleCodeVisibility);
   toggleCodePanel?.addEventListener('click', toggleCodeVisibility);
+  showCodeFromWorkspace?.addEventListener('click', toggleCodeVisibility);
 
   refreshCode?.addEventListener('click', () => {
     options.onRefreshCode();

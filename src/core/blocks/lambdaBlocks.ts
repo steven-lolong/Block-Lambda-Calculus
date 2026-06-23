@@ -4,6 +4,7 @@ export function registerLambdaBlocks(): void {
   Blockly.Blocks['lambda_variable'] = {
     init: function () {
       this.appendDummyInput()
+        .appendField('bound')
         .appendField(new Blockly.FieldTextInput('x'), 'NAME');
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_term');
@@ -15,7 +16,7 @@ export function registerLambdaBlocks(): void {
   Blockly.Blocks['lambda_abstraction'] = {
     init: function () {
       this.appendDummyInput()
-        .appendField('λ')
+        .appendField('lambda, variable')
         .appendField(new Blockly.FieldTextInput('x'), 'PARAM')
         .appendField('.');
       this.appendValueInput('BODY')
@@ -30,12 +31,14 @@ export function registerLambdaBlocks(): void {
 
   Blockly.Blocks['lambda_application'] = {
     init: function () {
+      this.appendDummyInput()
+        .appendField('application of');
       this.appendValueInput('FUNC')
         .setCheck('LambdaTerm')
-        .appendField('func');
+        .appendField('function');
       this.appendValueInput('ARG')
         .setCheck('LambdaTerm')
-        .appendField('arg');
+        .appendField('over');
       this.setOutput(true, 'LambdaTerm');
       this.setInputsInline(false);
       this.setStyle('lambda_term');
@@ -48,9 +51,7 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendValueInput('TERM')
         .setCheck('LambdaTerm')
-        .appendField('(')
-        .appendField('term')
-        .appendField(')');
+        .appendField('grouping');
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_grouping');
       this.setTooltip('Explicit grouping for a lambda term.');
