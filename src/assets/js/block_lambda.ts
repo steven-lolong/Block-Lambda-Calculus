@@ -7,7 +7,7 @@ import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
-import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
+import { installLambdaContextMenuFallback, registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 import { isCommentableLambdaBlock, syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
 import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
@@ -176,6 +176,7 @@ const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
 const workspace = Blockly.inject(blocklyDiv, {
   trashcan: true,
   comments: true,
+  contextMenu: true,
   grid: {
     spacing: 24,
     length: 3,
@@ -199,6 +200,8 @@ const workspace = Blockly.inject(blocklyDiv, {
   renderer: 'zelos',
   theme: lightTheme
 });
+
+installLambdaContextMenuFallback(workspace);
 
 const resizeWorkspace = setupWorkspaceAutoResize(workspace, blocklyDiv);
 
@@ -470,13 +473,23 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   }
 }
 
-function updateTypeComments(): void {
+function addValueComments(): void {
   const report = annotateLambdaWorkspaceTypes(workspace, lastTypeReport ?? undefined);
   lastTypeReport = report;
-  const commentCount = syncTypeInfoComments(workspace, report);
-  const refreshed = refreshCode();
+  const commentableBlocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
+
+  for (const block of commentableBlocks) {
+    const inferredType = report.blockTypes.get(block.id) ?? 'unknown';
+    const issues = report.blockIssues.get(block.id) ?? [];
+    const valueSummary = issues.length > 0
+      ? `Type issues:\n${issues.join('\n')}`
+      : `Inferred type: ${inferredType}`;
+    block.setCommentText(valueSummary);
+  }
+
   saveWorkspaceToAutosave(false);
-  setStatus(`Updated Blockly type/value comments for ${commentCount} Lambda block${commentCount === 1 ? '' : 's'}. ${refreshed.summary}`);
+  const refreshed = refreshCode();
+  setStatus(`Added type/value comments to ${commentableBlocks.length} Lambda block${commentableBlocks.length === 1 ? '' : 's'}. ${refreshed.summary}`);
 }
 
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
@@ -512,11 +525,13 @@ autosaveInterval.addEventListener('input', () => {
   setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
 });
 
-addValueCommentsButton.addEventListener('click', updateTypeComments);
+addValueCommentsButton.addEventListener('click', addValueComments);
 
-workspace.addChangeListener((event) => {
-  updateZoomLabel();
-  if (event.isUiEvent) return;
+workspace.addChangeListener((event: Blockly.Events.Abstract) => {
+  if (event.type === Blockly.Events.VIEWPORT_CHANGE) {
+    updateZoomLabel();
+    return;
+  }
   const report = refreshCode();
   if (report.hasErrors) {
     setStatus(report.summary);
