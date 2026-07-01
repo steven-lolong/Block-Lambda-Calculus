@@ -7,7 +7,7 @@ export interface BlockOrder {
   map: Record<number, string>;
 }
 
-type TermBase = { sourceId?: string };
+type TermBase = { sourceId?: string; sourceAliases?: string[] };
 
 type Term = TermBase & (
   | { kind: 'var'; name: string }
@@ -28,9 +28,29 @@ const MAX_REDUCTION_STEPS = 160;
 const newOrder = (): BlockOrder => ({ order: 0, map: {} });
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
+function unique(values: (string | undefined)[]): string[] {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+}
+
+function termSources(term: Term): string[] {
+  return unique([term.sourceId, ...(term.sourceAliases ?? [])]);
+}
+
 function withSource<T extends Term>(term: T, sourceId?: string): T {
   if (!sourceId) return term;
-  return { ...term, sourceId } as T;
+  if (!term.sourceId) return { ...term, sourceId } as T;
+  if (term.sourceId === sourceId || term.sourceAliases?.includes(sourceId)) return term;
+  return { ...term, sourceAliases: unique([...(term.sourceAliases ?? []), sourceId]) } as T;
+}
+
+function withSources<T extends Term>(term: T, source: Term): T {
+  let next = term;
+  for (const id of termSources(source)) next = withSource(next, id);
+  return next;
+}
+
+function sourcesFrom(term: Term): Pick<TermBase, 'sourceId' | 'sourceAliases'> {
+  return { sourceId: term.sourceId, sourceAliases: term.sourceAliases };
 }
 
 function field(block: Blockly.Block, name: string, fallback = ''): string {
@@ -126,19 +146,19 @@ function freshName(base: string, avoid: Set<string>): string {
 function rename(term: Term, from: string, to: string): Term {
   switch (term.kind) {
     case 'var':
-      return term.name === from ? { kind: 'var', name: to, sourceId: term.sourceId } : clone(term);
+      return term.name === from ? { kind: 'var', name: to, ...sourcesFrom(term) } : clone(term);
     case 'abs':
-      return { kind: 'abs', param: term.param === from ? to : term.param, body: rename(term.body, from, to), sourceId: term.sourceId };
+      return { kind: 'abs', param: term.param === from ? to : term.param, body: rename(term.body, from, to), ...sourcesFrom(term) };
     case 'app':
-      return { kind: 'app', func: rename(term.func, from, to), arg: rename(term.arg, from, to), sourceId: term.sourceId };
+      return { kind: 'app', func: rename(term.func, from, to), arg: rename(term.arg, from, to), ...sourcesFrom(term) };
     case 'let':
-      return { kind: 'let', name: term.name === from ? to : term.name, value: rename(term.value, from, to), body: rename(term.body, from, to), sourceId: term.sourceId };
+      return { kind: 'let', name: term.name === from ? to : term.name, value: rename(term.value, from, to), body: rename(term.body, from, to), ...sourcesFrom(term) };
     case 'numop':
-      return { kind: 'numop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), sourceId: term.sourceId };
+      return { kind: 'numop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), ...sourcesFrom(term) };
     case 'boolop':
-      return { kind: 'boolop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), sourceId: term.sourceId };
+      return { kind: 'boolop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), ...sourcesFrom(term) };
     case 'if':
-      return { kind: 'if', cond: rename(term.cond, from, to), thenTerm: rename(term.thenTerm, from, to), elseTerm: rename(term.elseTerm, from, to), sourceId: term.sourceId };
+      return { kind: 'if', cond: rename(term.cond, from, to), thenTerm: rename(term.thenTerm, from, to), elseTerm: rename(term.elseTerm, from, to), ...sourcesFrom(term) };
     default:
       return clone(term);
   }
@@ -147,36 +167,36 @@ function rename(term: Term, from: string, to: string): Term {
 function substitute(term: Term, name: string, replacement: Term): Term {
   switch (term.kind) {
     case 'var':
-      return term.name === name ? withSource(clone(replacement), term.sourceId) : clone(term);
+      return term.name === name ? withSources(clone(replacement), term) : clone(term);
     case 'abs': {
       if (term.param === name) return clone(term);
       const replacementFree = freeVars(replacement);
       if (!replacementFree.has(term.param)) {
-        return { kind: 'abs', param: term.param, body: substitute(term.body, name, replacement), sourceId: term.sourceId };
+        return { kind: 'abs', param: term.param, body: substitute(term.body, name, replacement), ...sourcesFrom(term) };
       }
       const avoid = union(freeVars(term.body), replacementFree, new Set([name]));
       const fresh = freshName(term.param, avoid);
-      return { kind: 'abs', param: fresh, body: substitute(rename(term.body, term.param, fresh), name, replacement), sourceId: term.sourceId };
+      return { kind: 'abs', param: fresh, body: substitute(rename(term.body, term.param, fresh), name, replacement), ...sourcesFrom(term) };
     }
     case 'app':
-      return { kind: 'app', func: substitute(term.func, name, replacement), arg: substitute(term.arg, name, replacement), sourceId: term.sourceId };
+      return { kind: 'app', func: substitute(term.func, name, replacement), arg: substitute(term.arg, name, replacement), ...sourcesFrom(term) };
     case 'let': {
       const value = substitute(term.value, name, replacement);
-      if (term.name === name) return { kind: 'let', name: term.name, value, body: clone(term.body), sourceId: term.sourceId };
+      if (term.name === name) return { kind: 'let', name: term.name, value, body: clone(term.body), ...sourcesFrom(term) };
       const replacementFree = freeVars(replacement);
       if (!replacementFree.has(term.name)) {
-        return { kind: 'let', name: term.name, value, body: substitute(term.body, name, replacement), sourceId: term.sourceId };
+        return { kind: 'let', name: term.name, value, body: substitute(term.body, name, replacement), ...sourcesFrom(term) };
       }
       const avoid = union(freeVars(term.body), replacementFree, new Set([name]));
       const fresh = freshName(term.name, avoid);
-      return { kind: 'let', name: fresh, value, body: substitute(rename(term.body, term.name, fresh), name, replacement), sourceId: term.sourceId };
+      return { kind: 'let', name: fresh, value, body: substitute(rename(term.body, term.name, fresh), name, replacement), ...sourcesFrom(term) };
     }
     case 'numop':
-      return { kind: 'numop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), sourceId: term.sourceId };
+      return { kind: 'numop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), ...sourcesFrom(term) };
     case 'boolop':
-      return { kind: 'boolop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), sourceId: term.sourceId };
+      return { kind: 'boolop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), ...sourcesFrom(term) };
     case 'if':
-      return { kind: 'if', cond: substitute(term.cond, name, replacement), thenTerm: substitute(term.thenTerm, name, replacement), elseTerm: substitute(term.elseTerm, name, replacement), sourceId: term.sourceId };
+      return { kind: 'if', cond: substitute(term.cond, name, replacement), thenTerm: substitute(term.thenTerm, name, replacement), elseTerm: substitute(term.elseTerm, name, replacement), ...sourcesFrom(term) };
     default:
       return clone(term);
   }
@@ -188,19 +208,19 @@ function isValue(term: Term): boolean {
 
 function computePrimitive(term: Term): Term | null {
   if (term.kind === 'numop' && term.left.kind === 'num' && term.right.kind === 'num') {
-    if (term.op === '+') return { kind: 'num', value: term.left.value + term.right.value, sourceId: term.sourceId };
-    if (term.op === '-') return { kind: 'num', value: term.left.value - term.right.value, sourceId: term.sourceId };
-    if (term.op === '*') return { kind: 'num', value: term.left.value * term.right.value, sourceId: term.sourceId };
-    if (term.op === '/') return { kind: 'num', value: term.right.value === 0 ? 0 : term.left.value / term.right.value, sourceId: term.sourceId };
+    if (term.op === '+') return { kind: 'num', value: term.left.value + term.right.value, ...sourcesFrom(term) };
+    if (term.op === '-') return { kind: 'num', value: term.left.value - term.right.value, ...sourcesFrom(term) };
+    if (term.op === '*') return { kind: 'num', value: term.left.value * term.right.value, ...sourcesFrom(term) };
+    if (term.op === '/') return { kind: 'num', value: term.right.value === 0 ? 0 : term.left.value / term.right.value, ...sourcesFrom(term) };
   }
   if (term.kind === 'boolop') {
     if (term.op === '=' && term.left.kind === term.right.kind) {
-      if (term.left.kind === 'num' && term.right.kind === 'num') return { kind: 'bool', value: term.left.value === term.right.value, sourceId: term.sourceId };
-      if (term.left.kind === 'bool' && term.right.kind === 'bool') return { kind: 'bool', value: term.left.value === term.right.value, sourceId: term.sourceId };
+      if (term.left.kind === 'num' && term.right.kind === 'num') return { kind: 'bool', value: term.left.value === term.right.value, ...sourcesFrom(term) };
+      if (term.left.kind === 'bool' && term.right.kind === 'bool') return { kind: 'bool', value: term.left.value === term.right.value, ...sourcesFrom(term) };
     }
     if (term.left.kind === 'bool' && term.right.kind === 'bool') {
-      if (term.op === 'and') return { kind: 'bool', value: term.left.value && term.right.value, sourceId: term.sourceId };
-      if (term.op === 'or') return { kind: 'bool', value: term.left.value || term.right.value, sourceId: term.sourceId };
+      if (term.op === 'and') return { kind: 'bool', value: term.left.value && term.right.value, ...sourcesFrom(term) };
+      if (term.op === 'or') return { kind: 'bool', value: term.left.value || term.right.value, ...sourcesFrom(term) };
     }
   }
   return null;
@@ -210,19 +230,19 @@ function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boo
   switch (term.kind) {
     case 'app': {
       if (term.func.kind === 'abs' && (kind === 'structure' || isValue(term.arg))) {
-        return { term: withSource(substitute(term.func.body, term.func.param, term.arg), term.sourceId), changed: true };
+        return { term: withSources(substitute(term.func.body, term.func.param, term.arg), term), changed: true };
       }
       const func = reduceOnce(term.func, kind);
-      if (func.changed) return { term: { kind: 'app', func: func.term, arg: term.arg, sourceId: term.sourceId }, changed: true };
+      if (func.changed) return { term: { kind: 'app', func: func.term, arg: term.arg, ...sourcesFrom(term) }, changed: true };
       if (kind === 'value') {
         const arg = reduceOnce(term.arg, kind);
-        if (arg.changed) return { term: { kind: 'app', func: term.func, arg: arg.term, sourceId: term.sourceId }, changed: true };
+        if (arg.changed) return { term: { kind: 'app', func: term.func, arg: arg.term, ...sourcesFrom(term) }, changed: true };
       }
       return { term, changed: false };
     }
     case 'let': {
       const value = kind === 'value' ? evaluate(term.value, kind) : term.value;
-      return { term: withSource(substitute(term.body, term.name, value), term.sourceId), changed: true };
+      return { term: withSources(substitute(term.body, term.name, value), term), changed: true };
     }
     case 'numop':
     case 'boolop': {
@@ -236,13 +256,13 @@ function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boo
     case 'if': {
       const cond = reduceOnce(term.cond, kind);
       if (cond.changed) return { term: { ...term, cond: cond.term }, changed: true };
-      if (term.cond.kind === 'bool') return { term: withSource(clone(term.cond.value ? term.thenTerm : term.elseTerm), term.sourceId), changed: true };
+      if (term.cond.kind === 'bool') return { term: withSources(clone(term.cond.value ? term.thenTerm : term.elseTerm), term), changed: true };
       return { term, changed: false };
     }
     case 'abs': {
       if (kind === 'value') return { term, changed: false };
       const body = reduceOnce(term.body, kind);
-      return body.changed ? { term: { kind: 'abs', param: term.param, body: body.term, sourceId: term.sourceId }, changed: true } : { term, changed: false };
+      return body.changed ? { term: { kind: 'abs', param: term.param, body: body.term, ...sourcesFrom(term) }, changed: true } : { term, changed: false };
     }
     default:
       return { term, changed: false };
@@ -260,7 +280,9 @@ function prettyRuntimeValue(term: Term): string {
 }
 
 function recordRuntimeValues(term: Term, values: Map<string, string>): void {
-  if (term.sourceId && isValue(term)) values.set(term.sourceId, prettyRuntimeValue(term));
+  if (isValue(term)) {
+    for (const id of termSources(term)) values.set(id, prettyRuntimeValue(term));
+  }
 
   switch (term.kind) {
     case 'abs':
@@ -303,7 +325,9 @@ function evaluate(term: Term, kind: ReductionKind, values?: Map<string, string>)
     if (values) recordRuntimeValues(current, values);
   }
 
-  if (values && current.sourceId) values.set(current.sourceId, `stopped after ${MAX_REDUCTION_STEPS} steps: ${pretty(current)}`);
+  if (values) {
+    for (const id of termSources(current)) values.set(id, `stopped after ${MAX_REDUCTION_STEPS} steps: ${pretty(current)}`);
+  }
   return current;
 }
 
