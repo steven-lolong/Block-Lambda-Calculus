@@ -1,10 +1,15 @@
 import * as Blockly from 'blockly';
 import { reducedTextForBlock, runtimeValueTextsForWorkspace } from '../semantics/lambdaReduction';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../type-inference/lambdaTypeInference';
+import { isLambdaStructuralEvent, type LambdaStructuralEvent } from './evaluationDriver';
 
 type StatusSink = (message: string) => void;
 
 type ValueProvider = (block: Blockly.Block) => string;
+
+const installedWorkspaces = new WeakSet<Blockly.Workspace>();
+const scheduledWorkspaces = new WeakSet<Blockly.Workspace>();
+let driverRunning = false;
 
 export function isCommentableLambdaBlock(block: Blockly.Block): boolean {
   return Boolean(block.outputConnection) && block.type.startsWith('lambda_') && block.type !== 'lambda_viz_description';
@@ -22,6 +27,35 @@ function safeReducedValue(block: Blockly.Block): string {
 export function contextualValueProvider(workspace: Blockly.Workspace): ValueProvider {
   const values = runtimeValueTextsForWorkspace(workspace, 'value');
   return (block) => values.get(block.id) ?? safeReducedValue(block);
+}
+
+function scheduleSettledValueRefresh(workspace: Blockly.WorkspaceSvg): void {
+  if (driverRunning || scheduledWorkspaces.has(workspace)) return;
+  scheduledWorkspaces.add(workspace);
+
+  queueMicrotask(() => {
+    scheduledWorkspaces.delete(workspace);
+    driverRunning = true;
+    try {
+      const report = annotateLambdaWorkspaceTypes(workspace);
+      syncTypeInfoComments(workspace, report, contextualValueProvider(workspace));
+      window.dispatchEvent(new CustomEvent('block-lambda:evaluation-settled'));
+    } finally {
+      driverRunning = false;
+    }
+  });
+}
+
+function installSettledEvaluationTrigger(workspace: Blockly.WorkspaceSvg): void {
+  if (installedWorkspaces.has(workspace)) return;
+  installedWorkspaces.add(workspace);
+
+  workspace.addChangeListener((event: Blockly.Events.Abstract) => {
+    if (driverRunning) return;
+    const lambdaEvent = event as LambdaStructuralEvent;
+    if (!isLambdaStructuralEvent(lambdaEvent)) return;
+    scheduleSettledValueRefresh(workspace);
+  });
 }
 
 function indent(text: string, prefix = '  '): string {
@@ -81,6 +115,7 @@ export function syncTypeInfoComments(
   report: LambdaInferenceReport,
   valueForBlock: ValueProvider = contextualValueProvider(workspace)
 ): number {
+  installSettledEvaluationTrigger(workspace);
   const blocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
 
   Blockly.Events.disable();
