@@ -172,7 +172,7 @@ function savedSourceState(block: Blockly.BlockSvg): unknown {
   return Blockly.serialization.blocks.save(block, {
     addInputBlocks: true,
     addNextBlocks: false
-  } as Blockly.serialization.blocks.SaveOptions);
+  } as any);
 }
 
 function annotate(block: Blockly.BlockSvg | null, text: string): void {
