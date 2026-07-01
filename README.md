@@ -32,7 +32,7 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - `int` and `bool` checking for literals, operators, equality, and conditionals,
   - Blockly warning bubbles for type errors and missing inputs,
   - generated-code type comments for top-level terms,
-  - a `?` question icon on each Lambda term block that shows the block's inferred type and reduced value.
+  - a directly clickable `?` type button on each Lambda term block that shows the block's inferred type and reduced value.
 - Generated Lambda Calculus text code with syntax highlighting.
 - Stable three-column IDE design with polished neon-glass colors.
 - Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
@@ -118,7 +118,7 @@ The type vocabulary is intentionally small: `int`, `bool`, type variables such a
 
 The **Add Type Comments** button writes the inferred type and reduced value into each Lambda term block comment. Ill-typed blocks receive Blockly warning bubbles that explain the local type error.
 
-Each Lambda term block also has a small `?` question icon. Clicking it opens a type/value popup for that exact block, including local type errors when inference finds a problem.
+Each Lambda term block also has a small `?` type button. The button is bound directly to the rendered Blockly field, so tapping it opens a type/value popup for that exact block, including local type errors when inference finds a problem.
 
 ## Built-in examples
 
@@ -130,6 +130,7 @@ Use **Examples -> Simple Factorial 5** to load a ready-made factorial workspace.
 - `src/assets/js/block_lambda.ts` — webpack entry script.
 - `src/assets/css/styles.css` — full IDE styling.
 - `src/assets/css/examples.css` — examples menu and submenu styling.
+- `src/assets/css/type-info.css` — type-info button styling.
 - `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks with type-info question icons.
 - `src/core/examples/lambdaExamples.ts` — built-in example workspace definitions and loader.
 - `src/core/generator/lambdaGenerator.ts` — block-to-text generator with optional type annotations.
