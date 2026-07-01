@@ -18,17 +18,19 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - application,
   - parentheses,
   - let binding,
+  - recursive let binding,
   - number,
   - boolean,
   - numeric operator,
   - boolean operator,
   - if/then/else conditional.
 - Examples menu with a submenu for loading built-in workspaces:
-  - Simple Factorial 5, a `factorial` function applied to integer `5`, reducing to `120`.
+  - Standard Factorial 5, a recursive `factorial` definition applied to integer `5`, reducing to `120`.
 - Hindley-Milner-style type inference for Lambda blocks:
   - fresh type variables for lambda parameters,
   - function-type inference for abstraction and application,
   - let-polymorphism through generalized type schemes,
+  - monomorphic recursive inference for `letrec` bindings,
   - `int` and `bool` checking for literals, operators, equality, and conditionals,
   - Blockly warning bubbles for type errors and missing inputs,
   - generated-code type comments for top-level terms,
@@ -114,13 +116,19 @@ The type-inference module lives in `src/core/type-inference/lambdaTypeInference.
 lambda x. x
 ```
 
-The type vocabulary is intentionally small: `int`, `bool`, type variables such as `'a`, and function types.
+The type vocabulary is intentionally small: `int`, `bool`, type variables such as `'a`, and function types. Recursive `letrec` bindings are inferred monomorphically, which is enough for examples such as standard factorial.
 
 Every Lambda term block receives a native Blockly comment icon. Opening that comment shows a pretty-printed report with the block kind, inferred type, reduced value, status, and local type issues when they exist. The **Add Type Comments** button can be used to force-refresh those comment reports.
 
 ## Built-in examples
 
-Use **Examples -> Simple Factorial 5** to load a ready-made factorial workspace. The example binds `factorial` to a function and evaluates the application `factorial 5`. The function body expands the arithmetic needed for the integer input `5`, so the current non-recursive evaluator can reduce it to `120` while still demonstrating function application.
+Use **Examples -> Standard Factorial 5** to load a ready-made recursive factorial workspace. The example uses the standard definition:
+
+```text
+letrec factorial = λn. if n = 0 then 1 else n * factorial (n - 1) in factorial 5
+```
+
+The recursive evaluator reduces the application to `120`.
 
 ## Main files
 
