@@ -17,12 +17,15 @@ function dispatchContextMenuAction(block: Blockly.BlockSvg, action: LambdaContex
 function installLambdaContextMenu(block: Blockly.Block): void {
   const blockSvg = block as Blockly.BlockSvg & { customContextMenu?: (options: CustomMenuOption[]) => void };
   blockSvg.customContextMenu = (options: CustomMenuOption[]) => {
+    options.push({
+      text: 'Show Type and Value',
+      enabled: true,
+      callback: () => dispatchContextMenuAction(blockSvg, 'type-info')
+    });
+
+    if (blockSvg.type !== 'lambda_application') return;
+
     options.push(
-      {
-        text: 'Show Type and Value',
-        enabled: true,
-        callback: () => dispatchContextMenuAction(blockSvg, 'type-info')
-      },
       {
         text: 'Evaluate - Call-by-Structure',
         enabled: true,
