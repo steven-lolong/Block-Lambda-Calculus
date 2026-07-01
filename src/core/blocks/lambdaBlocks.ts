@@ -1,12 +1,7 @@
 import * as Blockly from 'blockly';
 
 type LambdaContextMenuAction = 'type-info' | 'structure' | 'value';
-
-type CustomMenuOption = {
-  text: string;
-  enabled: boolean;
-  callback: () => void;
-};
+type BlockContextMenuOptions = Array<Blockly.ContextMenuOption | Blockly.LegacyContextMenuOption>;
 
 function dispatchContextMenuAction(block: Blockly.BlockSvg, action: LambdaContextMenuAction): void {
   window.dispatchEvent(new CustomEvent('block-lambda:context-menu-action', {
@@ -15,8 +10,8 @@ function dispatchContextMenuAction(block: Blockly.BlockSvg, action: LambdaContex
 }
 
 function installLambdaContextMenu(block: Blockly.Block): void {
-  const blockSvg = block as Blockly.BlockSvg & { customContextMenu?: (options: CustomMenuOption[]) => void };
-  blockSvg.customContextMenu = (options: CustomMenuOption[]) => {
+  const blockSvg = block as Blockly.BlockSvg;
+  blockSvg.customContextMenu = (options: BlockContextMenuOptions) => {
     options.push({
       text: 'Show Type and Value',
       enabled: true,
