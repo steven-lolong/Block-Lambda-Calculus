@@ -1,0 +1,18 @@
+.lambda-type-info-icon,
+.lambda-type-info-click-target {
+  cursor: pointer;
+  pointer-events: all;
+  font-weight: 950;
+}
+
+.lambda-type-info-icon {
+  fill: var(--accent-amber, #eed49f);
+}
+
+.lambda-type-info-click-target:hover .lambda-type-info-icon,
+.lambda-type-info-click-target:focus .lambda-type-info-icon,
+.lambda-type-info-icon:hover,
+.lambda-type-info-icon:focus {
+  fill: var(--accent-cyan, #91d7e3);
+  filter: drop-shadow(0 0 4px rgba(145, 215, 227, 0.72));
+}
