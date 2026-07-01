@@ -8,6 +8,9 @@ type LambdaContextMenuEvent = CustomEvent<{
   action: LambdaContextMenuAction;
   block?: Blockly.BlockSvg;
 }>;
+type RegistryWithOptionalLookup = Blockly.ContextMenuRegistry.Registry & {
+  getItem?: (id: string) => unknown;
+};
 const ScopeType = Blockly.ContextMenuRegistry.ScopeType;
 type Item = Blockly.ContextMenuRegistry.RegistryItem;
 
@@ -178,12 +181,17 @@ export function installLambdaContextMenuFallback(workspace: Blockly.WorkspaceSvg
   target?.addEventListener('contextmenu', (event) => showFallbackContextMenu(workspace, event as MouseEvent), true);
 }
 
+function isContextMenuRegistered(registry: RegistryWithOptionalLookup, id: string): boolean {
+  if (typeof registry.getItem !== 'function') return false;
+  return !!registry.getItem(id);
+}
+
 export function registerLambdaContextMenus(): void {
   installPerBlockContextMenuBridge();
   if (registered) return;
   registered = true;
 
-  const registry = Blockly.ContextMenuRegistry.registry;
+  const registry = Blockly.ContextMenuRegistry.registry as RegistryWithOptionalLookup;
   const items: Item[] = [
     {
       id: 'lambdaShowTypeAndValue',
@@ -212,6 +220,6 @@ export function registerLambdaContextMenus(): void {
   ];
 
   for (const item of items) {
-    if (!registry.getItem(item.id)) registry.register(item);
+    if (!isContextMenuRegistered(registry, item.id)) registry.register(item);
   }
 }
