@@ -8,8 +8,9 @@ import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { installLambdaContextMenuFallback, registerLambdaContextMenus } from '../../core/ui/contextMenus';
+import { installLambdaEvaluationDriver } from '../../core/ui/evaluationDriver';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
-import { isCommentableLambdaBlock, syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
+import { syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
 import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
 
 registerLambdaBlocks();
@@ -199,7 +200,7 @@ const workspace = Blockly.inject(blocklyDiv, {
   },
   renderer: 'zelos',
   theme: lightTheme
-});
+} as Blockly.BlocklyOptions);
 
 installLambdaContextMenuFallback(workspace);
 
@@ -219,14 +220,14 @@ function tokenSpan(className: string, value: string): string {
 }
 
 function highlightLambdaCode(code: string): string {
-  const tokenPattern = /(--[^\n]*|\b(?:let|in|if|then|else|and|or|true|false)\b|[λ.()=+\-*/]|\b\d+(?:\.\d+)?\b|[A-Za-z_][A-Za-z0-9_']*|□|\s+|.)/gu;
+  const tokenPattern = /(--[^\n]*|\b(?:let|letrec|in|if|then|else|and|or|true|false|fix)\b|[λ.()=+\-*/]|\b\d+(?:\.\d+)?\b|[A-Za-z_][A-Za-z0-9_']*|□|\s+|.)/gu;
   const tokens = code.match(tokenPattern) ?? [];
 
   return tokens.map((token) => {
     if (/^--/.test(token)) return tokenSpan('syntax-comment', token);
     if (/^\s+$/.test(token)) return escapeHtml(token);
     if (token === '□') return tokenSpan('syntax-hole', token);
-    if (/^(?:let|in|if|then|else|and|or|true|false|[λ.()=+\-*/]|\d+(?:\.\d+)?)$/.test(token)) {
+    if (/^(?:let|letrec|in|if|then|else|and|or|true|false|fix|[λ.()=+\-*/]|\d+(?:\.\d+)?)$/.test(token)) {
       return tokenSpan('syntax-terminal', token);
     }
     if (/^[A-Za-z_][A-Za-z0-9_']*$/.test(token)) {
@@ -305,6 +306,12 @@ function refreshCode(): LambdaInferenceReport {
   updateBlockCount();
   updateZoomLabel();
   return report;
+}
+
+function refreshAfterWorkspaceChange(): void {
+  const report = refreshCode();
+  if (report.hasErrors) setStatus(report.summary);
+  scheduleAutosave();
 }
 
 function clearWorkspace(): void {
@@ -473,23 +480,13 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   }
 }
 
-function addValueComments(): void {
+function updateTypeComments(): void {
   const report = annotateLambdaWorkspaceTypes(workspace, lastTypeReport ?? undefined);
   lastTypeReport = report;
-  const commentableBlocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
-
-  for (const block of commentableBlocks) {
-    const inferredType = report.blockTypes.get(block.id) ?? 'unknown';
-    const issues = report.blockIssues.get(block.id) ?? [];
-    const valueSummary = issues.length > 0
-      ? `Type issues:\n${issues.join('\n')}`
-      : `Inferred type: ${inferredType}`;
-    block.setCommentText(valueSummary);
-  }
-
-  saveWorkspaceToAutosave(false);
+  const commentCount = syncTypeInfoComments(workspace, report);
   const refreshed = refreshCode();
-  setStatus(`Added type/value comments to ${commentableBlocks.length} Lambda block${commentableBlocks.length === 1 ? '' : 's'}. ${refreshed.summary}`);
+  saveWorkspaceToAutosave(false);
+  setStatus(`Updated Blockly type/value comments for ${commentCount} Lambda block${commentCount === 1 ? '' : 's'}. ${refreshed.summary}`);
 }
 
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
@@ -525,18 +522,11 @@ autosaveInterval.addEventListener('input', () => {
   setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
 });
 
-addValueCommentsButton.addEventListener('click', addValueComments);
+addValueCommentsButton.addEventListener('click', updateTypeComments);
 
-workspace.addChangeListener((event: Blockly.Events.Abstract) => {
-  if (event.type === Blockly.Events.VIEWPORT_CHANGE) {
-    updateZoomLabel();
-    return;
-  }
-  const report = refreshCode();
-  if (report.hasErrors) {
-    setStatus(report.summary);
-  }
-  scheduleAutosave();
+installLambdaEvaluationDriver(workspace, {
+  onViewport: updateZoomLabel,
+  onSettled: refreshAfterWorkspaceChange
 });
 
 window.addEventListener('block-lambda:refresh-code', () => {
