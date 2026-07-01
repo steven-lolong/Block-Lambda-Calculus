@@ -1,6 +1,7 @@
 import * as Blockly from 'blockly';
 import 'blockly/blocks';
 import '../css/styles.css';
+import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
@@ -10,6 +11,7 @@ import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 import { installTypeInfoPopup } from '../../core/ui/typeInfoPopup';
 import { reducedTextForBlock } from '../../core/semantics/lambdaReduction';
+import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
 
 registerLambdaBlocks();
 registerLambdaContextMenus();
@@ -53,6 +55,8 @@ const autosaveTime = requireElement<HTMLElement>('autosaveTime');
 const autosaveInterval = requireElement<HTMLInputElement>('autosaveInterval');
 const autosaveIntervalLabel = requireElement<HTMLElement>('autosaveIntervalLabel');
 const addValueCommentsButton = requireElement<HTMLButtonElement>('addValueComments');
+const examplesMenuButton = requireElement<HTMLButtonElement>('examplesMenuButton');
+const examplesSubMenu = requireElement<HTMLElement>('examplesSubMenu');
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
@@ -452,6 +456,22 @@ function loadAutosave(): void {
   }
 }
 
+function loadExampleWorkspace(exampleId: LambdaExampleId): void {
+  try {
+    setVisualizationOpen(false);
+    const example = loadLambdaExample(workspace, exampleId);
+    currentWorkspaceFileName = example.fileName;
+    setWorkspaceTitle(currentWorkspaceFileName);
+    saveWorkspaceToAutosave(false);
+    const report = refreshCode();
+    resizeWorkspace();
+    setStatus(`Loaded example: ${example.title}. ${report.summary}`);
+  } catch (error) {
+    console.error(error);
+    setStatus('Could not load the selected example.');
+  }
+}
+
 function isCommentableLambdaBlock(block: Blockly.Block): boolean {
   return Boolean(block.outputConnection) && block.type.startsWith('lambda_') && block.type !== 'lambda_viz_description';
 }
@@ -504,6 +524,8 @@ initVisualizationPanel({
   darkTheme,
   onResize: resizeWorkspace
 });
+
+installExampleMenu(examplesMenuButton, examplesSubMenu, loadExampleWorkspace);
 
 autosaveInterval.addEventListener('input', () => {
   autosaveIntervalMinutes = clampAutosaveInterval(Number(autosaveInterval.value));
