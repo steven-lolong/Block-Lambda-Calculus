@@ -38,6 +38,19 @@
             </button>
           </div>
 
+          <div class="action-group example-actions" aria-label="Example actions">
+            <div class="example-menu-wrapper">
+              <button id="examplesMenuButton" class="ghost-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="examplesSubMenu">
+                <span class="button-icon" aria-hidden="true">▤</span> Examples
+              </button>
+              <div id="examplesSubMenu" class="example-submenu" role="menu" hidden>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="simple-factorial">
+                  <span class="example-menu-title">Simple Factorial 5</span>
+                  <span class="example-menu-description">Load 5 * 4 * 3 * 2 * 1 as a Lambda workspace.</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div class="action-group run-actions" aria-label="Workspace actions">
             <button id="refreshCode" class="ghost-button" type="button">
