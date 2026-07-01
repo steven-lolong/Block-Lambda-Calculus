@@ -2,6 +2,7 @@ import * as Blockly from 'blockly';
 import 'blockly/blocks';
 import '../css/styles.css';
 import '../css/examples.css';
+import '../css/type-info.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
