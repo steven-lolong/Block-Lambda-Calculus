@@ -1,40 +1,5 @@
 import * as Blockly from 'blockly';
 
-type LambdaContextMenuAction = 'type-info' | 'structure' | 'value';
-type BlockContextMenuOptions = unknown[];
-
-function dispatchContextMenuAction(block: Blockly.BlockSvg, action: LambdaContextMenuAction): void {
-  window.dispatchEvent(new CustomEvent('block-lambda:context-menu-action', {
-    detail: { action, block }
-  }));
-}
-
-function installLambdaContextMenu(block: Blockly.Block): void {
-  const blockSvg = block as Blockly.BlockSvg;
-  blockSvg.customContextMenu = (options: BlockContextMenuOptions) => {
-    options.push({
-      text: 'Show Type and Value',
-      enabled: true,
-      callback: () => dispatchContextMenuAction(blockSvg, 'type-info')
-    });
-
-    if (blockSvg.type !== 'lambda_application') return;
-
-    options.push(
-      {
-        text: 'Evaluate - Call-by-Structure',
-        enabled: true,
-        callback: () => dispatchContextMenuAction(blockSvg, 'structure')
-      },
-      {
-        text: 'Evaluate - Call-by-Value',
-        enabled: true,
-        callback: () => dispatchContextMenuAction(blockSvg, 'value')
-      }
-    );
-  };
-}
-
 export function registerLambdaBlocks(): void {
   Blockly.Blocks['lambda_variable'] = {
     init: function () {
@@ -45,7 +10,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_term');
       this.setTooltip('A lambda-calculus variable. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -62,7 +26,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_binding');
       this.setTooltip('Lambda abstraction: λx. body. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -81,7 +44,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_term');
       this.setTooltip('Function application: f x. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -94,7 +56,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_grouping');
       this.setTooltip('Explicit grouping for a lambda term. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -113,7 +74,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_binding');
       this.setTooltip('Let binding: let id = value in body. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -132,7 +92,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_binding');
       this.setTooltip('Recursive let binding: letrec f = value in body. Use it for recursive functions such as factorial.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -145,7 +104,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_literal');
       this.setTooltip('A numeric literal for examples and encodings. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -161,7 +119,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_literal');
       this.setTooltip('A boolean literal for examples and encodings. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -185,7 +142,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_operator');
       this.setTooltip('Numeric operator: left op right. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -208,7 +164,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_operator');
       this.setTooltip('Boolean operator: left and/or/= right. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
@@ -230,7 +185,6 @@ export function registerLambdaBlocks(): void {
       this.setStyle('lambda_control');
       this.setTooltip('Conditional expression: if condition then true-branch else false-branch. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
-      installLambdaContextMenu(this);
     }
   };
 
