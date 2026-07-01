@@ -77,6 +77,24 @@ export function registerLambdaBlocks(): void {
     }
   };
 
+  Blockly.Blocks['lambda_letrec'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField('letrec')
+        .appendField(new Blockly.FieldTextInput('factorial'), 'NAME');
+      this.appendValueInput('VALUE')
+        .setCheck('LambdaTerm')
+        .appendField('=');
+      this.appendValueInput('BODY')
+        .setCheck('LambdaTerm')
+        .appendField('in');
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_binding');
+      this.setTooltip('Recursive let binding: letrec f = value in body. Use it for recursive functions such as factorial.');
+      this.setHelpUrl('');
+    }
+  };
+
   Blockly.Blocks['lambda_number'] = {
     init: function () {
       this.appendDummyInput()
