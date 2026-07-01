@@ -49,6 +49,10 @@ function updateViewportHeightVariable(): void {
   document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
 }
 
+function isPhoneLayout(): boolean {
+  return window.matchMedia('(max-width: 780px)').matches;
+}
+
 export function setupWorkspaceAutoResize(
   workspace: Blockly.WorkspaceSvg,
   resizeRoot: HTMLElement
@@ -158,6 +162,7 @@ export function setupPanelControls(
       showCodeFromWorkspace.setAttribute('aria-expanded', String(!hidden));
       showCodeFromWorkspace.setAttribute('aria-label', 'Show generated code');
       showCodeFromWorkspace.title = 'Show generated code';
+      showCodeFromWorkspace.disabled = !hidden;
     }
   };
 
@@ -178,14 +183,36 @@ export function setupPanelControls(
   toggleToolboxPanel?.addEventListener('click', toggleToolboxVisibility);
   showToolboxFromWorkspace?.addEventListener('click', toggleToolboxVisibility);
 
-  const toggleCodeVisibility = () => {
-    app?.classList.toggle('code-hidden');
+  const setCodeVisibility = (visible: boolean, scrollToPanel = false) => {
+    app?.classList.toggle('code-hidden', !visible);
     renderCodeToggleState();
     updateLayout();
+
+    if (visible && scrollToPanel && codePanel instanceof HTMLElement) {
+      window.setTimeout(() => {
+        codePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        codePanel.focus({ preventScroll: true });
+      }, isPhoneLayout() ? 80 : 0);
+    }
+  };
+
+  const toggleCodeVisibility = () => {
+    const hidden = app?.classList.contains('code-hidden') ?? false;
+    setCodeVisibility(hidden, hidden && isPhoneLayout());
   };
 
   toggleCodePanel?.addEventListener('click', toggleCodeVisibility);
-  showCodeFromWorkspace?.addEventListener('click', toggleCodeVisibility);
+  showCodeFromWorkspace?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setCodeVisibility(true, true);
+  });
+  showCodeFromWorkspace?.addEventListener('pointerup', (event) => {
+    if (!isPhoneLayout()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setCodeVisibility(true, true);
+  });
 
   refreshCode?.addEventListener('click', () => {
     options.onRefreshCode();
@@ -251,6 +278,10 @@ export function setupPanelControls(
 
   renderToolboxToggleState();
   renderCodeToggleState();
+
+  if (codePanel instanceof HTMLElement) {
+    codePanel.tabIndex = -1;
+  }
 
   if (!codePanel || !resizeHandle) return;
 
