@@ -2,7 +2,6 @@ import * as Blockly from 'blockly';
 import 'blockly/blocks';
 import '../css/styles.css';
 import '../css/examples.css';
-import '../css/type-info.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
@@ -10,8 +9,7 @@ import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
-import { installTypeInfoPopup } from '../../core/ui/typeInfoPopup';
-import { reducedTextForBlock } from '../../core/semantics/lambdaReduction';
+import { isCommentableLambdaBlock, syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
 import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
 
 registerLambdaBlocks();
@@ -248,8 +246,6 @@ function setStatus(message: string): void {
   statusLine.textContent = message;
 }
 
-installTypeInfoPopup(workspace, blocklyDiv, setStatus);
-
 function getDisplayFileName(fileName: string): string {
   return fileName.replace(/\.blc$/i, '');
 }
@@ -302,6 +298,7 @@ function refreshCode(): LambdaInferenceReport {
   });
   codeOutput.dataset.rawCode = code;
   codeOutput.innerHTML = renderHighlightedCodeLines(code);
+  syncTypeInfoComments(workspace, report);
   updateBlockCount();
   updateZoomLabel();
   return report;
@@ -473,36 +470,13 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   }
 }
 
-function isCommentableLambdaBlock(block: Blockly.Block): boolean {
-  return Boolean(block.outputConnection) && block.type.startsWith('lambda_') && block.type !== 'lambda_viz_description';
-}
-
-function addValueComments(): void {
+function updateTypeComments(): void {
   const report = annotateLambdaWorkspaceTypes(workspace, lastTypeReport ?? undefined);
   lastTypeReport = report;
-  const blocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
-
-  Blockly.Events.disable();
-  try {
-    for (const block of blocks) {
-      try {
-        const inferredType = report.blockTypes.get(block.id) ?? 'unknown';
-        const issues = report.blockIssues.get(block.id) ?? [];
-        const typeText = issues.length > 0
-          ? `type error:\n${issues.join('\n')}\npartial type:\n${inferredType}`
-          : `type:\n${inferredType}`;
-        block.setCommentText(`The Lambda Term block\n${typeText}\nvalue:\n${reducedTextForBlock(block, 'value')}`);
-      } catch {
-        /* A single detached or invalid block should not abort the refresh. */
-      }
-    }
-  } finally {
-    Blockly.Events.enable();
-  }
-
+  const commentCount = syncTypeInfoComments(workspace, report);
   const refreshed = refreshCode();
   saveWorkspaceToAutosave(false);
-  setStatus(`Added type/value comments to ${blocks.length} Lambda block${blocks.length === 1 ? '' : 's'}. ${refreshed.summary}`);
+  setStatus(`Updated Blockly type/value comments for ${commentCount} Lambda block${commentCount === 1 ? '' : 's'}. ${refreshed.summary}`);
 }
 
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
@@ -538,7 +512,7 @@ autosaveInterval.addEventListener('input', () => {
   setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
 });
 
-addValueCommentsButton.addEventListener('click', addValueComments);
+addValueCommentsButton.addEventListener('click', updateTypeComments);
 
 workspace.addChangeListener((event) => {
   updateZoomLabel();
