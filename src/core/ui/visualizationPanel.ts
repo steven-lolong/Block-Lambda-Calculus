@@ -60,11 +60,17 @@ function currentTheme(): Blockly.Theme {
   return mode === 'dark' ? options!.darkTheme : options!.lightTheme;
 }
 
+function blockIsDisposed(block: Blockly.BlockSvg): boolean {
+  const disposable = block as Blockly.BlockSvg & { isDisposed?: () => boolean; disposed?: boolean };
+  if (typeof disposable.isDisposed === 'function') return disposable.isDisposed();
+  return disposable.disposed === true;
+}
+
 function selectedBlock(kind: VizKind): Blockly.BlockSvg | null {
   const view = views[kind];
   if (!view.sourceWorkspace || !view.sourceBlockId) return null;
   const block = view.sourceWorkspace.getBlockById(view.sourceBlockId) as Blockly.BlockSvg | null;
-  return block && !block.isDisposed() ? block : null;
+  return block && !blockIsDisposed(block) ? block : null;
 }
 
 function injectWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
@@ -167,7 +173,8 @@ function renderView(kind: VizKind): void {
       ? renderLambdaReduction(block, workspace, kind)
       : renderCopiedTerm(block, workspace, kind);
     Blockly.svgResize(workspace);
-    arrangeTopBlocks(workspace);
+    if (view.order) arrangeBlocksVertically(workspace, view.order);
+    else arrangeTopBlocks(workspace);
     updateInfo();
   } catch (error) {
     console.error(error);
