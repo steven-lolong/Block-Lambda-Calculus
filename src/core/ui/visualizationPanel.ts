@@ -15,6 +15,8 @@ type VisualizationOptions = {
   onResize: () => void;
 };
 
+type SerializedBlockState = Record<string, unknown>;
+
 interface View {
   workspace: Blockly.WorkspaceSvg | null;
   block: Blockly.BlockSvg | null;
@@ -129,10 +131,15 @@ function renderEmptyMessage(kind: VizKind, message: string): void {
   updateInfo();
 }
 
-function stripIds<T>(state: T): T {
-  if (!state || typeof state !== 'object') return state;
-  if (Array.isArray(state)) return state.map(stripIds) as T;
-  const copy = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
+function isObjectRecord(value: unknown): value is SerializedBlockState {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function stripIds(state: unknown): unknown {
+  if (Array.isArray(state)) return state.map(stripIds);
+  if (!isObjectRecord(state)) return state;
+
+  const copy: SerializedBlockState = { ...state };
   delete copy.id;
 
   const inputs = copy.inputs as Record<string, { block?: unknown }> | undefined;
@@ -144,12 +151,12 @@ function stripIds<T>(state: T): T {
 
   const next = copy.next as { block?: unknown } | undefined;
   if (next?.block) next.block = stripIds(next.block);
-  return copy as T;
+  return copy;
 }
 
 function appendState(workspace: Blockly.WorkspaceSvg, state: unknown): Blockly.BlockSvg | null {
   if (!state) return null;
-  return Blockly.serialization.blocks.append(stripIds(state), workspace) as Blockly.BlockSvg;
+  return Blockly.serialization.blocks.append(stripIds(state) as any, workspace) as Blockly.BlockSvg;
 }
 
 function label(workspace: Blockly.WorkspaceSvg, text: string): Blockly.BlockSvg {
