@@ -14,6 +14,7 @@ type Term = TermBase & (
   | { kind: 'abs'; param: string; body: Term }
   | { kind: 'app'; func: Term; arg: Term }
   | { kind: 'let'; name: string; value: Term; body: Term }
+  | { kind: 'letrec'; name: string; value: Term; body: Term }
   | { kind: 'num'; value: number }
   | { kind: 'bool'; value: boolean }
   | { kind: 'numop'; op: string; left: Term; right: Term }
@@ -22,8 +23,7 @@ type Term = TermBase & (
   | { kind: 'hole'; label: string }
 );
 
-const FULL_BLOCK = { addInputBlocks: true, addNextBlocks: false } as any;
-const MAX_REDUCTION_STEPS = 160;
+const MAX_REDUCTION_STEPS = 320;
 
 const newOrder = (): BlockOrder => ({ order: 0, map: {} });
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -80,6 +80,8 @@ function blockToTerm(block: Blockly.Block | null): Term {
       return withSource(blockToTerm(child(block, 'TERM')), sourceId);
     case 'lambda_let':
       return { kind: 'let', name: field(block, 'NAME', 'id'), value: blockToTerm(child(block, 'VALUE')), body: blockToTerm(child(block, 'BODY')), sourceId };
+    case 'lambda_letrec':
+      return { kind: 'letrec', name: field(block, 'NAME', 'f'), value: blockToTerm(child(block, 'VALUE')), body: blockToTerm(child(block, 'BODY')), sourceId };
     case 'lambda_number':
       return { kind: 'num', value: Number(field(block, 'VALUE', '0')) || 0, sourceId };
     case 'lambda_boolean':
@@ -123,6 +125,11 @@ function freeVars(term: Term): Set<string> {
       vars.delete(term.name);
       return vars;
     }
+    case 'letrec': {
+      const vars = union(freeVars(term.value), freeVars(term.body));
+      vars.delete(term.name);
+      return vars;
+    }
     case 'numop':
     case 'boolop':
       return union(freeVars(term.left), freeVars(term.right));
@@ -153,6 +160,8 @@ function rename(term: Term, from: string, to: string): Term {
       return { kind: 'app', func: rename(term.func, from, to), arg: rename(term.arg, from, to), ...sourcesFrom(term) };
     case 'let':
       return { kind: 'let', name: term.name === from ? to : term.name, value: rename(term.value, from, to), body: rename(term.body, from, to), ...sourcesFrom(term) };
+    case 'letrec':
+      return { kind: 'letrec', name: term.name === from ? to : term.name, value: rename(term.value, from, to), body: rename(term.body, from, to), ...sourcesFrom(term) };
     case 'numop':
       return { kind: 'numop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), ...sourcesFrom(term) };
     case 'boolop':
@@ -191,6 +200,17 @@ function substitute(term: Term, name: string, replacement: Term): Term {
       const fresh = freshName(term.name, avoid);
       return { kind: 'let', name: fresh, value, body: substitute(rename(term.body, term.name, fresh), name, replacement), ...sourcesFrom(term) };
     }
+    case 'letrec': {
+      if (term.name === name) return clone(term);
+      const replacementFree = freeVars(replacement);
+      if (!replacementFree.has(term.name)) {
+        return { kind: 'letrec', name: term.name, value: substitute(term.value, name, replacement), body: substitute(term.body, name, replacement), ...sourcesFrom(term) };
+      }
+      const avoid = union(freeVars(term.value), freeVars(term.body), replacementFree, new Set([name]));
+      const fresh = freshName(term.name, avoid);
+      const renamed = rename(term, term.name, fresh);
+      return substitute(renamed, name, replacement);
+    }
     case 'numop':
       return { kind: 'numop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), ...sourcesFrom(term) };
     case 'boolop':
@@ -200,6 +220,10 @@ function substitute(term: Term, name: string, replacement: Term): Term {
     default:
       return clone(term);
   }
+}
+
+function recursiveClosure(term: Extract<Term, { kind: 'letrec' }>): Term {
+  return { kind: 'letrec', name: term.name, value: term.value, body: term.value, ...sourcesFrom(term) };
 }
 
 function isValue(term: Term): boolean {
@@ -243,6 +267,10 @@ function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boo
     case 'let': {
       const value = kind === 'value' ? evaluate(term.value, kind) : term.value;
       return { term: withSources(substitute(term.body, term.name, value), term), changed: true };
+    }
+    case 'letrec': {
+      const closure = recursiveClosure(term);
+      return { term: withSources(substitute(term.body, term.name, closure), term), changed: true };
     }
     case 'numop':
     case 'boolop': {
@@ -293,6 +321,7 @@ function recordRuntimeValues(term: Term, values: Map<string, string>): void {
       recordRuntimeValues(term.arg, values);
       break;
     case 'let':
+    case 'letrec':
       recordRuntimeValues(term.value, values);
       recordRuntimeValues(term.body, values);
       break;
@@ -353,6 +382,8 @@ function termToState(term: Term): any {
       return { type: 'lambda_application', inputs: { FUNC: { block: termToState(term.func) }, ARG: { block: termToState(term.arg) } } };
     case 'let':
       return { type: 'lambda_let', fields: { NAME: term.name }, inputs: { VALUE: { block: termToState(term.value) }, BODY: { block: termToState(term.body) } } };
+    case 'letrec':
+      return { type: 'lambda_letrec', fields: { NAME: term.name }, inputs: { VALUE: { block: termToState(term.value) }, BODY: { block: termToState(term.body) } } };
     case 'num':
       return { type: 'lambda_number', fields: { VALUE: term.value } };
     case 'bool':
@@ -374,6 +405,7 @@ function pretty(term: Term): string {
     case 'abs': return `λ${term.param}. ${pretty(term.body)}`;
     case 'app': return `(${pretty(term.func)} ${pretty(term.arg)})`;
     case 'let': return `let ${term.name} = ${pretty(term.value)} in ${pretty(term.body)}`;
+    case 'letrec': return `letrec ${term.name} = ${pretty(term.value)} in ${pretty(term.body)}`;
     case 'num': return String(term.value);
     case 'bool': return String(term.value);
     case 'numop':
