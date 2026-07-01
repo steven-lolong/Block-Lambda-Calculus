@@ -8,11 +8,12 @@ type LambdaContextMenuEvent = CustomEvent<{
   action: LambdaContextMenuAction;
   block?: Blockly.BlockSvg;
 }>;
-type RegistryWithOptionalLookup = Blockly.ContextMenuRegistry.Registry & {
-  getItem?: (id: string) => unknown;
-};
 const ScopeType = Blockly.ContextMenuRegistry.ScopeType;
 type Item = Blockly.ContextMenuRegistry.RegistryItem;
+type RegistryWithOptionalLookup = {
+  register: (item: Item) => void;
+  getItem?: (id: string) => unknown;
+};
 
 let registered = false;
 let eventBridgeRegistered = false;
