@@ -38,14 +38,6 @@
             </button>
           </div>
 
-          <div class="action-group view-actions" aria-label="View actions">
-            <button id="toggleToolbox" class="ghost-button" type="button" aria-expanded="true">
-              <span class="button-icon" aria-hidden="true">◀</span> Hide Toolbox
-            </button>
-            <button id="toggleCode" class="ghost-button" type="button" aria-expanded="true">
-              <span class="button-icon" aria-hidden="true">▶</span> Hide Code
-            </button>
-          </div>
 
           <div class="action-group run-actions" aria-label="Workspace actions">
             <button id="refreshCode" class="ghost-button" type="button">
@@ -87,10 +79,18 @@
 
         <section class="workspace-panel" aria-label="Blockly workspace">
           <div class="panel-header workspace-header">
-            <span><span class="panel-icon" aria-hidden="true">⬡</span> <span id="workspaceTitle" class="workspace-title">Workspace</span></span>
+            <div class="workspace-header-left">
+              <button id="showToolboxFromWorkspace" class="small-button workspace-restore-button restore-toolbox-button" type="button" hidden aria-label="Show toolbox" title="Show toolbox">
+                <span aria-hidden="true">◀</span> Show Toolbox
+              </button>
+              <span><span class="panel-icon" aria-hidden="true">⬡</span> <span id="workspaceTitle" class="workspace-title">Workspace</span></span>
+            </div>
             <div class="workspace-controls">
               <span id="workspaceFileLabel" class="workspace-badge workspace-file-label" title="Current workspace file"></span>
               <span id="zoomLabel" class="workspace-badge" title="Blockly zoom level">92%</span>
+              <button id="showCodeFromWorkspace" class="small-button workspace-restore-button restore-code-button" type="button" hidden aria-label="Show generated code" title="Show generated code">
+                Show Code <span aria-hidden="true">▶</span>
+              </button>
             </div>
           </div>
           <div id="blocklyArea" class="blockly-area">
