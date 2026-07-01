@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { reducedTextForBlock } from '../semantics/lambdaReduction';
+import { reducedTextForBlock, runtimeValueTextsForWorkspace } from '../semantics/lambdaReduction';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../type-inference/lambdaTypeInference';
 
 type StatusSink = (message: string) => void;
@@ -17,6 +17,11 @@ function safeReducedValue(block: Blockly.Block): string {
     const message = error instanceof Error ? error.message : String(error);
     return `Could not compute value: ${message}`;
   }
+}
+
+export function contextualValueProvider(workspace: Blockly.Workspace): ValueProvider {
+  const values = runtimeValueTextsForWorkspace(workspace, 'value');
+  return (block) => values.get(block.id) ?? safeReducedValue(block);
 }
 
 function indent(text: string, prefix = '  '): string {
@@ -74,7 +79,7 @@ export function prettyTypeValueComment(
 export function syncTypeInfoComments(
   workspace: Blockly.WorkspaceSvg,
   report: LambdaInferenceReport,
-  valueForBlock: ValueProvider = safeReducedValue
+  valueForBlock: ValueProvider = contextualValueProvider(workspace)
 ): number {
   const blocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
 
@@ -99,7 +104,7 @@ export function showTypeInfoForBlock(
   setStatus: StatusSink = () => undefined
 ): void {
   const report = annotateLambdaWorkspaceTypes(workspace);
-  const message = prettyTypeValueComment(block, report);
+  const message = prettyTypeValueComment(block, report, contextualValueProvider(workspace));
   window.alert(message);
 
   const inferredType = report.blockTypes.get(block.id) ?? 'unknown';
