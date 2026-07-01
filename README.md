@@ -25,6 +25,7 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - boolean operator,
   - if/then/else conditional.
 - Examples menu with a submenu for loading built-in workspaces:
+  - Identity Function, the polymorphic identity abstraction `λx. x`.
   - Standard Factorial 5, a recursive `factorial` definition applied to integer `5`, reducing to `120`.
 - Hindley-Milner-style type inference for Lambda blocks:
   - fresh type variables for lambda parameters,
@@ -121,6 +122,14 @@ The type vocabulary is intentionally small: `int`, `bool`, type variables such a
 Every Lambda term block receives a native Blockly comment icon. Opening that comment shows a pretty-printed report with the block kind, inferred type, reduced value, status, and local type issues when they exist. The **Add Type Comments** button can be used to force-refresh those comment reports.
 
 ## Built-in examples
+
+Use **Examples -> Identity Function** to load the polymorphic identity abstraction:
+
+```text
+λx. x
+```
+
+The inferred type is `'a -> 'a`.
 
 Use **Examples -> Standard Factorial 5** to load a ready-made recursive factorial workspace. The example uses the standard definition:
 
