@@ -51,6 +51,9 @@
             <button id="refreshCode" class="ghost-button" type="button">
               <span class="button-icon" aria-hidden="true">⟳</span> Refresh Code
             </button>
+            <button id="toggleVizDock" class="ghost-button" type="button" aria-pressed="false">
+              <span class="button-icon" aria-hidden="true">◧</span> Reduction
+            </button>
             <button id="clearWorkspace" class="ghost-button danger-button" type="button">
               <span class="button-icon" aria-hidden="true">🗑</span> Clear Workspace
             </button>
@@ -107,6 +110,33 @@
           <pre class="code-output"><code id="codeOutput">-- Generated code appears here</code></pre>
         </aside>
       </main>
+
+      <section id="vizDock" class="viz-dock" aria-label="Program visualization" data-open="false">
+        <div id="vizResizer" class="viz-resizer" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize visualization panel" title="Drag to resize"></div>
+        <div class="viz-panel">
+          <div class="viz-header">
+            <div class="viz-tabs" role="tablist" aria-label="Reduction strategies">
+              <button class="viz-tab" data-kind="structure" role="tab" type="button" aria-selected="false">
+                <span class="viz-tab-icon" aria-hidden="true">S</span><span class="viz-tab-label">Call-by-Structure</span>
+              </button>
+              <button class="viz-tab" data-kind="value" role="tab" type="button" aria-selected="false">
+                <span class="viz-tab-icon" aria-hidden="true">V</span><span class="viz-tab-label">Call-by-Value</span>
+              </button>
+            </div>
+            <div id="vizDockInfo" class="viz-info" aria-live="polite"></div>
+            <div class="viz-tools" aria-label="Visualization tools">
+              <button id="vizRerun" class="small-button icon-only" type="button" title="Re-run visualization" aria-label="Re-run visualization">⟳</button>
+              <button id="vizArrange" class="small-button icon-only" type="button" title="Arrange by reduction steps" aria-label="Arrange">⬍</button>
+              <button id="vizCollapse" class="small-button icon-only" type="button" title="Hide visualization panel" aria-label="Hide visualization panel">▾</button>
+            </div>
+          </div>
+          <div class="viz-body">
+            <div class="viz-host" data-kind="structure"></div>
+            <div class="viz-host" data-kind="value"></div>
+            <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value.</div>
+          </div>
+        </div>
+      </section>
 
       <footer class="statusbar" aria-label="IDE status">
         <span class="status-pill"><span class="status-dot"></span> Autosave <span id="autosaveTime">Just now</span></span>

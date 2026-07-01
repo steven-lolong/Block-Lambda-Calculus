@@ -245,6 +245,7 @@ export function setupPanelControls(
     window.localStorage.setItem(THEME_STORAGE_KEY, nextMode);
     applyTheme(workspace, nextMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
     window.dispatchEvent(new CustomEvent('block-lambda:refresh-code'));
+    window.dispatchEvent(new CustomEvent('block-lambda:theme-changed'));
     updateLayout();
   });
 

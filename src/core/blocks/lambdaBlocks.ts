@@ -166,4 +166,14 @@ export function registerLambdaBlocks(): void {
       this.setHelpUrl('');
     }
   };
+
+  Blockly.Blocks['lambda_viz_description'] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput('Reduction step'), 'TEXT');
+      this.setStyle('lambda_meta');
+      this.setTooltip('Reduction visualization label.');
+      this.setHelpUrl('');
+    }
+  };
 }

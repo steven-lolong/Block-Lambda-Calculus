@@ -5,8 +5,11 @@ import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
+import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
+import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 
 registerLambdaBlocks();
+registerLambdaContextMenus();
 
 const AUTOSAVE_STORAGE_KEY = 'block-lambda-autosave-workspace';
 const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
@@ -83,6 +86,11 @@ const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
       colourPrimary: '#ea76cb',
       colourSecondary: '#8839ef',
       colourTertiary: '#7287fd'
+    },
+    lambda_meta: {
+      colourPrimary: '#6c6f85',
+      colourSecondary: '#8c8fa1',
+      colourTertiary: '#bcc0cc'
     }
   },
   componentStyles: {
@@ -134,6 +142,11 @@ const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
       colourPrimary: '#f5bde6',
       colourSecondary: '#c6a0f6',
       colourTertiary: '#b7bdf8'
+    },
+    lambda_meta: {
+      colourPrimary: '#6e738d',
+      colourSecondary: '#939ab7',
+      colourTertiary: '#a5adcb'
     }
   },
   componentStyles: {
@@ -275,6 +288,7 @@ function refreshCode(): void {
 }
 
 function clearWorkspace(): void {
+  setVisualizationOpen(false);
   workspace.clear();
   currentWorkspaceFileName = 'block-lambda-workspace.blc';
   setWorkspaceTitle();
@@ -382,6 +396,7 @@ async function loadWorkspace(): Promise<void> {
   try {
     const serialized = await file.text();
     const workspaceState = JSON.parse(serialized) as Record<string, unknown>;
+    setVisualizationOpen(false);
     workspace.clear();
     Blockly.serialization.workspaces.load(workspaceState, workspace);
     currentWorkspaceFileName = normalizeBlcFilename(file.name);
@@ -407,6 +422,7 @@ function loadAutosave(): void {
 
   try {
     const workspaceState = JSON.parse(serialized) as Record<string, unknown>;
+    setVisualizationOpen(false);
     workspace.clear();
     Blockly.serialization.workspaces.load(workspaceState, workspace);
     currentWorkspaceFileName = 'autosave-recovery.blc';
@@ -436,6 +452,12 @@ setupPanelControls(workspace, {
   onResize: resizeWorkspace
 });
 
+initVisualizationPanel({
+  lightTheme,
+  darkTheme,
+  onResize: resizeWorkspace
+});
+
 autosaveInterval.addEventListener('input', () => {
   autosaveIntervalMinutes = clampAutosaveInterval(Number(autosaveInterval.value));
   window.localStorage.setItem(AUTOSAVE_INTERVAL_STORAGE_KEY, String(autosaveIntervalMinutes));
@@ -454,6 +476,7 @@ workspace.addChangeListener((event) => {
 });
 
 window.addEventListener('block-lambda:refresh-code', refreshCode);
+window.addEventListener('block-lambda:theme-changed', disposeVisualizationWorkspaces);
 
 function createStarterProgram(): void {
   if (workspace.getAllBlocks(false).length > 0) return;
