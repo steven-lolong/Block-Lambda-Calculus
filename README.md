@@ -8,6 +8,7 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - left collapsible Blockly toolbox,
   - middle Blockly workspace,
   - right generated text-code panel.
+- Uses Blockly 12.
 - Hide/show toolbox panel.
 - Hide/show generated-code panel.
 - Resizable right code panel.
@@ -28,7 +29,8 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - let-polymorphism through generalized type schemes,
   - `Number` and `Bool` checking for literals, operators, equality, and conditionals,
   - Blockly warning bubbles for type errors and missing inputs,
-  - generated-code type comments for top-level terms.
+  - generated-code type comments for top-level terms,
+  - a `?` question icon on each Lambda term block that shows the block's inferred type and reduced value.
 - Generated Lambda Calculus text code with syntax highlighting.
 - Stable three-column IDE design with polished neon-glass colors.
 - Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
@@ -61,6 +63,8 @@ src/
 ```bash
 npm install
 ```
+
+`package-lock.json` was removed from this branch because it still pinned Blockly 11. Run `npm install` once after checkout to regenerate a fresh lockfile for Blockly 12.
 
 ## Run in development
 
@@ -109,14 +113,17 @@ The type-inference module lives in `src/core/type-inference/lambdaTypeInference.
 
 The **Add Type Comments** button writes the inferred type and reduced value into each Lambda term block comment. Ill-typed blocks receive Blockly warning bubbles that explain the local type error.
 
+Each Lambda term block also has a small `?` question icon. Clicking it opens a type/value popup for that exact block, including local type errors when inference finds a problem.
+
 ## Main files
 
 - `src/index.html` — page shell for the IDE.
 - `src/assets/js/block_lambda.ts` — webpack entry script.
 - `src/assets/css/styles.css` — full IDE styling.
-- `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks.
+- `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks with type-info question icons.
 - `src/core/generator/lambdaGenerator.ts` — block-to-text generator with optional type annotations.
 - `src/core/type-inference/lambdaTypeInference.ts` — Hindley–Milner-style type inference for Lambda blocks.
+- `src/core/ui/typeInfoPopup.ts` — click handler for per-block `?` type/value popups.
 - `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
 - `src/core/ui/layout.ts` — hide/show and resize UI behavior.
 
