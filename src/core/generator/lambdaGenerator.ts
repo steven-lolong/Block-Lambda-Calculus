@@ -43,6 +43,13 @@ function term(block: Blockly.Block | null): string {
       return `let ${name} = ${value} in ${body}`;
     }
 
+    case 'lambda_letrec': {
+      const name = field(block, 'NAME', 'f');
+      const value = term(child(block, 'VALUE'));
+      const body = term(child(block, 'BODY'));
+      return `letrec ${name} = ${value} in ${body}`;
+    }
+
     case 'lambda_number':
       return field(block, 'VALUE', '0');
 
