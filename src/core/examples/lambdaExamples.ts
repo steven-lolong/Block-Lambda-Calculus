@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly';
 
-export type LambdaExampleId = 'simple-factorial';
+export type LambdaExampleId = 'simple-factorial' | 'identity-function';
 
 type BlockState = {
   type: string;
@@ -36,9 +36,11 @@ function variableBlock(name: string): BlockState {
   return { type: 'lambda_variable', fields: { NAME: name } };
 }
 
-function abstractionBlock(parameter: string, body: BlockState): BlockState {
+function abstractionBlock(parameter: string, body: BlockState, x?: number, y?: number): BlockState {
   return {
     type: 'lambda_abstraction',
+    x,
+    y,
     fields: { PARAM: parameter },
     inputs: {
       BODY: { block: body }
@@ -102,6 +104,10 @@ function letrecBlock(name: string, value: BlockState, body: BlockState): BlockSt
   };
 }
 
+function identityFunction(): BlockState {
+  return abstractionBlock('x', variableBlock('x'), 72, 72);
+}
+
 function decrementN(): BlockState {
   return numberOperatorBlock('-', variableBlock('n'), numberBlock(1));
 }
@@ -121,6 +127,18 @@ function factorialFiveApplication(): BlockState {
 }
 
 export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> = {
+  'identity-function': {
+    id: 'identity-function',
+    title: 'Identity Function',
+    description: 'Loads the polymorphic identity function λx. x.',
+    fileName: 'example-identity-function.blc',
+    workspace: {
+      blocks: {
+        languageVersion: 0,
+        blocks: [identityFunction()]
+      }
+    }
+  },
   'simple-factorial': {
     id: 'simple-factorial',
     title: 'Standard Factorial 5',
