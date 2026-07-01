@@ -3,6 +3,7 @@ import 'blockly/blocks';
 import '../css/styles.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
+import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
@@ -54,6 +55,7 @@ const addValueCommentsButton = requireElement<HTMLButtonElement>('addValueCommen
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
+let lastTypeReport: LambdaInferenceReport | null = null;
 
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
@@ -282,12 +284,19 @@ function updateBlockCount(): void {
   blockCount.textContent = String(workspace.getAllBlocks(false).length);
 }
 
-function refreshCode(): void {
-  const code = generateLambdaCode(workspace);
+function refreshCode(): LambdaInferenceReport {
+  const report = annotateLambdaWorkspaceTypes(workspace);
+  lastTypeReport = report;
+  const code = generateLambdaCode(workspace, {
+    includeTypeAnnotations: true,
+    typeForBlock: (block) => report.topLevelTypes.get(block.id) ?? report.blockTypes.get(block.id),
+    errorForBlock: (block) => report.blockIssues.get(block.id)?.join('; ')
+  });
   codeOutput.dataset.rawCode = code;
   codeOutput.innerHTML = renderHighlightedCodeLines(code);
   updateBlockCount();
   updateZoomLabel();
+  return report;
 }
 
 function clearWorkspace(): void {
@@ -295,9 +304,9 @@ function clearWorkspace(): void {
   workspace.clear();
   currentWorkspaceFileName = 'block-lambda-workspace.blc';
   setWorkspaceTitle();
-  refreshCode();
+  const report = refreshCode();
   resizeWorkspace();
-  setStatus('Workspace cleared.');
+  setStatus(`Workspace cleared. ${report.summary}`);
 }
 
 function downloadTextFile(filename: string, content: string, mimeType = 'application/json'): void {
@@ -405,9 +414,9 @@ async function loadWorkspace(): Promise<void> {
     currentWorkspaceFileName = normalizeBlcFilename(file.name);
     setWorkspaceTitle(currentWorkspaceFileName);
     saveWorkspaceToAutosave(false);
-    refreshCode();
+    const report = refreshCode();
     resizeWorkspace();
-    setStatus(`Loaded workspace from ${file.name}. Local autosave updated.`);
+    setStatus(`Loaded workspace from ${file.name}. Local autosave updated. ${report.summary}`);
   } catch (error) {
     console.error(error);
     setStatus('Could not load the selected .blc file.');
@@ -430,10 +439,10 @@ function loadAutosave(): void {
     Blockly.serialization.workspaces.load(workspaceState, workspace);
     currentWorkspaceFileName = 'autosave-recovery.blc';
     setWorkspaceTitle(currentWorkspaceFileName);
-    refreshCode();
+    const report = refreshCode();
     resizeWorkspace();
     const savedAtText = savedAt ? ` from ${new Date(savedAt).toLocaleString()}` : '';
-    setStatus(`Loaded local autosave${savedAtText}.`);
+    setStatus(`Loaded local autosave${savedAtText}. ${report.summary}`);
   } catch (error) {
     console.error(error);
     setStatus('Could not load the local autosave. The saved data may be invalid.');
@@ -445,13 +454,20 @@ function isCommentableLambdaBlock(block: Blockly.Block): boolean {
 }
 
 function addValueComments(): void {
+  const report = annotateLambdaWorkspaceTypes(workspace, lastTypeReport ?? undefined);
+  lastTypeReport = report;
   const blocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
 
   Blockly.Events.disable();
   try {
     for (const block of blocks) {
       try {
-        block.setCommentText(`The Lambda Term block \ntype: \nLambdaTerm\nvalue: \n${reducedTextForBlock(block, 'value')}`);
+        const inferredType = report.blockTypes.get(block.id) ?? 'unknown';
+        const issues = report.blockIssues.get(block.id) ?? [];
+        const typeText = issues.length > 0
+          ? `type error:\n${issues.join('\n')}\npartial type:\n${inferredType}`
+          : `type:\n${inferredType}`;
+        block.setCommentText(`The Lambda Term block\n${typeText}\nvalue:\n${reducedTextForBlock(block, 'value')}`);
       } catch {
         /* A single detached or invalid block should not abort the refresh. */
       }
@@ -460,9 +476,9 @@ function addValueComments(): void {
     Blockly.Events.enable();
   }
 
-  refreshCode();
+  const refreshed = refreshCode();
   saveWorkspaceToAutosave(false);
-  setStatus(`Added value comments to ${blocks.length} Lambda block${blocks.length === 1 ? '' : 's'}.`);
+  setStatus(`Added type/value comments to ${blocks.length} Lambda block${blocks.length === 1 ? '' : 's'}. ${refreshed.summary}`);
 }
 
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
@@ -470,8 +486,8 @@ setupPanelControls(workspace, {
   lightTheme,
   darkTheme,
   onRefreshCode: () => {
-    refreshCode();
-    setStatus('Code refreshed.');
+    const report = refreshCode();
+    setStatus(`Code refreshed. ${report.summary}`);
   },
   onClearWorkspace: clearWorkspace,
   onSaveWorkspace: saveWorkspace,
@@ -501,11 +517,16 @@ addValueCommentsButton.addEventListener('click', addValueComments);
 workspace.addChangeListener((event) => {
   updateZoomLabel();
   if (event.isUiEvent) return;
-  refreshCode();
+  const report = refreshCode();
+  if (report.hasErrors) {
+    setStatus(report.summary);
+  }
   scheduleAutosave();
 });
 
-window.addEventListener('block-lambda:refresh-code', refreshCode);
+window.addEventListener('block-lambda:refresh-code', () => {
+  refreshCode();
+});
 window.addEventListener('block-lambda:theme-changed', disposeVisualizationWorkspaces);
 
 function createStarterProgram(): void {
@@ -533,7 +554,7 @@ function createStarterProgram(): void {
 createStarterProgram();
 updateAutosaveIntervalUi();
 setWorkspaceTitle();
-refreshCode();
+const initialReport = refreshCode();
 saveWorkspaceToAutosave(false);
 resizeWorkspace();
-setStatus('Ready. Drag blocks from the toolbox, load a .blc file, or recover a local autosave.');
+setStatus(`Ready. Drag blocks from the toolbox, load a .blc file, or recover a local autosave. ${initialReport.summary}`);

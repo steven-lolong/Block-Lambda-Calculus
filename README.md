@@ -22,6 +22,13 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - numeric operator,
   - boolean operator,
   - if/then/else conditional.
+- Hindley–Milner-style type inference for Lambda blocks:
+  - fresh type variables for lambda parameters,
+  - function-type inference for abstraction and application,
+  - let-polymorphism through generalized type schemes,
+  - `Number` and `Bool` checking for literals, operators, equality, and conditionals,
+  - Blockly warning bubbles for type errors and missing inputs,
+  - generated-code type comments for top-level terms.
 - Generated Lambda Calculus text code with syntax highlighting.
 - Stable three-column IDE design with polished neon-glass colors.
 - Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
@@ -44,6 +51,8 @@ src/
     blocks/
     generator/
     renderer/
+    semantics/
+    type-inference/
     ui/
 ```
 
@@ -89,13 +98,25 @@ block_lambda.js
 npm run typecheck
 ```
 
+## Type inference behavior
+
+The type-inference module lives in `src/core/type-inference/lambdaTypeInference.ts`. It infers a type for every connected Lambda term block on each code refresh and workspace change. The right-hand code panel includes top-level type comments, for example:
+
+```text
+-- Type: 'a -> 'a
+λx. x
+```
+
+The **Add Type Comments** button writes the inferred type and reduced value into each Lambda term block comment. Ill-typed blocks receive Blockly warning bubbles that explain the local type error.
+
 ## Main files
 
 - `src/index.html` — page shell for the IDE.
 - `src/assets/js/block_lambda.ts` — webpack entry script.
 - `src/assets/css/styles.css` — full IDE styling.
 - `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks.
-- `src/core/generator/lambdaGenerator.ts` — block-to-text generator.
+- `src/core/generator/lambdaGenerator.ts` — block-to-text generator with optional type annotations.
+- `src/core/type-inference/lambdaTypeInference.ts` — Hindley–Milner-style type inference for Lambda blocks.
 - `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
 - `src/core/ui/layout.ts` — hide/show and resize UI behavior.
 

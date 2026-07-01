@@ -1,5 +1,11 @@
 import * as Blockly from 'blockly';
 
+export type LambdaCodeGenerationOptions = {
+  includeTypeAnnotations?: boolean;
+  typeForBlock?: (block: Blockly.Block) => string | undefined;
+  errorForBlock?: (block: Blockly.Block) => string | undefined;
+};
+
 function field(block: Blockly.Block, name: string, fallback = ''): string {
   const value = block.getFieldValue(name);
   return value === null || value === undefined || value === '' ? fallback : String(value);
@@ -69,7 +75,22 @@ function term(block: Blockly.Block | null): string {
   }
 }
 
-export function generateLambdaCode(workspace: Blockly.WorkspaceSvg): string {
+function withTypeAnnotation(block: Blockly.Block, code: string, options: LambdaCodeGenerationOptions): string {
+  if (!options.includeTypeAnnotations) return code;
+
+  const error = options.errorForBlock?.(block);
+  if (error) return `-- Type error: ${error}\n${code}`;
+
+  const inferredType = options.typeForBlock?.(block);
+  if (inferredType) return `-- Type: ${inferredType}\n${code}`;
+
+  return code;
+}
+
+export function generateLambdaCode(
+  workspace: Blockly.WorkspaceSvg,
+  options: LambdaCodeGenerationOptions = {}
+): string {
   const topBlocks = workspace
     .getTopBlocks(true)
     .filter((block) => !block.getParent());
@@ -78,5 +99,5 @@ export function generateLambdaCode(workspace: Blockly.WorkspaceSvg): string {
     return '-- Drag or click blocks from the toolbox to generate Lambda code.';
   }
 
-  return topBlocks.map((block) => term(block)).join('\n');
+  return topBlocks.map((block) => withTypeAnnotation(block, term(block), options)).join('\n\n');
 }
