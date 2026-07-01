@@ -8,6 +8,7 @@ import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
+import { installTypeInfoPopup } from '../../core/ui/typeInfoPopup';
 import { reducedTextForBlock } from '../../core/semantics/lambdaReduction';
 
 registerLambdaBlocks();
@@ -241,6 +242,8 @@ function renderHighlightedCodeLines(code: string): string {
 function setStatus(message: string): void {
   statusLine.textContent = message;
 }
+
+installTypeInfoPopup(workspace, blocklyDiv, setStatus);
 
 function getDisplayFileName(fileName: string): string {
   return fileName.replace(/\.blc$/i, '');
