@@ -288,6 +288,19 @@ function inferTerm(block: Blockly.Block, env: TypeEnvironment, state: InferenceS
         return rememberType(block, inferChild(block, 'BODY', bodyEnv, state), state);
       }
 
+      case 'lambda_letrec': {
+        const name = field(block, 'NAME', 'f');
+        const recursiveType = freshTypeVariable(state);
+        const recursiveEnv = cloneEnvironment(env);
+        recursiveEnv.set(name, { vars: [], type: recursiveType });
+        const valueType = inferChild(block, 'VALUE', recursiveEnv, state);
+        unify(recursiveType, valueType, state);
+        const scheme = generalize(env, recursiveType, state);
+        const bodyEnv = cloneEnvironment(env);
+        bodyEnv.set(name, scheme);
+        return rememberType(block, inferChild(block, 'BODY', bodyEnv, state), state);
+      }
+
       case 'lambda_number':
         return rememberType(block, INT_TYPE, state);
 
