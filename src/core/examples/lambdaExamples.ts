@@ -36,6 +36,26 @@ function variableBlock(name: string): BlockState {
   return { type: 'lambda_variable', fields: { NAME: name } };
 }
 
+function abstractionBlock(parameter: string, body: BlockState): BlockState {
+  return {
+    type: 'lambda_abstraction',
+    fields: { PARAM: parameter },
+    inputs: {
+      BODY: { block: body }
+    }
+  };
+}
+
+function applicationBlock(func: BlockState, arg: BlockState): BlockState {
+  return {
+    type: 'lambda_application',
+    inputs: {
+      FUNC: { block: func },
+      ARG: { block: arg }
+    }
+  };
+}
+
 function numberOperatorBlock(op: string, left: BlockState, right: BlockState): BlockState {
   return {
     type: 'lambda_number_operator',
@@ -60,28 +80,38 @@ function letBlock(name: string, value: BlockState, body: BlockState): BlockState
   };
 }
 
-function factorialFiveExpression(): BlockState {
-  return numberOperatorBlock(
+function minusFromN(amount: number): BlockState {
+  return numberOperatorBlock('-', variableBlock('n'), numberBlock(amount));
+}
+
+function factorialFunction(): BlockState {
+  const body = numberOperatorBlock(
     '*',
-    numberBlock(5),
+    variableBlock('n'),
     numberOperatorBlock(
       '*',
-      numberBlock(4),
-      numberOperatorBlock('*', numberBlock(3), numberOperatorBlock('*', numberBlock(2), numberBlock(1)))
+      minusFromN(1),
+      numberOperatorBlock('*', minusFromN(2), numberOperatorBlock('*', minusFromN(3), minusFromN(4)))
     )
   );
+
+  return abstractionBlock('n', body);
+}
+
+function factorialFiveApplication(): BlockState {
+  return applicationBlock(variableBlock('factorial'), numberBlock(5));
 }
 
 export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> = {
   'simple-factorial': {
     id: 'simple-factorial',
     title: 'Simple Factorial 5',
-    description: 'Loads an expanded factorial expression: 5 * 4 * 3 * 2 * 1.',
+    description: 'Loads a factorial function and applies it to integer 5.',
     fileName: 'example-simple-factorial.blc',
     workspace: {
       blocks: {
         languageVersion: 0,
-        blocks: [letBlock('factorial5', factorialFiveExpression(), variableBlock('factorial5'))]
+        blocks: [letBlock('factorial', factorialFunction(), factorialFiveApplication())]
       }
     }
   }
