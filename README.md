@@ -23,22 +23,24 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - numeric operator,
   - boolean operator,
   - if/then/else conditional.
-- Hindley–Milner-style type inference for Lambda blocks:
+- Examples menu with a submenu for loading built-in workspaces:
+  - Simple Factorial 5, an expanded `5 * 4 * 3 * 2 * 1` example that reduces to `120`.
+- Hindley-Milner-style type inference for Lambda blocks:
   - fresh type variables for lambda parameters,
   - function-type inference for abstraction and application,
   - let-polymorphism through generalized type schemes,
-  - `Number` and `Bool` checking for literals, operators, equality, and conditionals,
+  - `int` and `bool` checking for literals, operators, equality, and conditionals,
   - Blockly warning bubbles for type errors and missing inputs,
   - generated-code type comments for top-level terms,
   - a `?` question icon on each Lambda term block that shows the block's inferred type and reduced value.
 - Generated Lambda Calculus text code with syntax highlighting.
 - Stable three-column IDE design with polished neon-glass colors.
 - Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
-- Responsive top menu with grouped file, view, workspace, and theme actions.
+- Responsive top menu with grouped file, example, workspace, and theme actions.
 - Searchable custom toolbox.
 - Theme-aware Blockly colors while preserving the current Blockly renderer/shape style.
 - Manual `.blc` workspace save/load plus local autosave recovery.
-- Logo, favicon, dark/light variants, and 512×512 PWA icon.
+- Logo, favicon, dark/light variants, and 512x512 PWA icon.
 - Webpack output bundle name: `block_lambda.js`.
 
 ## Project structure
@@ -51,6 +53,7 @@ src/
     js/
   core/
     blocks/
+    examples/
     generator/
     renderer/
     semantics/
@@ -108,21 +111,29 @@ The type-inference module lives in `src/core/type-inference/lambdaTypeInference.
 
 ```text
 -- Type: 'a -> 'a
-λx. x
+lambda x. x
 ```
+
+The type vocabulary is intentionally small: `int`, `bool`, type variables such as `'a`, and function types.
 
 The **Add Type Comments** button writes the inferred type and reduced value into each Lambda term block comment. Ill-typed blocks receive Blockly warning bubbles that explain the local type error.
 
 Each Lambda term block also has a small `?` question icon. Clicking it opens a type/value popup for that exact block, including local type errors when inference finds a problem.
+
+## Built-in examples
+
+Use **Examples -> Simple Factorial 5** to load a ready-made factorial workspace. The example binds `factorial5` to the expanded arithmetic expression `5 * 4 * 3 * 2 * 1`, so the current evaluator can reduce it directly to `120` without needing recursive-let support.
 
 ## Main files
 
 - `src/index.html` — page shell for the IDE.
 - `src/assets/js/block_lambda.ts` — webpack entry script.
 - `src/assets/css/styles.css` — full IDE styling.
+- `src/assets/css/examples.css` — examples menu and submenu styling.
 - `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks with type-info question icons.
+- `src/core/examples/lambdaExamples.ts` — built-in example workspace definitions and loader.
 - `src/core/generator/lambdaGenerator.ts` — block-to-text generator with optional type annotations.
-- `src/core/type-inference/lambdaTypeInference.ts` — Hindley–Milner-style type inference for Lambda blocks.
+- `src/core/type-inference/lambdaTypeInference.ts` — Hindley-Milner-style type inference for Lambda blocks.
 - `src/core/ui/typeInfoPopup.ts` — click handler for per-block `?` type/value popups.
 - `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
 - `src/core/ui/layout.ts` — hide/show and resize UI behavior.
@@ -152,7 +163,7 @@ The toolbox is implemented as a custom collapsible left panel. Clicking or dragg
 The IDE keeps the stable three-column application shell and applies a more polished color and menu system:
 
 - Catppuccin Macchiato-inspired palette with soft violet, blue, teal, green, amber, and rose accents.
-- Cleaner icon-based top menu grouped by File, View, Workspace, and Theme actions.
+- Cleaner icon-based top menu grouped by File, Examples, Workspace, and Theme actions.
 - Left toolbox with search, color-coded categories, and drag/click block insertion.
 - Middle Workspace panel with a persistent file-aware title.
 - Right generated-code panel with line numbers and theme-aware syntax highlighting.
