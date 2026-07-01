@@ -23,9 +23,11 @@ type TypeVariable = {
   id: number;
 };
 
+type TypeConstantName = 'int' | 'bool';
+
 type TypeConstant = {
   kind: 'const';
-  name: 'Number' | 'Bool';
+  name: TypeConstantName;
 };
 
 type TypeFunction = {
@@ -49,8 +51,8 @@ type InferenceState = {
   issues: LambdaTypeIssue[];
 };
 
-const NUMBER_TYPE: TypeConstant = { kind: 'const', name: 'Number' };
-const BOOL_TYPE: TypeConstant = { kind: 'const', name: 'Bool' };
+const INT_TYPE: TypeConstant = { kind: 'const', name: 'int' };
+const BOOL_TYPE: TypeConstant = { kind: 'const', name: 'bool' };
 
 class LambdaTypeError extends Error {
   constructor(message: string) {
@@ -287,7 +289,7 @@ function inferTerm(block: Blockly.Block, env: TypeEnvironment, state: InferenceS
       }
 
       case 'lambda_number':
-        return rememberType(block, NUMBER_TYPE, state);
+        return rememberType(block, INT_TYPE, state);
 
       case 'lambda_boolean':
         return rememberType(block, BOOL_TYPE, state);
@@ -295,9 +297,9 @@ function inferTerm(block: Blockly.Block, env: TypeEnvironment, state: InferenceS
       case 'lambda_number_operator': {
         const left = inferChild(block, 'LEFT', env, state);
         const right = inferChild(block, 'RIGHT', env, state);
-        unify(left, NUMBER_TYPE, state);
-        unify(right, NUMBER_TYPE, state);
-        return rememberType(block, NUMBER_TYPE, state);
+        unify(left, INT_TYPE, state);
+        unify(right, INT_TYPE, state);
+        return rememberType(block, INT_TYPE, state);
       }
 
       case 'lambda_boolean_operator': {
