@@ -7,6 +7,7 @@ import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
+import { reducedTextForBlock } from '../../core/semantics/lambdaReduction';
 
 registerLambdaBlocks();
 registerLambdaContextMenus();
@@ -49,6 +50,7 @@ const blockCount = requireElement<HTMLElement>('blockCount');
 const autosaveTime = requireElement<HTMLElement>('autosaveTime');
 const autosaveInterval = requireElement<HTMLInputElement>('autosaveInterval');
 const autosaveIntervalLabel = requireElement<HTMLElement>('autosaveIntervalLabel');
+const addValueCommentsButton = requireElement<HTMLButtonElement>('addValueComments');
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
@@ -167,6 +169,7 @@ const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
 
 const workspace = Blockly.inject(blocklyDiv, {
   trashcan: true,
+  comments: true,
   grid: {
     spacing: 24,
     length: 3,
@@ -437,6 +440,31 @@ function loadAutosave(): void {
   }
 }
 
+function isCommentableLambdaBlock(block: Blockly.Block): boolean {
+  return Boolean(block.outputConnection) && block.type.startsWith('lambda_') && block.type !== 'lambda_viz_description';
+}
+
+function addValueComments(): void {
+  const blocks = workspace.getAllBlocks(false).filter(isCommentableLambdaBlock);
+
+  Blockly.Events.disable();
+  try {
+    for (const block of blocks) {
+      try {
+        block.setCommentText(`The Lambda Term block \ntype: \nLambdaTerm\nvalue: \n${reducedTextForBlock(block, 'value')}`);
+      } catch {
+        /* A single detached or invalid block should not abort the refresh. */
+      }
+    }
+  } finally {
+    Blockly.Events.enable();
+  }
+
+  refreshCode();
+  saveWorkspaceToAutosave(false);
+  setStatus(`Added value comments to ${blocks.length} Lambda block${blocks.length === 1 ? '' : 's'}.`);
+}
+
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
 setupPanelControls(workspace, {
   lightTheme,
@@ -467,6 +495,8 @@ autosaveInterval.addEventListener('input', () => {
   }
   setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
 });
+
+addValueCommentsButton.addEventListener('click', addValueComments);
 
 workspace.addChangeListener((event) => {
   updateZoomLabel();

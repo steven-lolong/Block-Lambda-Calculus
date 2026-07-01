@@ -406,3 +406,6 @@ export function generatedStateForBlock(block: Blockly.Block, kind: ReductionKind
   return termToState(evaluate(blockToTerm(block), kind));
 }
 
+export function reducedTextForBlock(block: Blockly.Block, kind: ReductionKind): string {
+  return pretty(evaluate(blockToTerm(block), kind));
+}
