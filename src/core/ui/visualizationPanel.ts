@@ -2,7 +2,7 @@ import * as Blockly from 'blockly';
 import {
   arrangeBlocksVertically,
   arrangeTopBlocks,
-  generatedStateForBlock,
+  renderLambdaReduction,
   type BlockOrder,
   type ReductionKind
 } from '../semantics/lambdaReduction';
@@ -14,8 +14,6 @@ type VisualizationOptions = {
   darkTheme: Blockly.Theme;
   onResize: () => void;
 };
-
-type SerializedBlockState = Record<string, unknown>;
 
 interface View {
   workspace: Blockly.WorkspaceSvg | null;
@@ -131,86 +129,6 @@ function renderEmptyMessage(kind: VizKind, message: string): void {
   updateInfo();
 }
 
-function isObjectRecord(value: unknown): value is SerializedBlockState {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function stripIds(state: unknown): unknown {
-  if (Array.isArray(state)) return state.map(stripIds);
-  if (!isObjectRecord(state)) return state;
-
-  const copy: SerializedBlockState = { ...state };
-  delete copy.id;
-
-  const inputs = copy.inputs as Record<string, { block?: unknown }> | undefined;
-  if (inputs) {
-    for (const input of Object.values(inputs)) {
-      if (input.block) input.block = stripIds(input.block);
-    }
-  }
-
-  const next = copy.next as { block?: unknown } | undefined;
-  if (next?.block) next.block = stripIds(next.block);
-  return copy;
-}
-
-function appendState(workspace: Blockly.WorkspaceSvg, state: unknown): Blockly.BlockSvg | null {
-  if (!state) return null;
-  return Blockly.serialization.blocks.append(stripIds(state) as any, workspace) as Blockly.BlockSvg;
-}
-
-function label(workspace: Blockly.WorkspaceSvg, text: string): Blockly.BlockSvg {
-  const block = workspace.newBlock('lambda_viz_description') as Blockly.BlockSvg;
-  block.setFieldValue(text, 'TEXT');
-  if (workspace.rendered) {
-    block.initSvg();
-    block.render();
-  }
-  return block;
-}
-
-function addToOrder(order: BlockOrder, block: Blockly.BlockSvg | null): void {
-  if (!block) return;
-  order.map[order.order] = block.id;
-  order.order += 1;
-}
-
-function savedSourceState(block: Blockly.BlockSvg): unknown {
-  return Blockly.serialization.blocks.save(block, {
-    addInputBlocks: true,
-    addNextBlocks: false
-  } as any);
-}
-
-function annotate(block: Blockly.BlockSvg | null, text: string): void {
-  try {
-    block?.setCommentText(text);
-  } catch {
-    /* comments are best effort in detached visualization workspaces */
-  }
-}
-
-function renderEvaluationView(kind: VizKind, block: Blockly.BlockSvg, workspace: Blockly.WorkspaceSvg): BlockOrder {
-  const order: BlockOrder = { order: 0, map: {} };
-  const title = TITLE[kind];
-
-  const inputLabel = label(workspace, `${title} input`);
-  addToOrder(order, inputLabel);
-  const sourceBlock = appendState(workspace, savedSourceState(block));
-  annotate(sourceBlock, `${title} input\n\nThis is the original application block selected in the main workspace.`);
-  addToOrder(order, sourceBlock);
-
-  const resultLabel = label(workspace, `${title} result`);
-  addToOrder(order, resultLabel);
-  const resultState = generatedStateForBlock(block, kind);
-  const resultBlock = appendState(workspace, resultState);
-  annotate(resultBlock, `${title} result\n\nThe evaluator reduces the selected application with ${kind === 'value' ? 'call-by-value' : 'call-by-structure'} semantics.`);
-  addToOrder(order, resultBlock);
-
-  arrangeBlocksVertically(workspace, order, 36);
-  return order;
-}
-
 export function isVisualizationOpen(): boolean {
   return dock()?.dataset.open === 'true';
 }
@@ -242,17 +160,11 @@ function renderView(kind: VizKind): void {
 
   try {
     Blockly.svgResize(workspace);
-    view.order = renderEvaluationView(kind, block, workspace);
+    view.order = renderLambdaReduction(block, workspace, kind);
   } catch (error) {
     console.error('[Block Lambda] visualization failed', error);
     view.order = null;
-    const fallbackState = savedSourceState(block);
     workspace.clear();
-    const order: BlockOrder = { order: 0, map: {} };
-    addToOrder(order, label(workspace, `${TITLE[kind]} input`));
-    addToOrder(order, appendState(workspace, fallbackState));
-    arrangeBlocksVertically(workspace, order, 36);
-    view.order = order;
     renderEmptyMessage(kind, error instanceof Error ? error.message : 'Could not render the reduction visualization.');
   }
 
