@@ -21,17 +21,20 @@ function isLambdaTermBlock(block?: Blockly.Block): block is Blockly.BlockSvg {
   return Boolean(block?.outputConnection) && Boolean(block?.type.startsWith('lambda_')) && block?.type !== 'lambda_viz_description';
 }
 
+function isLambdaApplicationBlock(block?: Blockly.Block): block is Blockly.BlockSvg {
+  return isLambdaTermBlock(block) && block.type === 'lambda_application';
+}
+
 function workspaceOf(block: Blockly.BlockSvg): Blockly.WorkspaceSvg {
   return block.workspace as Blockly.WorkspaceSvg;
 }
 
 function runContextAction(action: 'type-info' | 'structure' | 'value', block?: Blockly.BlockSvg): void {
-  if (!isLambdaTermBlock(block)) return;
   if (action === 'type-info') {
-    showTypeInfoForBlock(workspaceOf(block), block);
+    if (isLambdaTermBlock(block)) showTypeInfoForBlock(workspaceOf(block), block);
     return;
   }
-  openVisualization(action, block);
+  if (isLambdaApplicationBlock(block)) openVisualization(action, block);
 }
 
 function installPerBlockContextMenuBridge(): void {
@@ -63,7 +66,7 @@ export function registerLambdaContextMenus(): void {
       scopeType: ScopeType.BLOCK,
       displayText: 'Evaluate - Call-by-Structure',
       weight: 100,
-      preconditionFn: (scope: BlockScope) => show(isLambdaTermBlock(scope.block)),
+      preconditionFn: (scope: BlockScope) => show(isLambdaApplicationBlock(scope.block)),
       callback: (scope: BlockScope) => runContextAction('structure', scope.block)
     },
     {
@@ -71,7 +74,7 @@ export function registerLambdaContextMenus(): void {
       scopeType: ScopeType.BLOCK,
       displayText: 'Evaluate - Call-by-Value',
       weight: 101,
-      preconditionFn: (scope: BlockScope) => show(isLambdaTermBlock(scope.block)),
+      preconditionFn: (scope: BlockScope) => show(isLambdaApplicationBlock(scope.block)),
       callback: (scope: BlockScope) => runContextAction('value', scope.block)
     }
   ];
