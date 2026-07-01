@@ -34,7 +34,8 @@ const TOOLBOX: ToolboxCategory[] = [
   {
     name: 'Let Binding',
     blocks: [
-      { type: 'lambda_let', label: '≔ let x = in', description: 'bind value' }
+      { type: 'lambda_let', label: '≔ let x = in', description: 'bind value' },
+      { type: 'lambda_letrec', label: '↻ letrec f = in', description: 'recursive bind' }
     ]
   },
   {
@@ -258,68 +259,37 @@ export function renderToolbox(
     summary.innerHTML = `<span class="category-icon" aria-hidden="true">${CATEGORY_ICONS[category.name] ?? '•'}</span> ${category.name}`;
     details.appendChild(summary);
 
-    category.blocks.forEach((toolboxBlock) => {
+    const blocks = document.createElement('div');
+    blocks.className = 'toolbox-block-list';
+
+    category.blocks.forEach((block) => {
       const button = document.createElement('button');
-      button.className = 'toolbox-block';
       button.type = 'button';
-      button.draggable = false;
-      button.dataset.blockType = toolboxBlock.type;
-      button.dataset.searchText = `${category.name} ${toolboxBlock.label} ${toolboxBlock.description} ${toolboxBlock.type}`.toLowerCase();
+      button.className = 'toolbox-block-card';
+      button.dataset.blockType = block.type;
+      button.setAttribute('aria-label', `Add ${block.label} block`);
       button.innerHTML = `
-        <span class="toolbox-block-label">${toolboxBlock.label}</span>
-        <span class="toolbox-block-description">${toolboxBlock.description}</span>
+        <span class="toolbox-block-label">${block.label}</span>
+        <span class="toolbox-block-description">${block.description}</span>
       `;
 
-      button.addEventListener('click', (event) => {
-        if (suppressNextClick) {
-          event.preventDefault();
-          return;
-        }
-        addBlockToWorkspace(workspace, toolboxBlock.type);
+      button.addEventListener('pointerdown', (event) => startPointerDrag(event, button, block.type, dropTarget));
+      button.addEventListener('pointermove', (event) => updatePointerDrag(event, dropTarget));
+      button.addEventListener('pointerup', (event) => finishPointerDrag(event, workspace, dropTarget));
+      button.addEventListener('pointercancel', () => cancelPointerDrag(dropTarget));
+      button.addEventListener('click', () => {
+        if (suppressNextClick) return;
+        addBlockToWorkspace(workspace, block.type);
       });
 
-      button.addEventListener('pointerdown', (event) => {
-        startPointerDrag(event, button, toolboxBlock.type, dropTarget);
-      });
-
-      button.addEventListener('pointermove', (event) => {
-        updatePointerDrag(event, dropTarget);
-      });
-
-      button.addEventListener('pointerup', (event) => {
-        finishPointerDrag(event, workspace, dropTarget);
-      });
-
-      button.addEventListener('pointercancel', () => {
-        cancelPointerDrag(dropTarget);
-      });
-
-      details.appendChild(button);
+      blocks.appendChild(button);
     });
 
+    details.appendChild(blocks);
+    if (index > 2) details.open = false;
     list.appendChild(details);
   });
 
-  const note = document.createElement('div');
-  note.className = 'toolbox-note';
-  note.textContent = 'Drag blocks to the workspace';
-
   fragment.appendChild(list);
-  fragment.appendChild(note);
   container.appendChild(fragment);
-
-  const searchInput = document.getElementById('toolboxSearch') as HTMLInputElement | null;
-  searchInput?.addEventListener('input', () => {
-    const query = searchInput.value.trim().toLowerCase();
-    container.querySelectorAll<HTMLElement>('.toolbox-category').forEach((categoryElement) => {
-      let hasVisibleBlock = false;
-      categoryElement.querySelectorAll<HTMLElement>('.toolbox-block').forEach((blockElement) => {
-        const searchText = blockElement.dataset.searchText ?? '';
-        const visible = query.length === 0 || searchText.includes(query);
-        blockElement.hidden = !visible;
-        hasVisibleBlock = hasVisibleBlock || visible;
-      });
-      categoryElement.hidden = !hasVisibleBlock;
-    });
-  });
 }
