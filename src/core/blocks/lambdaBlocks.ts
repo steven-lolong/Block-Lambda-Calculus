@@ -1,7 +1,7 @@
 import * as Blockly from 'blockly';
 
 type LambdaContextMenuAction = 'type-info' | 'structure' | 'value';
-type BlockContextMenuOptions = Array<Blockly.ContextMenuOption | Blockly.LegacyContextMenuOption>;
+type BlockContextMenuOptions = unknown[];
 
 function dispatchContextMenuAction(block: Blockly.BlockSvg, action: LambdaContextMenuAction): void {
   window.dispatchEvent(new CustomEvent('block-lambda:context-menu-action', {
