@@ -20,7 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "blockly": "^11.2.2"
+    "blockly": "^12.5.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
