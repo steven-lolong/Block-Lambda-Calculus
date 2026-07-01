@@ -67,6 +67,12 @@ function blockToTerm(block: Blockly.Block | null): Term {
   }
 }
 
+function union(...sets: Set<string>[]): Set<string> {
+  const result = new Set<string>();
+  for (const set of sets) for (const value of set) result.add(value);
+  return result;
+}
+
 function freeVars(term: Term): Set<string> {
   switch (term.kind) {
     case 'var':
@@ -93,12 +99,6 @@ function freeVars(term: Term): Set<string> {
   }
 }
 
-function union(...sets: Set<string>[]): Set<string> {
-  const result = new Set<string>();
-  for (const set of sets) for (const value of set) result.add(value);
-  return result;
-}
-
 function freshName(base: string, avoid: Set<string>): string {
   let index = 1;
   let candidate = `${base}_${index}`;
@@ -114,31 +114,17 @@ function rename(term: Term, from: string, to: string): Term {
     case 'var':
       return term.name === from ? { kind: 'var', name: to } : clone(term);
     case 'abs':
-      return {
-        kind: 'abs',
-        param: term.param === from ? to : term.param,
-        body: rename(term.body, from, to)
-      };
+      return { kind: 'abs', param: term.param === from ? to : term.param, body: rename(term.body, from, to) };
     case 'app':
       return { kind: 'app', func: rename(term.func, from, to), arg: rename(term.arg, from, to) };
     case 'let':
-      return {
-        kind: 'let',
-        name: term.name === from ? to : term.name,
-        value: rename(term.value, from, to),
-        body: rename(term.body, from, to)
-      };
+      return { kind: 'let', name: term.name === from ? to : term.name, value: rename(term.value, from, to), body: rename(term.body, from, to) };
     case 'numop':
       return { kind: 'numop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to) };
     case 'boolop':
       return { kind: 'boolop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to) };
     case 'if':
-      return {
-        kind: 'if',
-        cond: rename(term.cond, from, to),
-        thenTerm: rename(term.thenTerm, from, to),
-        elseTerm: rename(term.elseTerm, from, to)
-      };
+      return { kind: 'if', cond: rename(term.cond, from, to), thenTerm: rename(term.thenTerm, from, to), elseTerm: rename(term.elseTerm, from, to) };
     default:
       return clone(term);
   }
@@ -156,8 +142,7 @@ function substitute(term: Term, name: string, replacement: Term): Term {
       }
       const avoid = union(freeVars(term.body), replacementFree, new Set([name]));
       const fresh = freshName(term.param, avoid);
-      const renamedBody = rename(term.body, term.param, fresh);
-      return { kind: 'abs', param: fresh, body: substitute(renamedBody, name, replacement) };
+      return { kind: 'abs', param: fresh, body: substitute(rename(term.body, term.param, fresh), name, replacement) };
     }
     case 'app':
       return { kind: 'app', func: substitute(term.func, name, replacement), arg: substitute(term.arg, name, replacement) };
@@ -177,12 +162,7 @@ function substitute(term: Term, name: string, replacement: Term): Term {
     case 'boolop':
       return { kind: 'boolop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement) };
     case 'if':
-      return {
-        kind: 'if',
-        cond: substitute(term.cond, name, replacement),
-        thenTerm: substitute(term.thenTerm, name, replacement),
-        elseTerm: substitute(term.elseTerm, name, replacement)
-      };
+      return { kind: 'if', cond: substitute(term.cond, name, replacement), thenTerm: substitute(term.thenTerm, name, replacement), elseTerm: substitute(term.elseTerm, name, replacement) };
     default:
       return clone(term);
   }
@@ -226,8 +206,10 @@ function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boo
       }
       return { term, changed: false };
     }
-    case 'let':
-      return { term: substitute(term.body, term.name, kind === 'value' ? evaluate(term.value, kind) : term.value), changed: true };
+    case 'let': {
+      const value = kind === 'value' ? evaluate(term.value, kind) : term.value;
+      return { term: substitute(term.body, term.name, value), changed: true };
+    }
     case 'numop':
     case 'boolop': {
       const left = reduceOnce(term.left, kind);
@@ -244,6 +226,7 @@ function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boo
       return { term, changed: false };
     }
     case 'abs': {
+      if (kind === 'value') return { term, changed: false };
       const body = reduceOnce(term.body, kind);
       return body.changed ? { term: { kind: 'abs', param: term.param, body: body.term }, changed: true } : { term, changed: false };
     }
@@ -260,6 +243,18 @@ function evaluate(term: Term, kind: ReductionKind): Term {
     current = next.term;
   }
   return current;
+}
+
+function reductionTrace(term: Term, kind: ReductionKind): Term[] {
+  const steps: Term[] = [clone(term)];
+  let current = clone(term);
+  for (let i = 0; i < MAX_REDUCTION_STEPS; i++) {
+    const next = reduceOnce(current, kind);
+    if (!next.changed) break;
+    current = next.term;
+    steps.push(clone(current));
+  }
+  return steps;
 }
 
 function termToState(term: Term): any {
@@ -281,14 +276,7 @@ function termToState(term: Term): any {
     case 'boolop':
       return { type: 'lambda_boolean_operator', fields: { OP: term.op }, inputs: { LEFT: { block: termToState(term.left) }, RIGHT: { block: termToState(term.right) } } };
     case 'if':
-      return {
-        type: 'lambda_if',
-        inputs: {
-          COND: { block: termToState(term.cond) },
-          THEN: { block: termToState(term.thenTerm) },
-          ELSE: { block: termToState(term.elseTerm) }
-        }
-      };
+      return { type: 'lambda_if', inputs: { COND: { block: termToState(term.cond) }, THEN: { block: termToState(term.thenTerm) }, ELSE: { block: termToState(term.elseTerm) } } };
     case 'hole':
       return { type: 'lambda_variable', fields: { NAME: term.label } };
   }
@@ -307,10 +295,6 @@ function pretty(term: Term): string {
     case 'if': return `if ${pretty(term.cond)} then ${pretty(term.thenTerm)} else ${pretty(term.elseTerm)}`;
     case 'hole': return term.label;
   }
-}
-
-function save(block: Blockly.Block): any {
-  return Blockly.serialization.blocks.save(block, FULL_BLOCK);
 }
 
 function append(state: any, workspace: Blockly.WorkspaceSvg): Blockly.BlockSvg {
@@ -335,6 +319,16 @@ function annotate(root: Blockly.Block, term: Term): void {
   }
 }
 
+function blockHeight(block: Blockly.BlockSvg): number {
+  const dimensions = (block as any).getHeightWidth?.();
+  if (dimensions?.height) return Number(dimensions.height);
+  try {
+    return block.getSvgRoot()?.getBBox?.().height ?? 48;
+  } catch {
+    return 48;
+  }
+}
+
 export function arrangeBlocksVertically(workspace: Blockly.WorkspaceSvg, order: BlockOrder, vspace = 32): void {
   if (!workspace.rendered) return;
   Blockly.Events.disable();
@@ -342,10 +336,10 @@ export function arrangeBlocksVertically(workspace: Blockly.WorkspaceSvg, order: 
     let cursorY = 0;
     for (let i = 0; i <= order.order; i++) {
       const block = workspace.getBlockById(order.map[i]) as Blockly.BlockSvg | null;
-      if (!block?.isMovable()) continue;
+      if (!block) continue;
       const xy = block.getRelativeToSurfaceXY();
       block.moveBy(-xy.x, cursorY - xy.y);
-      cursorY = block.getRelativeToSurfaceXY().y + block.getHeightWidth().height + vspace;
+      cursorY = block.getRelativeToSurfaceXY().y + blockHeight(block) + vspace;
     }
   } finally {
     Blockly.Events.enable();
@@ -361,45 +355,31 @@ export function arrangeTopBlocks(workspace: Blockly.WorkspaceSvg): void {
   arrangeBlocksVertically(workspace, order);
 }
 
-export function renderLambdaReduction(appBlock: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
+function renderReductionTrace(block: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
   const order = newOrder();
-  const func = child(appBlock, 'FUNC');
-  const arg = child(appBlock, 'ARG');
-  const funcTerm = blockToTerm(func);
-  const argTerm = blockToTerm(arg);
-  const reducedFunc = evaluate(funcTerm, kind);
-  const parameter = reducedFunc.kind === 'abs' ? reducedFunc.param : 'arg';
-  const substitutionTerm = kind === 'value' ? evaluate(argTerm, kind) : argTerm;
+  const steps = reductionTrace(blockToTerm(block), kind);
+  const title = kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
 
-  const substLabel = label(workspace, kind === 'value' ? `Value for ${parameter}` : `Structure for ${parameter}`);
-  order.map[order.order++] = substLabel.id;
-  const substitutionBlock = append(termToState(substitutionTerm), workspace);
-  annotate(substitutionBlock, substitutionTerm);
-  order.map[order.order++] = substitutionBlock.id;
+  steps.forEach((term, index) => {
+    const isLast = index === steps.length - 1;
+    const stepLabel = label(workspace, `${title} ${index === 0 ? 'input' : `step ${index}`}${isLast ? ' / result' : ''}`);
+    order.map[order.order++] = stepLabel.id;
 
-  const bodyLabel = label(workspace, kind === 'value' ? 'Function body of CbV' : 'Function body of CbS');
-  order.map[order.order++] = bodyLabel.id;
-
-  const bodyTerm = reducedFunc.kind === 'abs'
-    ? substitute(reducedFunc.body, reducedFunc.param, substitutionTerm)
-    : { kind: 'app', func: reducedFunc, arg: substitutionTerm } as Term;
-  const resultTerm = evaluate(bodyTerm, kind);
-  const bodyBlock = append(termToState(resultTerm), workspace);
-  annotate(bodyBlock, resultTerm);
-  order.map[order.order++] = bodyBlock.id;
+    const stepBlock = append(termToState(term), workspace);
+    annotate(stepBlock, term);
+    order.map[order.order++] = stepBlock.id;
+  });
 
   arrangeBlocksVertically(workspace, order);
   return order;
 }
 
+export function renderLambdaReduction(appBlock: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
+  return renderReductionTrace(appBlock, workspace, kind);
+}
+
 export function renderCopiedTerm(block: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
-  const order = newOrder();
-  const term = evaluate(blockToTerm(block), kind);
-  const root = append(termToState(term), workspace);
-  annotate(root, term);
-  order.map[order.order++] = root.id;
-  arrangeBlocksVertically(workspace, order);
-  return order;
+  return renderReductionTrace(block, workspace, kind);
 }
 
 export function generatedStateForBlock(block: Blockly.Block, kind: ReductionKind): any {
