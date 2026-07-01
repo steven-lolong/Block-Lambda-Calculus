@@ -67,9 +67,31 @@ function numberOperatorBlock(op: string, left: BlockState, right: BlockState): B
   };
 }
 
-function letBlock(name: string, value: BlockState, body: BlockState): BlockState {
+function booleanOperatorBlock(op: string, left: BlockState, right: BlockState): BlockState {
   return {
-    type: 'lambda_let',
+    type: 'lambda_boolean_operator',
+    fields: { OP: op },
+    inputs: {
+      LEFT: { block: left },
+      RIGHT: { block: right }
+    }
+  };
+}
+
+function ifBlock(condition: BlockState, thenBranch: BlockState, elseBranch: BlockState): BlockState {
+  return {
+    type: 'lambda_if',
+    inputs: {
+      COND: { block: condition },
+      THEN: { block: thenBranch },
+      ELSE: { block: elseBranch }
+    }
+  };
+}
+
+function letrecBlock(name: string, value: BlockState, body: BlockState): BlockState {
+  return {
+    type: 'lambda_letrec',
     x: 72,
     y: 72,
     fields: { NAME: name },
@@ -80,22 +102,18 @@ function letBlock(name: string, value: BlockState, body: BlockState): BlockState
   };
 }
 
-function minusFromN(amount: number): BlockState {
-  return numberOperatorBlock('-', variableBlock('n'), numberBlock(amount));
+function decrementN(): BlockState {
+  return numberOperatorBlock('-', variableBlock('n'), numberBlock(1));
 }
 
-function factorialFunction(): BlockState {
-  const body = numberOperatorBlock(
-    '*',
-    variableBlock('n'),
-    numberOperatorBlock(
-      '*',
-      minusFromN(1),
-      numberOperatorBlock('*', minusFromN(2), numberOperatorBlock('*', minusFromN(3), minusFromN(4)))
-    )
-  );
+function factorialRecursiveCall(): BlockState {
+  return applicationBlock(variableBlock('factorial'), decrementN());
+}
 
-  return abstractionBlock('n', body);
+function standardFactorialFunction(): BlockState {
+  const condition = booleanOperatorBlock('=', variableBlock('n'), numberBlock(0));
+  const recursiveCase = numberOperatorBlock('*', variableBlock('n'), factorialRecursiveCall());
+  return abstractionBlock('n', ifBlock(condition, numberBlock(1), recursiveCase));
 }
 
 function factorialFiveApplication(): BlockState {
@@ -105,13 +123,13 @@ function factorialFiveApplication(): BlockState {
 export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> = {
   'simple-factorial': {
     id: 'simple-factorial',
-    title: 'Simple Factorial 5',
-    description: 'Loads a factorial function and applies it to integer 5.',
-    fileName: 'example-simple-factorial.blc',
+    title: 'Standard Factorial 5',
+    description: 'Loads the standard recursive factorial definition and applies it to integer 5.',
+    fileName: 'example-standard-factorial.blc',
     workspace: {
       blocks: {
         languageVersion: 0,
-        blocks: [letBlock('factorial', factorialFunction(), factorialFiveApplication())]
+        blocks: [letrecBlock('factorial', standardFactorialFunction(), factorialFiveApplication())]
       }
     }
   }
