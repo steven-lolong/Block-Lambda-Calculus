@@ -10,7 +10,7 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - right generated text-code panel.
 - Uses Blockly 12.
 - Hide/show toolbox panel.
-- Hide/show generated-code panel.
+- Hide/show generated-code panel, including a phone-layout restore button that scrolls back to the code panel.
 - Resizable right code panel.
 - Custom Lambda Calculus blocks:
   - variable,
@@ -24,7 +24,7 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - boolean operator,
   - if/then/else conditional.
 - Examples menu with a submenu for loading built-in workspaces:
-  - Simple Factorial 5, an expanded `5 * 4 * 3 * 2 * 1` example that reduces to `120`.
+  - Simple Factorial 5, a `factorial` function applied to integer `5`, reducing to `120`.
 - Hindley-Milner-style type inference for Lambda blocks:
   - fresh type variables for lambda parameters,
   - function-type inference for abstraction and application,
@@ -122,7 +122,7 @@ Each Lambda term block also has a small `?` question icon. Clicking it opens a t
 
 ## Built-in examples
 
-Use **Examples -> Simple Factorial 5** to load a ready-made factorial workspace. The example binds `factorial5` to the expanded arithmetic expression `5 * 4 * 3 * 2 * 1`, so the current evaluator can reduce it directly to `120` without needing recursive-let support.
+Use **Examples -> Simple Factorial 5** to load a ready-made factorial workspace. The example binds `factorial` to a function and evaluates the application `factorial 5`. The function body expands the arithmetic needed for the integer input `5`, so the current non-recursive evaluator can reduce it to `120` while still demonstrating function application.
 
 ## Main files
 
