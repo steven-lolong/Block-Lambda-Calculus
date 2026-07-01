@@ -25,6 +25,8 @@ type Term = TermBase & (
 );
 
 const MAX_REDUCTION_STEPS = 480;
+const MAX_VISUALIZATION_STEPS = 32;
+const MAX_RENDERED_TERM_SIZE = 140;
 
 const newOrder = (): BlockOrder => ({ order: 0, map: {} });
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -394,18 +396,6 @@ function evaluate(term: Term, kind: ReductionKind, values?: Map<string, string>)
   return current;
 }
 
-function reductionTrace(term: Term, kind: ReductionKind): Term[] {
-  const steps: Term[] = [clone(term)];
-  let current = clone(term);
-  for (let i = 0; i < MAX_REDUCTION_STEPS; i++) {
-    const next = reduceOnce(current, kind);
-    if (!next.changed) break;
-    current = next.term;
-    steps.push(clone(current));
-  }
-  return steps;
-}
-
 function termToState(term: Term): any {
   switch (term.kind) {
     case 'var':
@@ -452,6 +442,32 @@ function pretty(term: Term): string {
   }
 }
 
+function prettyPreview(term: Term, maxLength = 260): string {
+  const text = pretty(term);
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+function termSize(term: Term): number {
+  switch (term.kind) {
+    case 'abs':
+      return 1 + termSize(term.body);
+    case 'app':
+      return 1 + termSize(term.func) + termSize(term.arg);
+    case 'let':
+    case 'letrec':
+      return 1 + termSize(term.value) + termSize(term.body);
+    case 'fix':
+      return 1 + termSize(term.target);
+    case 'numop':
+    case 'boolop':
+      return 1 + termSize(term.left) + termSize(term.right);
+    case 'if':
+      return 1 + termSize(term.cond) + termSize(term.thenTerm) + termSize(term.elseTerm);
+    default:
+      return 1;
+  }
+}
+
 function append(state: any, workspace: Blockly.WorkspaceSvg): Blockly.BlockSvg {
   return Blockly.serialization.blocks.append(clone(state), workspace) as Blockly.BlockSvg;
 }
@@ -466,12 +482,44 @@ function label(workspace: Blockly.WorkspaceSvg, text: string): Blockly.BlockSvg 
   return block;
 }
 
-function annotate(root: Blockly.Block, term: Term): void {
+function comment(block: Blockly.Block | null, text: string): void {
   try {
-    root.setCommentText(`term:\n${pretty(term)}\n\nvalue:\n${prettyRuntimeValue(evaluate(term, 'value'))}`);
+    block?.setCommentText(text);
   } catch {
-    /* Comment rendering is best-effort in detached workspaces. */
+    /* Detached visualization workspaces may skip comment rendering. */
   }
+}
+
+function annotate(root: Blockly.Block, term: Term): void {
+  const size = termSize(term);
+  const value = isValue(term) ? prettyRuntimeValue(term) : 'not yet a value';
+  comment(root, `term:\n${prettyPreview(term)}\n\nvalue:\n${value}\n\nnodes:\n${size}`);
+}
+
+function appendToOrder(order: BlockOrder, block: Blockly.BlockSvg): void {
+  order.map[order.order] = block.id;
+  order.order += 1;
+}
+
+function appendLabel(workspace: Blockly.WorkspaceSvg, order: BlockOrder, text: string, note?: string): Blockly.BlockSvg {
+  const block = label(workspace, text);
+  if (note) comment(block, note);
+  appendToOrder(order, block);
+  return block;
+}
+
+function appendTerm(workspace: Blockly.WorkspaceSvg, order: BlockOrder, term: Term, note?: string): Blockly.BlockSvg {
+  if (termSize(term) > MAX_RENDERED_TERM_SIZE) {
+    const omitted = label(workspace, `Term omitted: ${termSize(term)} nodes`);
+    comment(omitted, note ?? 'The term is too large to render safely in the visualization workspace.');
+    appendToOrder(order, omitted);
+    return omitted;
+  }
+  const block = append(termToState(term), workspace);
+  annotate(block, term);
+  if (note) comment(block, `${block.getCommentText() ?? ''}\n\n${note}`.trim());
+  appendToOrder(order, block);
+  return block;
 }
 
 function blockHeight(block: Blockly.BlockSvg): number {
@@ -504,37 +552,128 @@ export function arrangeBlocksVertically(workspace: Blockly.WorkspaceSvg, order: 
 export function arrangeTopBlocks(workspace: Blockly.WorkspaceSvg): void {
   const order = newOrder();
   for (const block of workspace.getTopBlocks(false)) {
-    order.map[order.order] = block.id;
-    order.order += 1;
+    appendToOrder(order, block as Blockly.BlockSvg);
   }
   arrangeBlocksVertically(workspace, order);
 }
 
-function renderReductionTrace(block: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
-  const order = newOrder();
-  const steps = reductionTrace(blockToTerm(block), kind);
-  const title = kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
+function titleFor(kind: ReductionKind): string {
+  return kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
+}
 
-  steps.forEach((term, index) => {
-    const isLast = index === steps.length - 1;
-    const stepLabel = label(workspace, `${title} ${index === 0 ? 'input' : `step ${index}`}${isLast ? ' / result' : ''}`);
-    order.map[order.order++] = stepLabel.id;
+function stepKind(before: Term, kind: ReductionKind): string {
+  if (before.kind === 'app' && before.func.kind === 'abs' && (kind === 'structure' || isValue(before.arg))) return 'β-reduction';
+  if (before.kind === 'app' && kind === 'value' && before.func.kind === 'abs' && !isValue(before.arg)) return 'evaluate argument first';
+  if (before.kind === 'let') return 'let substitution';
+  if (before.kind === 'letrec') return 'fixpoint creation';
+  if (before.kind === 'fix') return 'fixpoint unfolding';
+  if (before.kind === 'if' && before.cond.kind === 'bool') return before.cond.value ? 'select then branch' : 'select else branch';
+  if ((before.kind === 'numop' || before.kind === 'boolop') && computePrimitive(before)) return 'primitive computation';
+  return 'structural reduction';
+}
 
-    const stepBlock = append(termToState(term), workspace);
-    annotate(stepBlock, term);
-    order.map[order.order++] = stepBlock.id;
-  });
+function appendBetaDetails(workspace: Blockly.WorkspaceSvg, order: BlockOrder, before: Extract<Term, { kind: 'app' }>, after: Term, kind: ReductionKind): void {
+  if (before.func.kind !== 'abs') return;
+  const title = titleFor(kind);
+  const substitutionNote = kind === 'value'
+    ? `CBV substitutes the already evaluated value for parameter ${before.func.param}.`
+    : `CBS substitutes the argument structure directly for parameter ${before.func.param}.`;
+  appendLabel(workspace, order, `Substituted block for parameter ${before.func.param}`, substitutionNote);
+  appendTerm(workspace, order, before.arg);
+  appendLabel(workspace, order, `Function body of ${title}`, 'This is the function body after substitution.');
+  appendTerm(workspace, order, after);
+}
 
-  arrangeBlocksVertically(workspace, order);
-  return order;
+function appendReductionStep(
+  workspace: Blockly.WorkspaceSvg,
+  order: BlockOrder,
+  before: Term,
+  after: Term,
+  kind: ReductionKind,
+  index: number
+): void {
+  const title = titleFor(kind);
+  const kindLabel = stepKind(before, kind);
+  appendLabel(workspace, order, `${title} step ${index}: ${kindLabel}`);
+
+  if (before.kind === 'app' && before.func.kind === 'abs' && (kind === 'structure' || isValue(before.arg))) {
+    appendBetaDetails(workspace, order, before, after, kind);
+    return;
+  }
+
+  if (before.kind === 'letrec') {
+    appendLabel(workspace, order, 'Recursive binding encoded as fixpoint');
+    appendTerm(workspace, order, after);
+    return;
+  }
+
+  if (before.kind === 'fix') {
+    appendLabel(workspace, order, 'Fixpoint unfolding result');
+    appendTerm(workspace, order, after);
+    return;
+  }
+
+  if (before.kind === 'if' && before.cond.kind === 'bool') {
+    appendLabel(workspace, order, before.cond.value ? 'Selected then branch' : 'Selected else branch');
+    appendTerm(workspace, order, after);
+    return;
+  }
+
+  appendLabel(workspace, order, 'Before');
+  appendTerm(workspace, order, before);
+  appendLabel(workspace, order, 'After');
+  appendTerm(workspace, order, after);
 }
 
 export function renderLambdaReduction(appBlock: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
-  return renderReductionTrace(appBlock, workspace, kind);
+  const order = newOrder();
+  const title = titleFor(kind);
+  const initial = blockToTerm(appBlock);
+  let current = clone(initial);
+
+  appendLabel(workspace, order, `${title} input`, 'The selected application from the main workspace.');
+  appendTerm(workspace, order, current);
+
+  let truncated = false;
+  for (let index = 1; index <= MAX_VISUALIZATION_STEPS; index += 1) {
+    const next = reduceOnce(current, kind);
+    if (!next.changed) break;
+    appendReductionStep(workspace, order, current, next.term, kind, index);
+    current = next.term;
+
+    if (termSize(current) > MAX_RENDERED_TERM_SIZE * 2) {
+      truncated = true;
+      appendLabel(
+        workspace,
+        order,
+        `${title} trace truncated`,
+        `The intermediate term reached ${termSize(current)} nodes. The final result is still computed separately.`
+      );
+      break;
+    }
+  }
+
+  if (!truncated) {
+    const next = reduceOnce(current, kind);
+    if (next.changed) {
+      appendLabel(
+        workspace,
+        order,
+        `${title} trace limit reached`,
+        `Only the first ${MAX_VISUALIZATION_STEPS} steps are shown to keep the workspace usable.`
+      );
+    }
+  }
+
+  const finalTerm = evaluate(initial, kind);
+  appendLabel(workspace, order, `${title} result`, 'Final value computed by the evaluator.');
+  appendTerm(workspace, order, finalTerm);
+  arrangeBlocksVertically(workspace, order, 36);
+  return order;
 }
 
 export function renderCopiedTerm(block: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
-  return renderReductionTrace(block, workspace, kind);
+  return renderLambdaReduction(block, workspace, kind);
 }
 
 export function generatedStateForBlock(block: Blockly.Block, kind: ReductionKind): any {
