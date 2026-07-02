@@ -16,18 +16,11 @@ export type LambdaInferenceReport = {
   summary: string;
 };
 
-type Type = TypeVariable | TypeConstant | TypeFunction;
+type Type = TypeVariable | TypeFunction;
 
 type TypeVariable = {
   kind: 'var';
   id: number;
-};
-
-type TypeConstantName = 'int' | 'bool';
-
-type TypeConstant = {
-  kind: 'const';
-  name: TypeConstantName;
 };
 
 type TypeFunction = {
@@ -51,8 +44,12 @@ type InferenceState = {
   issues: LambdaTypeIssue[];
 };
 
-const INT_TYPE: TypeConstant = { kind: 'const', name: 'int' };
-const BOOL_TYPE: TypeConstant = { kind: 'const', name: 'bool' };
+type LambdaTypedBlock = Blockly.Block & {
+  termType?: string;
+  termScheme?: string;
+  termTypeHasNoError?: boolean;
+  isComplete?: boolean;
+};
 
 class LambdaTypeError extends Error {
   constructor(message: string) {
@@ -92,8 +89,6 @@ function typeName(type: Type): string {
   switch (type.kind) {
     case 'var':
       return `'${type.id}`;
-    case 'const':
-      return type.name;
     case 'fun':
       return `${typeName(type.from)} -> ${typeName(type.to)}`;
   }
@@ -106,8 +101,6 @@ function applySubstitution(type: Type, substitution: Map<number, Type>, protecte
       const replacement = substitution.get(type.id);
       return replacement ? applySubstitution(replacement, substitution, protectedVars) : type;
     }
-    case 'const':
-      return type;
     case 'fun':
       return functionType(
         applySubstitution(type.from, substitution, protectedVars),
@@ -121,8 +114,6 @@ function occurs(typeVariableId: number, type: Type, state: InferenceState): bool
   switch (applied.kind) {
     case 'var':
       return applied.id === typeVariableId;
-    case 'const':
-      return false;
     case 'fun':
       return occurs(typeVariableId, applied.from, state) || occurs(typeVariableId, applied.to, state);
   }
@@ -151,20 +142,8 @@ function unify(left: Type, right: Type, state: InferenceState): void {
     return;
   }
 
-  if (a.kind === 'const' && b.kind === 'const') {
-    if (a.name !== b.name) {
-      throw new LambdaTypeError(`Expected ${a.name}, but found ${b.name}.`);
-    }
-    return;
-  }
-
-  if (a.kind === 'fun' && b.kind === 'fun') {
-    unify(a.from, b.from, state);
-    unify(a.to, b.to, state);
-    return;
-  }
-
-  throw new LambdaTypeError(`Cannot unify ${formatType(a, state)} with ${formatType(b, state)}.`);
+  unify(a.from, b.from, state);
+  unify(a.to, b.to, state);
 }
 
 function freeTypeVariables(type: Type, state: InferenceState, protectedVars = new Set<number>()): Set<number> {
@@ -172,8 +151,6 @@ function freeTypeVariables(type: Type, state: InferenceState, protectedVars = ne
   switch (applied.kind) {
     case 'var':
       return new Set([applied.id]);
-    case 'const':
-      return new Set();
     case 'fun': {
       const variables = freeTypeVariables(applied.from, state, protectedVars);
       for (const id of freeTypeVariables(applied.to, state, protectedVars)) variables.add(id);
@@ -214,8 +191,6 @@ function instantiate(scheme: TypeScheme, state: InferenceState): Type {
     switch (applied.kind) {
       case 'var':
         return replacements.get(applied.id) ?? applied;
-      case 'const':
-        return applied;
       case 'fun':
         return functionType(replace(applied.from), replace(applied.to));
     }
@@ -302,37 +277,36 @@ function inferTerm(block: Blockly.Block, env: TypeEnvironment, state: InferenceS
       }
 
       case 'lambda_number':
-        return rememberType(block, INT_TYPE, state);
-
       case 'lambda_boolean':
-        return rememberType(block, BOOL_TYPE, state);
+        return rememberType(block, freshTypeVariable(state), state);
 
       case 'lambda_number_operator': {
         const left = inferChild(block, 'LEFT', env, state);
         const right = inferChild(block, 'RIGHT', env, state);
-        unify(left, INT_TYPE, state);
-        unify(right, INT_TYPE, state);
-        return rememberType(block, INT_TYPE, state);
+        const result = freshTypeVariable(state);
+        unify(left, result, state);
+        unify(right, result, state);
+        return rememberType(block, result, state);
       }
 
       case 'lambda_boolean_operator': {
         const operator = field(block, 'OP', 'and');
         const left = inferChild(block, 'LEFT', env, state);
         const right = inferChild(block, 'RIGHT', env, state);
-        if (operator === 'and' || operator === 'or') {
-          unify(left, BOOL_TYPE, state);
-          unify(right, BOOL_TYPE, state);
-        } else {
+        if (operator === '=') {
           unify(left, right, state);
+          return rememberType(block, freshTypeVariable(state), state);
         }
-        return rememberType(block, BOOL_TYPE, state);
+        const result = freshTypeVariable(state);
+        unify(left, result, state);
+        unify(right, result, state);
+        return rememberType(block, result, state);
       }
 
       case 'lambda_if': {
-        const condition = inferChild(block, 'COND', env, state);
+        inferChild(block, 'COND', env, state);
         const thenBranch = inferChild(block, 'THEN', env, state);
         const elseBranch = inferChild(block, 'ELSE', env, state);
-        unify(condition, BOOL_TYPE, state);
         unify(thenBranch, elseBranch, state);
         return rememberType(block, thenBranch, state);
       }
@@ -373,8 +347,6 @@ function createTypePrinter(state: InferenceState): (type: Type) => string {
     switch (applied.kind) {
       case 'var':
         return variableName(applied.id);
-      case 'const':
-        return applied.name;
       case 'fun': {
         const rendered = `${print(applied.from, applied.from.kind === 'fun')} -> ${print(applied.to)}`;
         return parenthesizeFunction ? `(${rendered})` : rendered;
@@ -398,9 +370,9 @@ function groupIssuesByBlock(issues: LambdaTypeIssue[]): Map<string, string[]> {
 
 function makeSummary(topLevelCount: number, issueCount: number): string {
   if (issueCount === 0) {
-    return `Type inference ok for ${topLevelCount} top-level term${topLevelCount === 1 ? '' : 's'}.`;
+    return `Polymorphic inference ok for ${topLevelCount} top-level term${topLevelCount === 1 ? '' : 's'}.`;
   }
-  return `Type inference found ${issueCount} issue${issueCount === 1 ? '' : 's'}.`;
+  return `Polymorphic inference found ${issueCount} issue${issueCount === 1 ? '' : 's'}.`;
 }
 
 export function inferLambdaWorkspaceTypes(workspace: Blockly.Workspace): LambdaInferenceReport {
@@ -445,17 +417,30 @@ export function inferLambdaWorkspaceTypes(workspace: Blockly.Workspace): LambdaI
   };
 }
 
+export function writeLambdaInferenceMetadata(workspace: Blockly.Workspace, report: LambdaInferenceReport): void {
+  for (const block of workspace.getAllBlocks(false).filter(isLambdaTermBlock)) {
+    const typed = block as LambdaTypedBlock;
+    const issues = report.blockIssues.get(block.id) ?? [];
+    const inferredType = report.blockTypes.get(block.id) ?? 'unknown';
+    typed.termType = inferredType;
+    typed.termScheme = inferredType;
+    typed.termTypeHasNoError = issues.length === 0;
+    typed.isComplete = !issues.some((issue) => issue.startsWith('Missing '));
+  }
+}
+
 export function annotateLambdaWorkspaceTypes(
   workspace: Blockly.Workspace,
   report = inferLambdaWorkspaceTypes(workspace)
 ): LambdaInferenceReport {
   const blocks = workspace.getAllBlocks(false).filter(isLambdaTermBlock);
+  writeLambdaInferenceMetadata(workspace, report);
 
   Blockly.Events.disable();
   try {
     for (const block of blocks) {
       const messages = report.blockIssues.get(block.id) ?? [];
-      block.setWarningText(messages.length > 0 ? `Type inference:\n${messages.join('\n')}` : null, 'lambda-type-inference');
+      block.setWarningText(messages.length > 0 ? `Polymorphic type inference:\n${messages.join('\n')}` : null, 'lambda-type-inference');
     }
   } finally {
     Blockly.Events.enable();
