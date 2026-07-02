@@ -595,29 +595,66 @@ function titleFor(kind: ReductionKind): string {
   return kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
 }
 
-function displayArgumentForEvent(eventInfo: ReductionEvent, kind: ReductionKind): Term | null {
-  if (eventInfo.kind !== 'beta' || eventInfo.redex.kind !== 'app') return null;
-  return kind === 'value' ? evaluate(eventInfo.redex.arg, kind) : eventInfo.redex.arg;
+function parameterEvaluationKind(kind: ReductionKind): ReductionKind {
+  return kind === 'value' ? 'value' : 'structure';
+}
+
+function parameterValueNote(original: Term, evaluated: Term, kind: ReductionKind): string {
+  const strategy = kind === 'value' ? 'CBV' : 'CBS';
+  const summary = isValue(evaluated) ? prettyRuntimeValue(evaluated) : prettyPreview(evaluated);
+  return `${strategy} evaluates the parameter first.\n\nParameter evaluation result:\n${summary}`;
 }
 
 function renderMnlStyleBetaDetails(workspace: Blockly.WorkspaceSvg, order: BlockOrder, eventInfo: ReductionEvent, kind: ReductionKind): void {
   if (eventInfo.kind !== 'beta' || eventInfo.redex.kind !== 'app' || eventInfo.redex.func.kind !== 'abs') return;
   const title = titleFor(kind);
   const parameter = eventInfo.redex.func.param;
-  const argument = displayArgumentForEvent(eventInfo, kind);
+  const originalArgument = eventInfo.redex.arg;
+  const evaluatedArgument = evaluate(originalArgument, parameterEvaluationKind(kind));
+  const substitutionArgument = kind === 'value' ? evaluatedArgument : originalArgument;
+  const functionBody = substitute(eventInfo.redex.func.body, parameter, substitutionArgument);
 
-  appendLabel(
-    workspace,
-    order,
-    `Substituted block for parameter ${parameter}`,
-    kind === 'value'
-      ? 'CBV first reduces the argument to a value, then substitutes that value block.'
-      : 'CBS substitutes the argument block structure directly, preserving its visual structure.'
-  );
-  if (argument) appendTerm(workspace, order, argument);
+  if (kind === 'structure') {
+    appendLabel(
+      workspace,
+      order,
+      `Parameter ${parameter} evaluated - structure preserved`,
+      'Matches MNL CBS: the argument is evaluated for value/type information, but its block tree is not collapsed into the final value block.'
+    );
+    appendTerm(
+      workspace,
+      order,
+      originalArgument,
+      `${parameterValueNote(originalArgument, evaluatedArgument, kind)}\n\nCBS keeps this original block structure for substitution.`
+    );
 
-  appendLabel(workspace, order, `Function body of ${title}`, 'The body after substituting the parameter occurrence(s).');
-  appendTerm(workspace, order, eventInfo.result);
+    appendLabel(
+      workspace,
+      order,
+      `Substituted block for parameter ${parameter}`,
+      'CBS substitutes a copy of the evaluated/annotated original argument tree, preserving the parameter structure.'
+    );
+    appendTerm(workspace, order, originalArgument);
+  } else {
+    appendLabel(
+      workspace,
+      order,
+      `Parameter ${parameter} evaluated to value`,
+      'Matches MNL CBV: the argument is evaluated, converted into a simplified value block, and that value block is substituted.'
+    );
+    appendTerm(workspace, order, evaluatedArgument, parameterValueNote(originalArgument, evaluatedArgument, kind));
+
+    appendLabel(
+      workspace,
+      order,
+      `Substituted value block for parameter ${parameter}`,
+      'CBV substitutes the simplified value block, not the original argument structure.'
+    );
+    appendTerm(workspace, order, evaluatedArgument);
+  }
+
+  appendLabel(workspace, order, `Function body of ${title}`, 'The body after applying the strategy-specific parameter substitution.');
+  appendTerm(workspace, order, functionBody);
 }
 
 function appendReductionState(
