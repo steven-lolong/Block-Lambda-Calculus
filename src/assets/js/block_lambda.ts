@@ -4,6 +4,7 @@ import '../css/styles.css';
 import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
+import { generateLambdaFormalization } from '../../core/generator/lambdaFormalGenerator';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { renderToolbox } from '../../core/renderer/toolbox';
@@ -56,10 +57,12 @@ const autosaveInterval = requireElement<HTMLInputElement>('autosaveInterval');
 const autosaveIntervalLabel = requireElement<HTMLElement>('autosaveIntervalLabel');
 const examplesMenuButton = requireElement<HTMLButtonElement>('examplesMenuButton');
 const examplesSubMenu = requireElement<HTMLElement>('examplesSubMenu');
+const codeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-code-target]'));
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 let lastTypeReport: LambdaInferenceReport | null = null;
+let activeCodeTarget: 'lambda' | 'formal' = 'lambda';
 
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
@@ -243,6 +246,33 @@ function renderHighlightedCodeLines(code: string): string {
   }).join('');
 }
 
+function renderCodeTargetTabs(): void {
+  for (const button of codeTargetButtons) {
+    const selected = button.dataset.codeTarget === activeCodeTarget;
+    button.setAttribute('aria-selected', String(selected));
+    button.removeAttribute('tabindex');
+  }
+}
+
+function renderGeneratedOutput(report: LambdaInferenceReport): void {
+  if (activeCodeTarget === 'formal') {
+    const formalization = generateLambdaFormalization(workspace, report);
+    codeOutput.dataset.rawCode = formalization.text;
+    codeOutput.classList.add('formal-output');
+    codeOutput.innerHTML = formalization.html;
+    return;
+  }
+
+  const code = generateLambdaCode(workspace, {
+    includeTypeAnnotations: true,
+    typeForBlock: (block) => report.topLevelTypes.get(block.id) ?? report.blockTypes.get(block.id),
+    errorForBlock: (block) => report.blockIssues.get(block.id)?.join('; ')
+  });
+  codeOutput.dataset.rawCode = code;
+  codeOutput.classList.remove('formal-output');
+  codeOutput.innerHTML = renderHighlightedCodeLines(code);
+}
+
 function setStatus(message: string): void {
   statusLine.textContent = message;
 }
@@ -291,13 +321,7 @@ function updateBlockCount(): void {
 
 function refreshCode(report = annotateLambdaWorkspaceTypes(workspace)): LambdaInferenceReport {
   lastTypeReport = report;
-  const code = generateLambdaCode(workspace, {
-    includeTypeAnnotations: true,
-    typeForBlock: (block) => report.topLevelTypes.get(block.id) ?? report.blockTypes.get(block.id),
-    errorForBlock: (block) => report.blockIssues.get(block.id)?.join('; ')
-  });
-  codeOutput.dataset.rawCode = code;
-  codeOutput.innerHTML = renderHighlightedCodeLines(code);
+  renderGeneratedOutput(report);
   syncTypeInfoComments(workspace, report);
   updateBlockCount();
   updateZoomLabel();
@@ -487,7 +511,7 @@ setupPanelControls(workspace, {
   onRefreshCode: () => {
     const report = runLambdaInferenceToFixpoint(workspace, 'manual-refresh');
     refreshCode(report);
-    setStatus(`Code refreshed. ${report.summary}`);
+    setStatus(`Output refreshed. ${report.summary}`);
   },
   onClearWorkspace: clearWorkspace,
   onSaveWorkspace: saveWorkspace,
@@ -503,6 +527,17 @@ initVisualizationPanel({
 });
 
 installExampleMenu(examplesMenuButton, examplesSubMenu, loadExampleWorkspace);
+
+for (const button of codeTargetButtons) {
+  button.addEventListener('click', () => {
+    const target = button.dataset.codeTarget;
+    if (target !== 'lambda' && target !== 'formal') return;
+    activeCodeTarget = target;
+    renderCodeTargetTabs();
+    refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+    setStatus(target === 'formal' ? 'Showing formal derivation.' : 'Showing generated Lambda output.');
+  });
+}
 
 autosaveInterval.addEventListener('input', () => {
   autosaveIntervalMinutes = clampAutosaveInterval(Number(autosaveInterval.value));
@@ -549,6 +584,7 @@ function createStarterProgram(): void {
 
 createStarterProgram();
 updateAutosaveIntervalUi();
+renderCodeTargetTabs();
 setWorkspaceTitle();
 const initialReport = runLambdaInferenceToFixpoint(workspace, 'initial-load');
 saveWorkspaceToAutosave(false);

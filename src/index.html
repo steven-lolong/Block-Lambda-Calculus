@@ -58,7 +58,7 @@
 
           <div class="action-group run-actions" aria-label="Workspace actions">
             <button id="refreshCode" class="ghost-button" type="button">
-              <span class="button-icon" aria-hidden="true">⟳</span> Refresh Code
+              <span class="button-icon" aria-hidden="true">⟳</span> Refresh Output
             </button>
             <button id="toggleVizDock" class="ghost-button" type="button" aria-pressed="false">
               <span class="button-icon" aria-hidden="true">◧</span> Reduction
@@ -105,8 +105,8 @@
             <div class="workspace-controls">
               <span id="workspaceFileLabel" class="workspace-badge workspace-file-label" title="Current workspace file"></span>
               <span id="zoomLabel" class="workspace-badge" title="Blockly zoom level">92%</span>
-              <button id="showCodeFromWorkspace" class="small-button workspace-restore-button restore-code-button" type="button" hidden aria-label="Show generated code" title="Show generated code">
-                Show Code <span aria-hidden="true">▶</span>
+              <button id="showCodeFromWorkspace" class="small-button workspace-restore-button restore-code-button" type="button" hidden aria-label="Show generated output" title="Show generated output">
+                Show Output <span aria-hidden="true">▶</span>
               </button>
             </div>
           </div>
@@ -115,16 +115,26 @@
           </div>
         </section>
 
-        <aside id="codePanel" class="code-panel" aria-label="Generated text code">
+        <aside id="codePanel" class="code-panel" aria-label="Generated output">
           <div id="resizeHandle" class="resize-handle" aria-hidden="true"></div>
           <div class="panel-header code-header">
-            <span><span class="panel-icon" aria-hidden="true">&lt;/&gt;</span> Generated λ-Calculus Code</span>
+            <span><span class="panel-icon" aria-hidden="true">&lt;/&gt;</span> Generated Output</span>
             <div class="code-header-actions">
-              <button id="copyCode" class="small-button icon-only" type="button" aria-label="Copy generated code">Copy</button>
-              <button id="toggleCodePanel" class="small-button icon-only panel-hide-button" type="button" aria-label="Hide generated code" title="Hide generated code">▶</button>
+              <button id="copyCode" class="small-button icon-only" type="button" aria-label="Copy generated output">Copy</button>
+              <button id="toggleCodePanel" class="small-button icon-only panel-hide-button" type="button" aria-label="Hide generated output" title="Hide generated output">▶</button>
             </div>
           </div>
-          <pre class="code-output"><code id="codeOutput">-- Generated code appears here</code></pre>
+          <div class="code-tabs" role="tablist" aria-label="Generated output target">
+            <button id="codeTargetLambda" class="code-tab" type="button" role="tab" data-code-target="lambda" aria-selected="true">
+              <span class="code-tab-icon" aria-hidden="true">λ</span>
+              <span class="code-tab-label">Code</span>
+            </button>
+            <button id="codeTargetFormal" class="code-tab" type="button" role="tab" data-code-target="formal" aria-selected="false">
+              <span class="code-tab-icon" aria-hidden="true">⊢</span>
+              <span class="code-tab-label">Formal</span>
+            </button>
+          </div>
+          <div id="codeOutput" class="code-output" role="region" aria-label="Generated output">-- Generated output appears here</div>
         </aside>
       </main>
 

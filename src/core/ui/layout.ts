@@ -154,14 +154,14 @@ export function setupPanelControls(
     if (toggleCodePanel) {
       toggleCodePanel.textContent = '▶';
       toggleCodePanel.setAttribute('aria-expanded', String(!hidden));
-      toggleCodePanel.setAttribute('aria-label', 'Hide generated code');
-      toggleCodePanel.title = 'Hide generated code';
+      toggleCodePanel.setAttribute('aria-label', 'Hide generated output');
+      toggleCodePanel.title = 'Hide generated output';
     }
     if (showCodeFromWorkspace) {
       showCodeFromWorkspace.hidden = !hidden;
       showCodeFromWorkspace.setAttribute('aria-expanded', String(!hidden));
-      showCodeFromWorkspace.setAttribute('aria-label', 'Show generated code');
-      showCodeFromWorkspace.title = 'Show generated code';
+      showCodeFromWorkspace.setAttribute('aria-label', 'Show generated output');
+      showCodeFromWorkspace.title = 'Show generated output';
       showCodeFromWorkspace.disabled = !hidden;
     }
   };
