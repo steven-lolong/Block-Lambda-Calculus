@@ -5,10 +5,10 @@ import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
+import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { installLambdaContextMenuFallback, registerLambdaContextMenus } from '../../core/ui/contextMenus';
-import { installLambdaEvaluationDriver } from '../../core/ui/evaluationDriver';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 import { syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
 import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
@@ -292,8 +292,7 @@ function updateBlockCount(): void {
   blockCount.textContent = String(workspace.getAllBlocks(false).length);
 }
 
-function refreshCode(): LambdaInferenceReport {
-  const report = annotateLambdaWorkspaceTypes(workspace);
+function refreshCode(report = annotateLambdaWorkspaceTypes(workspace)): LambdaInferenceReport {
   lastTypeReport = report;
   const code = generateLambdaCode(workspace, {
     includeTypeAnnotations: true,
@@ -308,9 +307,9 @@ function refreshCode(): LambdaInferenceReport {
   return report;
 }
 
-function refreshAfterWorkspaceChange(): void {
-  const report = refreshCode();
-  if (report.hasErrors) setStatus(report.summary);
+function refreshAfterInference(report: LambdaInferenceReport): void {
+  const refreshed = refreshCode(report);
+  if (refreshed.hasErrors) setStatus(refreshed.summary);
   scheduleAutosave();
 }
 
@@ -319,7 +318,8 @@ function clearWorkspace(): void {
   workspace.clear();
   currentWorkspaceFileName = 'block-lambda-workspace.blc';
   setWorkspaceTitle();
-  const report = refreshCode();
+  const report = runLambdaInferenceToFixpoint(workspace, 'clear-workspace');
+  refreshCode(report);
   resizeWorkspace();
   setStatus(`Workspace cleared. ${report.summary}`);
 }
@@ -429,7 +429,8 @@ async function loadWorkspace(): Promise<void> {
     currentWorkspaceFileName = normalizeBlcFilename(file.name);
     setWorkspaceTitle(currentWorkspaceFileName);
     saveWorkspaceToAutosave(false);
-    const report = refreshCode();
+    const report = runLambdaInferenceToFixpoint(workspace, 'load-workspace');
+    refreshCode(report);
     resizeWorkspace();
     setStatus(`Loaded workspace from ${file.name}. Local autosave updated. ${report.summary}`);
   } catch (error) {
@@ -454,7 +455,8 @@ function loadAutosave(): void {
     Blockly.serialization.workspaces.load(workspaceState, workspace);
     currentWorkspaceFileName = 'autosave-recovery.blc';
     setWorkspaceTitle(currentWorkspaceFileName);
-    const report = refreshCode();
+    const report = runLambdaInferenceToFixpoint(workspace, 'load-autosave');
+    refreshCode(report);
     resizeWorkspace();
     const savedAtText = savedAt ? ` from ${new Date(savedAt).toLocaleString()}` : '';
     setStatus(`Loaded local autosave${savedAtText}. ${report.summary}`);
@@ -471,7 +473,8 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
     currentWorkspaceFileName = example.fileName;
     setWorkspaceTitle(currentWorkspaceFileName);
     saveWorkspaceToAutosave(false);
-    const report = refreshCode();
+    const report = runLambdaInferenceToFixpoint(workspace, 'load-example');
+    refreshCode(report);
     resizeWorkspace();
     setStatus(`Loaded example: ${example.title}. ${report.summary}`);
   } catch (error) {
@@ -481,12 +484,11 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
 }
 
 function updateTypeComments(): void {
-  const report = annotateLambdaWorkspaceTypes(workspace, lastTypeReport ?? undefined);
-  lastTypeReport = report;
+  const report = runLambdaInferenceToFixpoint(workspace, 'manual-comments');
   const commentCount = syncTypeInfoComments(workspace, report);
-  const refreshed = refreshCode();
+  refreshCode(report);
   saveWorkspaceToAutosave(false);
-  setStatus(`Updated Blockly type/value comments for ${commentCount} Lambda block${commentCount === 1 ? '' : 's'}. ${refreshed.summary}`);
+  setStatus(`Updated Blockly type/value comments for ${commentCount} Lambda block${commentCount === 1 ? '' : 's'}. ${report.summary}`);
 }
 
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
@@ -494,7 +496,8 @@ setupPanelControls(workspace, {
   lightTheme,
   darkTheme,
   onRefreshCode: () => {
-    const report = refreshCode();
+    const report = runLambdaInferenceToFixpoint(workspace, 'manual-refresh');
+    refreshCode(report);
     setStatus(`Code refreshed. ${report.summary}`);
   },
   onClearWorkspace: clearWorkspace,
@@ -524,13 +527,14 @@ autosaveInterval.addEventListener('input', () => {
 
 addValueCommentsButton.addEventListener('click', updateTypeComments);
 
-installLambdaEvaluationDriver(workspace, {
+installLambdaInferenceDriver(workspace, {
   onViewport: updateZoomLabel,
-  onSettled: refreshAfterWorkspaceChange
+  onSettled: (report) => refreshAfterInference(report)
 });
 
 window.addEventListener('block-lambda:refresh-code', () => {
-  refreshCode();
+  const report = runLambdaInferenceToFixpoint(workspace, 'external-refresh');
+  refreshCode(report);
 });
 window.addEventListener('block-lambda:theme-changed', disposeVisualizationWorkspaces);
 
@@ -559,7 +563,7 @@ function createStarterProgram(): void {
 createStarterProgram();
 updateAutosaveIntervalUi();
 setWorkspaceTitle();
-const initialReport = refreshCode();
+const initialReport = runLambdaInferenceToFixpoint(workspace, 'initial-load');
 saveWorkspaceToAutosave(false);
 resizeWorkspace();
 setStatus(`Ready. Drag blocks from the toolbox, load a .blc file, or recover a local autosave. ${initialReport.summary}`);
