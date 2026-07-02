@@ -70,14 +70,12 @@ function isRenderableBlock(block: Blockly.BlockSvg | null): block is Blockly.Blo
 function injectWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
   const host = hostOf(kind);
   if (!host) throw new Error(`Missing visualization host for ${kind}`);
+
   return Blockly.inject(host, {
     renderer: 'zelos',
     theme: currentTheme(),
-    readOnly: true,
     trashcan: false,
     comments: true,
-    collapse: true,
-    disable: true,
     grid: { spacing: 20, length: 3, snap: true },
     move: { scrollbars: true, drag: true, wheel: false },
     zoom: { controls: true, wheel: true, startScale: 0.92, maxScale: 3, minScale: 0.35, scaleSpeed: 1.15, pinch: true }
@@ -87,6 +85,15 @@ function injectWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
 function ensureWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
   if (!views[kind].workspace) views[kind].workspace = injectWorkspace(kind);
   return views[kind].workspace!;
+}
+
+function makeWorkspaceBlocksMovable(workspace: Blockly.WorkspaceSvg): void {
+  for (const block of workspace.getAllBlocks(false)) {
+    const blockSvg = block as Blockly.BlockSvg;
+    blockSvg.setMovable(true);
+    blockSvg.setDeletable(false);
+    blockSvg.setEditable(true);
+  }
 }
 
 function setActive(kind: VizKind): void {
@@ -161,6 +168,10 @@ function renderView(kind: VizKind): void {
   try {
     Blockly.svgResize(workspace);
     view.order = renderLambdaReduction(block, workspace, kind);
+    makeWorkspaceBlocksMovable(workspace);
+    if (!view.order || view.order.order === 0) {
+      arrangeTopBlocks(workspace);
+    }
   } catch (error) {
     console.error('[Block Lambda] visualization failed', error);
     view.order = null;
@@ -241,6 +252,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     if (!view.workspace) return;
     if (view.order) arrangeBlocksVertically(view.workspace, view.order, 36);
     else arrangeTopBlocks(view.workspace);
+    makeWorkspaceBlocksMovable(view.workspace);
     Blockly.svgResize(view.workspace);
   });
   byId<HTMLButtonElement>('vizCollapse')?.addEventListener('click', () => setVisualizationOpen(false));
