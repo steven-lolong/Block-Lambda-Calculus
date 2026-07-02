@@ -54,7 +54,6 @@ const blockCount = requireElement<HTMLElement>('blockCount');
 const autosaveTime = requireElement<HTMLElement>('autosaveTime');
 const autosaveInterval = requireElement<HTMLInputElement>('autosaveInterval');
 const autosaveIntervalLabel = requireElement<HTMLElement>('autosaveIntervalLabel');
-const addValueCommentsButton = requireElement<HTMLButtonElement>('addValueComments');
 const examplesMenuButton = requireElement<HTMLButtonElement>('examplesMenuButton');
 const examplesSubMenu = requireElement<HTMLElement>('examplesSubMenu');
 
@@ -483,14 +482,6 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   }
 }
 
-function updateTypeComments(): void {
-  const report = runLambdaInferenceToFixpoint(workspace, 'manual-comments');
-  const commentCount = syncTypeInfoComments(workspace, report);
-  refreshCode(report);
-  saveWorkspaceToAutosave(false);
-  setStatus(`Updated Blockly type/value comments for ${commentCount} Lambda block${commentCount === 1 ? '' : 's'}. ${report.summary}`);
-}
-
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
 setupPanelControls(workspace, {
   lightTheme,
@@ -524,8 +515,6 @@ autosaveInterval.addEventListener('input', () => {
   }
   setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
 });
-
-addValueCommentsButton.addEventListener('click', updateTypeComments);
 
 installLambdaInferenceDriver(workspace, {
   onViewport: updateZoomLabel,
