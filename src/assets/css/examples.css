@@ -54,13 +54,32 @@
 }
 
 /* Toolbox polish: align custom category summaries and block cards with the IDE theme. */
+.custom-toolbox-list {
+  display: grid;
+  gap: 18px;
+  padding: 16px 14px 28px;
+  scrollbar-gutter: stable;
+}
+
 .toolbox-category {
   position: relative;
+  margin-bottom: 0;
   border-radius: 18px;
+  overflow: visible;
   background:
     linear-gradient(180deg, rgba(54, 58, 79, 0.48), rgba(24, 25, 38, 0.34)),
     rgba(15, 23, 42, 0.34);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.toolbox-category::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid rgba(183, 189, 248, 0.16);
+  border-radius: inherit;
 }
 
 html[data-theme='light'] .toolbox-category {
@@ -70,7 +89,13 @@ html[data-theme='light'] .toolbox-category {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
+html[data-theme='light'] .toolbox-category::before {
+  border-color: rgba(136, 57, 239, 0.14);
+}
+
 .toolbox-category summary {
+  position: relative;
+  z-index: 1;
   min-height: 48px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 24px;
@@ -79,6 +104,7 @@ html[data-theme='light'] .toolbox-category {
   padding: 11px 12px 11px 13px;
   color: var(--toolbox-fg);
   border-bottom: 1px solid rgba(183, 189, 248, 0.12);
+  border-radius: 18px 18px 0 0;
   font-size: 0.88rem;
   font-weight: 900;
   letter-spacing: 0.015em;
@@ -86,8 +112,17 @@ html[data-theme='light'] .toolbox-category {
   user-select: none;
 }
 
+.toolbox-category:not([open]) summary {
+  border-bottom-color: transparent;
+  border-radius: 18px;
+}
+
 html[data-theme='light'] .toolbox-category summary {
   border-bottom-color: rgba(136, 57, 239, 0.12);
+}
+
+html[data-theme='light'] .toolbox-category:not([open]) summary {
+  border-bottom-color: transparent;
 }
 
 .toolbox-category summary:hover,
@@ -146,9 +181,15 @@ html[data-theme='light'] .toolbox-category summary::after {
 .toolbox-category[data-category='Literals'] .category-icon { background: linear-gradient(135deg, var(--accent-amber), var(--ctp-peach)); }
 
 .toolbox-block-list {
+  position: relative;
+  z-index: 1;
   display: grid;
-  gap: 9px;
-  padding: 11px;
+  gap: 11px;
+  padding: 13px 12px 17px;
+}
+
+.toolbox-category[open] .toolbox-block-list {
+  margin-bottom: 2px;
 }
 
 .toolbox-block-card {
