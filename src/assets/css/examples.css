@@ -53,6 +53,185 @@
   line-height: 1.35;
 }
 
+/* Toolbox polish: align custom category summaries and block cards with the IDE theme. */
+.toolbox-category {
+  position: relative;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(54, 58, 79, 0.48), rgba(24, 25, 38, 0.34)),
+    rgba(15, 23, 42, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+html[data-theme='light'] .toolbox-category {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(230, 233, 239, 0.58)),
+    rgba(239, 241, 245, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.toolbox-category summary {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px 11px 13px;
+  color: var(--toolbox-fg);
+  border-bottom: 1px solid rgba(183, 189, 248, 0.12);
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+html[data-theme='light'] .toolbox-category summary {
+  border-bottom-color: rgba(136, 57, 239, 0.12);
+}
+
+.toolbox-category summary:hover,
+.toolbox-category summary:focus-visible {
+  outline: none;
+  background: linear-gradient(90deg, rgba(198, 160, 246, 0.20), rgba(145, 215, 227, 0.08), transparent);
+}
+
+.toolbox-category summary::after {
+  content: '+';
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  justify-self: end;
+  float: none;
+  color: var(--text-soft);
+  border: 1px solid rgba(183, 189, 248, 0.20);
+  border-radius: 999px;
+  background: rgba(54, 58, 79, 0.55);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+html[data-theme='light'] .toolbox-category summary::after {
+  color: #5c5f77;
+  border-color: rgba(136, 57, 239, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.toolbox-category[open] summary::after {
+  content: '−';
+}
+
+.category-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  justify-self: start;
+  color: var(--text-inverse);
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-violet), var(--accent-cyan));
+  box-shadow: 0 8px 22px rgba(198, 160, 246, 0.20);
+  font-size: 0.93rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.toolbox-category[data-category='Variables'] .category-icon { background: linear-gradient(135deg, var(--accent-violet), var(--ctp-pink)); }
+.toolbox-category[data-category='Abstraction'] .category-icon { background: linear-gradient(135deg, var(--ctp-blue), var(--ctp-lavender)); }
+.toolbox-category[data-category='Application'] .category-icon { background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal)); }
+.toolbox-category[data-category='Let Binding'] .category-icon { background: linear-gradient(135deg, var(--accent-green), var(--accent-teal)); }
+.toolbox-category[data-category='Operators'] .category-icon { background: linear-gradient(135deg, var(--ctp-peach), var(--accent-amber)); }
+.toolbox-category[data-category='Literals'] .category-icon { background: linear-gradient(135deg, var(--accent-amber), var(--ctp-peach)); }
+
+.toolbox-block-list {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+}
+
+.toolbox-block-card {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  gap: 5px;
+  padding: 12px 13px 12px 15px;
+  color: var(--toolbox-card-fg);
+  text-align: left;
+  border: 1px solid rgba(183, 189, 248, 0.16);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(73, 77, 100, 0.54), rgba(54, 58, 79, 0.48)),
+    var(--toolbox-card-bg);
+  box-shadow: inset 4px 0 0 rgba(198, 160, 246, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+html[data-theme='light'] .toolbox-block-card {
+  border-color: rgba(136, 57, 239, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(239, 241, 245, 0.72)),
+    var(--toolbox-card-bg);
+  box-shadow: inset 4px 0 0 rgba(136, 57, 239, 0.62), 0 8px 22px rgba(76, 79, 105, 0.06);
+}
+
+.toolbox-category[data-category='Variables'] .toolbox-block-card { box-shadow: inset 4px 0 0 var(--accent-violet), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+.toolbox-category[data-category='Abstraction'] .toolbox-block-card { box-shadow: inset 4px 0 0 var(--ctp-blue), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+.toolbox-category[data-category='Application'] .toolbox-block-card { box-shadow: inset 4px 0 0 var(--accent-cyan), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+.toolbox-category[data-category='Let Binding'] .toolbox-block-card { box-shadow: inset 4px 0 0 var(--accent-green), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+.toolbox-category[data-category='Operators'] .toolbox-block-card { box-shadow: inset 4px 0 0 var(--ctp-peach), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+.toolbox-category[data-category='Literals'] .toolbox-block-card { box-shadow: inset 4px 0 0 var(--accent-amber), inset 0 1px 0 rgba(255, 255, 255, 0.045); }
+
+.toolbox-block-card:hover,
+.toolbox-block-card:focus-visible,
+.toolbox-block-card.is-pointer-ready,
+.toolbox-block-card.is-dragging {
+  transform: translateY(-1px);
+  border-color: var(--panel-border-bright);
+  background:
+    linear-gradient(180deg, rgba(73, 77, 100, 0.72), rgba(54, 58, 79, 0.56)),
+    var(--toolbox-card-bg);
+  box-shadow: var(--shadow-glow), inset 4px 0 0 var(--accent-violet);
+  outline: none;
+}
+
+html[data-theme='light'] .toolbox-block-card:hover,
+html[data-theme='light'] .toolbox-block-card:focus-visible,
+html[data-theme='light'] .toolbox-block-card.is-pointer-ready,
+html[data-theme='light'] .toolbox-block-card.is-dragging {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(230, 233, 239, 0.82)),
+    var(--toolbox-card-bg);
+}
+
+.toolbox-block-card:active,
+.toolbox-block-card.is-pointer-ready,
+.toolbox-block-card.is-dragging {
+  cursor: grabbing;
+}
+
+.toolbox-block-label {
+  display: block;
+  color: var(--toolbox-card-fg);
+  font-size: 0.93rem;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.toolbox-block-description {
+  display: block;
+  color: var(--toolbox-card-description);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  opacity: 0.92;
+}
+
 /* Workspace header override: keep title, zoom, and restore-code controls on one compact row. */
 .workspace-header {
   display: grid;
