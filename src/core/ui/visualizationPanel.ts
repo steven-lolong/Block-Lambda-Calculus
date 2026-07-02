@@ -63,8 +63,24 @@ function blockIsDisposed(block: Blockly.BlockSvg): boolean {
   return maybeDisposed.disposed === true;
 }
 
+function isLambdaTermBlock(block?: Blockly.Block | null): block is Blockly.BlockSvg {
+  return Boolean(block?.outputConnection) && Boolean(block?.type.startsWith('lambda_')) && block?.type !== 'lambda_viz_description';
+}
+
 function isRenderableBlock(block: Blockly.BlockSvg | null): block is Blockly.BlockSvg {
   return !!block && !blockIsDisposed(block) && block.type === 'lambda_application';
+}
+
+function enclosingLambdaTermRoot(block: Blockly.BlockSvg): Blockly.BlockSvg {
+  let root = block;
+  let parent = root.getParent();
+
+  while (isLambdaTermBlock(parent)) {
+    root = parent;
+    parent = root.getParent();
+  }
+
+  return root;
 }
 
 function injectWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
@@ -167,7 +183,8 @@ function renderView(kind: VizKind): void {
 
   try {
     Blockly.svgResize(workspace);
-    view.order = renderLambdaReduction(block, workspace, kind);
+    const root = enclosingLambdaTermRoot(block);
+    view.order = renderLambdaReduction(root, workspace, kind);
     makeWorkspaceBlocksMovable(workspace);
     if (!view.order || view.order.order === 0) {
       arrangeTopBlocks(workspace);
