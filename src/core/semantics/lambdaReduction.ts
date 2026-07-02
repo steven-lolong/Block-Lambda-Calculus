@@ -31,6 +31,17 @@ type ReductionEvent = {
   label: string;
 };
 
+type RuntimeEnv = Map<string, Term>;
+
+type ReductionRenderContext = {
+  workspace: Blockly.WorkspaceSvg;
+  order: BlockOrder;
+  kind: ReductionKind;
+  betaCount: number;
+  truncated: boolean;
+  resolving: Set<string>;
+};
+
 const MAX_REDUCTION_STEPS = 480;
 const MAX_VISUALIZATION_STEPS = 96;
 const MAX_RENDERED_TERM_SIZE = 220;
@@ -111,6 +122,46 @@ function blockToTerm(block: Blockly.Block | null): Term {
     default:
       return { kind: 'hole', label: block.type, sourceId };
   }
+}
+
+function inputNameForChild(parent: Blockly.Block, childBlock: Blockly.Block): string | null {
+  for (const input of ((parent as any).inputList ?? []) as any[]) {
+    const target = input.connection?.targetBlock?.();
+    if (target === childBlock) return input.name ?? null;
+  }
+  return null;
+}
+
+function contextualEnvForBlock(block: Blockly.Block): RuntimeEnv {
+  const env: RuntimeEnv = new Map();
+  const shadowed = new Set<string>();
+  let childBlock: Blockly.Block = block;
+  let parent = childBlock.getParent();
+
+  while (parent) {
+    const inputName = inputNameForChild(parent, childBlock);
+
+    if (parent.type === 'lambda_abstraction' && inputName === 'BODY') {
+      shadowed.add(field(parent, 'PARAM', 'x'));
+    }
+
+    if (parent.type === 'lambda_let' && inputName === 'BODY') {
+      const name = field(parent, 'NAME', 'id');
+      if (!shadowed.has(name) && !env.has(name)) env.set(name, blockToTerm(child(parent, 'VALUE')));
+      shadowed.add(name);
+    }
+
+    if (parent.type === 'lambda_letrec' && (inputName === 'BODY' || inputName === 'VALUE')) {
+      const name = field(parent, 'NAME', 'f');
+      if (!shadowed.has(name) && !env.has(name)) env.set(name, blockToTerm(child(parent, 'VALUE')));
+      shadowed.add(name);
+    }
+
+    childBlock = parent;
+    parent = childBlock.getParent();
+  }
+
+  return env;
 }
 
 function union(...sets: Set<string>[]): Set<string> {
@@ -430,6 +481,93 @@ function evaluate(term: Term, kind: ReductionKind, values?: Map<string, string>)
   return current;
 }
 
+function envWithout(env: RuntimeEnv, name: string): RuntimeEnv {
+  if (!env.has(name)) return env;
+  const next = new Map(env);
+  next.delete(name);
+  return next;
+}
+
+function envWith(env: RuntimeEnv, name: string, value: Term): RuntimeEnv {
+  const next = new Map(env);
+  next.set(name, value);
+  return next;
+}
+
+function evaluateWithEnv(
+  term: Term,
+  kind: ReductionKind,
+  env: RuntimeEnv,
+  resolving = new Set<string>(),
+  depth = 0
+): Term {
+  if (depth > MAX_REDUCTION_STEPS) return clone(term);
+
+  switch (term.kind) {
+    case 'var': {
+      const bound = env.get(term.name);
+      if (!bound || resolving.has(term.name)) return clone(term);
+      resolving.add(term.name);
+      try {
+        return withSources(evaluateWithEnv(bound, kind, env, resolving, depth + 1), term);
+      } finally {
+        resolving.delete(term.name);
+      }
+    }
+
+    case 'abs':
+      return clone(term);
+
+    case 'app': {
+      const func = evaluateWithEnv(term.func, kind, env, resolving, depth + 1);
+      if (func.kind === 'abs') {
+        const arg = kind === 'value'
+          ? evaluateWithEnv(term.arg, kind, env, resolving, depth + 1)
+          : clone(term.arg);
+        const bodyEnv = envWithout(env, func.param);
+        return evaluateWithEnv(withSources(substitute(func.body, func.param, arg), term), kind, bodyEnv, resolving, depth + 1);
+      }
+      const arg = kind === 'value' ? evaluateWithEnv(term.arg, kind, env, resolving, depth + 1) : clone(term.arg);
+      return { kind: 'app', func, arg, ...sourcesFrom(term) };
+    }
+
+    case 'let': {
+      const value = kind === 'value'
+        ? evaluateWithEnv(term.value, kind, env, resolving, depth + 1)
+        : clone(term.value);
+      return evaluateWithEnv(term.body, kind, envWith(env, term.name, value), resolving, depth + 1);
+    }
+
+    case 'letrec':
+      return evaluateWithEnv(term.body, kind, envWith(env, term.name, term.value), resolving, depth + 1);
+
+    case 'fix': {
+      const target = evaluateWithEnv(term.target, kind, env, resolving, depth + 1);
+      if (target.kind !== 'abs') return { kind: 'fix', target, ...sourcesFrom(term) };
+      return evaluateWithEnv(withSources(substitute(target.body, target.param, term), term), kind, env, resolving, depth + 1);
+    }
+
+    case 'numop':
+    case 'boolop': {
+      const left = evaluateWithEnv(term.left, kind, env, resolving, depth + 1);
+      const right = evaluateWithEnv(term.right, kind, env, resolving, depth + 1);
+      const primitive = computePrimitive({ ...term, left, right });
+      return primitive ?? { ...term, left, right };
+    }
+
+    case 'if': {
+      const cond = evaluateWithEnv(term.cond, kind, env, resolving, depth + 1);
+      if (cond.kind === 'bool') {
+        return evaluateWithEnv(cond.value ? term.thenTerm : term.elseTerm, kind, env, resolving, depth + 1);
+      }
+      return { ...term, cond };
+    }
+
+    default:
+      return clone(term);
+  }
+}
+
 function termToState(term: Term): any {
   switch (term.kind) {
     case 'var':
@@ -524,10 +662,15 @@ function comment(block: Blockly.Block | null, text: string): void {
   }
 }
 
-function annotate(root: Blockly.Block, term: Term): void {
+function termCommentText(term: Term, runtimeValue: Term = term, note?: string): string {
   const size = termSize(term);
-  const value = isValue(term) ? prettyRuntimeValue(term) : 'not yet a value';
-  comment(root, `term:\n${prettyPreview(term)}\n\nvalue:\n${value}\n\nnodes:\n${size}`);
+  const value = isValue(runtimeValue) ? prettyRuntimeValue(runtimeValue) : 'not yet a value';
+  const base = `term:\n${prettyPreview(term)}\n\nvalue:\n${value}\n\nnodes:\n${size}`;
+  return note ? `${base}\n\n${note}` : base;
+}
+
+function annotate(root: Blockly.Block, term: Term, runtimeValue: Term = term, note?: string): void {
+  comment(root, termCommentText(term, runtimeValue, note));
 }
 
 function appendToOrder(order: BlockOrder, block: Blockly.BlockSvg): void {
@@ -542,7 +685,13 @@ function appendLabel(workspace: Blockly.WorkspaceSvg, order: BlockOrder, text: s
   return block;
 }
 
-function appendTerm(workspace: Blockly.WorkspaceSvg, order: BlockOrder, term: Term, note?: string): Blockly.BlockSvg {
+function appendTerm(
+  workspace: Blockly.WorkspaceSvg,
+  order: BlockOrder,
+  term: Term,
+  note?: string,
+  runtimeValue: Term = term
+): Blockly.BlockSvg {
   if (termSize(term) > MAX_RENDERED_TERM_SIZE) {
     const omitted = label(workspace, `Term omitted: ${termSize(term)} nodes`);
     comment(omitted, note ?? 'The term is too large to render safely in the visualization workspace.');
@@ -550,8 +699,7 @@ function appendTerm(workspace: Blockly.WorkspaceSvg, order: BlockOrder, term: Te
     return omitted;
   }
   const block = append(termToState(term), workspace);
-  annotate(block, term);
-  if (note) comment(block, `${block.getCommentText() ?? ''}\n\n${note}`.trim());
+  annotate(block, term, runtimeValue, note);
   appendToOrder(order, block);
   return block;
 }
@@ -595,135 +743,152 @@ function titleFor(kind: ReductionKind): string {
   return kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
 }
 
-function parameterEvaluationKind(kind: ReductionKind): ReductionKind {
-  return kind === 'value' ? 'value' : 'structure';
-}
-
 function parameterValueNote(original: Term, evaluated: Term, kind: ReductionKind): string {
   const strategy = kind === 'value' ? 'CBV' : 'CBS';
   const summary = isValue(evaluated) ? prettyRuntimeValue(evaluated) : prettyPreview(evaluated);
   return `${strategy} evaluates the parameter first.\n\nParameter evaluation result:\n${summary}`;
 }
 
-function renderMnlStyleBetaDetails(workspace: Blockly.WorkspaceSvg, order: BlockOrder, eventInfo: ReductionEvent, kind: ReductionKind): void {
-  if (eventInfo.kind !== 'beta' || eventInfo.redex.kind !== 'app' || eventInfo.redex.func.kind !== 'abs') return;
-  const title = titleFor(kind);
-  const parameter = eventInfo.redex.func.param;
-  const originalArgument = eventInfo.redex.arg;
-  const evaluatedArgument = evaluate(originalArgument, parameterEvaluationKind(kind));
-  const substitutionArgument = kind === 'value' ? evaluatedArgument : originalArgument;
-  const functionBody = substitute(eventInfo.redex.func.body, parameter, substitutionArgument);
-
-  if (kind === 'structure') {
-    appendLabel(
-      workspace,
-      order,
-      `Parameter ${parameter} evaluated - structure preserved`,
-      'Matches MNL CBS: the argument is evaluated for value/type information, but its block tree is not collapsed into the final value block.'
-    );
-    appendTerm(
-      workspace,
-      order,
-      originalArgument,
-      `${parameterValueNote(originalArgument, evaluatedArgument, kind)}\n\nCBS keeps this original block structure for substitution.`
-    );
-
-    appendLabel(
-      workspace,
-      order,
-      `Substituted block for parameter ${parameter}`,
-      'CBS substitutes a copy of the evaluated/annotated original argument tree, preserving the parameter structure.'
-    );
-    appendTerm(workspace, order, originalArgument);
-  } else {
-    appendLabel(
-      workspace,
-      order,
-      `Parameter ${parameter} evaluated to value`,
-      'Matches MNL CBV: the argument is evaluated, converted into a simplified value block, and that value block is substituted.'
-    );
-    appendTerm(workspace, order, evaluatedArgument, parameterValueNote(originalArgument, evaluatedArgument, kind));
-
-    appendLabel(
-      workspace,
-      order,
-      `Substituted value block for parameter ${parameter}`,
-      'CBV substitutes the simplified value block, not the original argument structure.'
-    );
-    appendTerm(workspace, order, evaluatedArgument);
-  }
-
-  appendLabel(workspace, order, `Function body of ${title}`, 'The body after applying the strategy-specific parameter substitution.');
-  appendTerm(workspace, order, functionBody);
+function mnlStrategyName(kind: ReductionKind): string {
+  return kind === 'value' ? 'CbV' : 'CbS';
 }
 
-function appendReductionState(
-  workspace: Blockly.WorkspaceSvg,
-  order: BlockOrder,
-  eventInfo: ReductionEvent | undefined,
-  wholeTermAfterStep: Term,
-  kind: ReductionKind,
-  index: number
-): void {
-  const title = titleFor(kind);
-  const stepLabel = eventInfo?.label ?? 'structural reduction';
-  appendLabel(workspace, order, `${title} step ${index}: ${stepLabel}`);
+function reductionOnTerm(term: Term, ctx: ReductionRenderContext, env: RuntimeEnv): Term {
+  if (ctx.truncated) return evaluateWithEnv(term, ctx.kind, env);
 
-  if (eventInfo?.kind === 'beta') {
-    renderMnlStyleBetaDetails(workspace, order, eventInfo, kind);
-  } else if (eventInfo) {
-    appendLabel(workspace, order, 'Reduced block');
-    appendTerm(workspace, order, eventInfo.redex);
-    appendLabel(workspace, order, 'Reduction result');
-    appendTerm(workspace, order, eventInfo.result);
+  switch (term.kind) {
+    case 'var': {
+      const bound = env.get(term.name);
+      if (!bound || ctx.resolving.has(term.name)) return clone(term);
+      ctx.resolving.add(term.name);
+      try {
+        return withSources(reductionOnTerm(bound, ctx, env), term);
+      } finally {
+        ctx.resolving.delete(term.name);
+      }
+    }
+
+    case 'abs':
+      reductionOnTerm(term.body, ctx, envWithout(env, term.param));
+      return clone(term);
+
+    case 'app': {
+      const funcValue = reductionOnTerm(term.func, ctx, env);
+      const argValue = reductionOnTerm(term.arg, ctx, env);
+      if (funcValue.kind === 'abs') {
+        return renderBetaReductionTerm(funcValue.body, funcValue.param, term.arg, ctx, env);
+      }
+      return { kind: 'app', func: funcValue, arg: argValue, ...sourcesFrom(term) };
+    }
+
+    case 'let': {
+      const value = reductionOnTerm(term.value, ctx, env);
+      return reductionOnTerm(term.body, ctx, envWith(env, term.name, ctx.kind === 'value' ? value : term.value));
+    }
+
+    case 'letrec':
+      return reductionOnTerm(term.body, ctx, envWith(env, term.name, term.value));
+
+    case 'fix': {
+      const target = reductionOnTerm(term.target, ctx, env);
+      if (target.kind !== 'abs') return { kind: 'fix', target, ...sourcesFrom(term) };
+      return reductionOnTerm(withSources(substitute(target.body, target.param, term), term), ctx, env);
+    }
+
+    case 'numop':
+    case 'boolop': {
+      const left = reductionOnTerm(term.left, ctx, env);
+      const right = reductionOnTerm(term.right, ctx, env);
+      const primitive = computePrimitive({ ...term, left, right });
+      return primitive ?? { ...term, left, right };
+    }
+
+    case 'if': {
+      const cond = reductionOnTerm(term.cond, ctx, env);
+      if (cond.kind === 'bool') return reductionOnTerm(cond.value ? term.thenTerm : term.elseTerm, ctx, env);
+      return { ...term, cond };
+    }
+
+    default:
+      return clone(term);
   }
+}
 
-  appendLabel(workspace, order, `Program after step ${index}`, 'Full block-structured program state after this single reduction.');
-  appendTerm(workspace, order, wholeTermAfterStep);
+function renderBetaReductionTerm(
+  functionBody: Term,
+  parameter: string,
+  originalArgument: Term,
+  ctx: ReductionRenderContext,
+  env: RuntimeEnv
+): Term {
+  if (ctx.betaCount >= MAX_VISUALIZATION_STEPS) {
+    ctx.truncated = true;
+    return evaluateWithEnv({ kind: 'app', func: { kind: 'abs', param: parameter, body: functionBody }, arg: originalArgument }, ctx.kind, env);
+  }
+  ctx.betaCount += 1;
+
+  const evaluatedArgument = reductionOnTerm(originalArgument, ctx, env);
+  const displayedArgument = ctx.kind === 'value' ? evaluatedArgument : originalArgument;
+  const substitutionArgument = ctx.kind === 'value' ? evaluatedArgument : originalArgument;
+  const parameterNote = `${parameterValueNote(originalArgument, evaluatedArgument, ctx.kind)}\n\nParameter: ${parameter}`;
+
+  appendLabel(
+    ctx.workspace,
+    ctx.order,
+    'Substituted block for parameter',
+    ctx.kind === 'value'
+      ? 'CBV substitutes the evaluated value block.'
+      : 'CBS substitutes the original block structure after evaluating it for annotations.'
+  );
+  appendTerm(ctx.workspace, ctx.order, displayedArgument, parameterNote, evaluatedArgument);
+
+  const body = substitute(functionBody, parameter, substitutionArgument);
+  appendLabel(ctx.workspace, ctx.order, `Function body of ${mnlStrategyName(ctx.kind)}`);
+  const bodyBlock = appendTerm(ctx.workspace, ctx.order, body);
+  const bodyValue = reductionOnTerm(body, ctx, envWithout(env, parameter));
+  annotate(bodyBlock, body, bodyValue);
+  return bodyValue;
 }
 
 export function renderLambdaReduction(appBlock: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
   const order = newOrder();
-  const title = titleFor(kind);
   const initial = blockToTerm(appBlock);
-  let current = clone(initial);
+  const env = contextualEnvForBlock(appBlock);
+  const ctx: ReductionRenderContext = {
+    workspace,
+    order,
+    kind,
+    betaCount: 0,
+    truncated: false,
+    resolving: new Set()
+  };
 
-  appendLabel(workspace, order, `${title} input`, 'The selected application from the main workspace.');
-  appendTerm(workspace, order, current);
-
-  let reachedLimit = false;
-  for (let index = 1; index <= MAX_VISUALIZATION_STEPS; index += 1) {
-    const next = reduceOnceDetailed(current, kind);
-    if (!next.changed) break;
-    appendReductionState(workspace, order, next.event, next.term, kind, index);
-    current = next.term;
-
-    if (termSize(current) > MAX_RENDERED_TERM_SIZE * 2) {
-      reachedLimit = true;
-      appendLabel(
-        workspace,
-        order,
-        `${title} trace truncated`,
-        `The intermediate term reached ${termSize(current)} nodes. The visible trace stops here to keep Blockly responsive.`
-      );
-      break;
+  if (initial.kind === 'app') {
+    const funcValue = evaluateWithEnv(initial.func, kind, env);
+    if (funcValue.kind === 'abs') {
+      renderBetaReductionTerm(funcValue.body, funcValue.param, initial.arg, ctx, env);
+    } else {
+      reductionOnTerm(initial, ctx, env);
     }
+  } else {
+    reductionOnTerm(initial, ctx, env);
   }
 
-  if (!reachedLimit) {
-    const next = reduceOnceDetailed(current, kind);
-    if (next.changed) {
-      appendLabel(
-        workspace,
-        order,
-        `${title} trace limit reached`,
-        `Only the first ${MAX_VISUALIZATION_STEPS} single-step reductions are shown to keep the workspace usable.`
-      );
-    }
+  if (ctx.truncated) {
+    appendLabel(
+      workspace,
+      order,
+      `${titleFor(kind)} trace limit reached`,
+      `Only the first ${MAX_VISUALIZATION_STEPS} beta reductions are shown to keep the workspace usable.`
+    );
   }
 
-  appendLabel(workspace, order, `${title} result`, 'Final visible result of the rendered reduction sequence.');
-  appendTerm(workspace, order, current);
+  if (order.order === 0) {
+    const value = evaluateWithEnv(initial, kind, env);
+    appendLabel(workspace, order, `${titleFor(kind)} block`, 'No reducible beta-redex was found for the selected application.');
+    appendTerm(workspace, order, initial, undefined, value);
+  }
+
   arrangeBlocksVertically(workspace, order, 38);
   return order;
 }
