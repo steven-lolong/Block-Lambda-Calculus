@@ -24,9 +24,16 @@ type Term = TermBase & (
   | { kind: 'hole'; label: string }
 );
 
+type ReductionEvent = {
+  kind: 'beta' | 'let' | 'let-value' | 'letrec' | 'fix' | 'primitive' | 'if' | 'context';
+  redex: Term;
+  result: Term;
+  label: string;
+};
+
 const MAX_REDUCTION_STEPS = 480;
-const MAX_VISUALIZATION_STEPS = 32;
-const MAX_RENDERED_TERM_SIZE = 140;
+const MAX_VISUALIZATION_STEPS = 96;
+const MAX_RENDERED_TERM_SIZE = 220;
 
 const newOrder = (): BlockOrder => ({ order: 0, map: {} });
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -268,66 +275,93 @@ function computePrimitive(term: Term): Term | null {
   return null;
 }
 
-function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boolean } {
+function event(kind: ReductionEvent['kind'], redex: Term, result: Term, label: string): ReductionEvent {
+  return { kind, redex: clone(redex), result: clone(result), label };
+}
+
+function reduceOnceDetailed(term: Term, kind: ReductionKind): { term: Term; changed: boolean; event?: ReductionEvent } {
   switch (term.kind) {
     case 'app': {
       if (term.func.kind === 'abs' && (kind === 'structure' || isValue(term.arg))) {
-        return { term: withSources(substitute(term.func.body, term.func.param, term.arg), term), changed: true };
+        const result = withSources(substitute(term.func.body, term.func.param, term.arg), term);
+        return { term: result, changed: true, event: event('beta', term, result, `β-reduction for parameter ${term.func.param}`) };
       }
-      const func = reduceOnce(term.func, kind);
-      if (func.changed) return { term: { kind: 'app', func: func.term, arg: term.arg, ...sourcesFrom(term) }, changed: true };
+
+      const func = reduceOnceDetailed(term.func, kind);
+      if (func.changed) {
+        return { term: { kind: 'app', func: func.term, arg: term.arg, ...sourcesFrom(term) }, changed: true, event: func.event };
+      }
+
       if (kind === 'value') {
-        const arg = reduceOnce(term.arg, kind);
-        if (arg.changed) return { term: { kind: 'app', func: term.func, arg: arg.term, ...sourcesFrom(term) }, changed: true };
+        const arg = reduceOnceDetailed(term.arg, kind);
+        if (arg.changed) {
+          return { term: { kind: 'app', func: term.func, arg: arg.term, ...sourcesFrom(term) }, changed: true, event: arg.event };
+        }
       }
+
       return { term, changed: false };
     }
+
     case 'let': {
-      const value = kind === 'value' ? evaluate(term.value, kind) : term.value;
-      return { term: withSources(substitute(term.body, term.name, value), term), changed: true };
+      if (kind === 'value' && !isValue(term.value)) {
+        const value = reduceOnceDetailed(term.value, kind);
+        if (value.changed) {
+          const result: Term = { kind: 'let', name: term.name, value: value.term, body: term.body, ...sourcesFrom(term) };
+          return { term: result, changed: true, event: value.event ?? event('let-value', term.value, value.term, `evaluate let value ${term.name}`) };
+        }
+      }
+      const result = withSources(substitute(term.body, term.name, term.value), term);
+      return { term: result, changed: true, event: event('let', term, result, `let substitution for ${term.name}`) };
     }
+
     case 'letrec': {
-      return {
-        term: {
-          kind: 'let',
-          name: term.name,
-          value: fixpointFor(term),
-          body: term.body,
-          ...sourcesFrom(term)
-        },
-        changed: true
-      };
+      const result: Term = { kind: 'let', name: term.name, value: fixpointFor(term), body: term.body, ...sourcesFrom(term) };
+      return { term: result, changed: true, event: event('letrec', term, result, `recursive binding ${term.name} as fixpoint`) };
     }
+
     case 'fix': {
       if (term.target.kind === 'abs') {
-        return { term: withSources(substitute(term.target.body, term.target.param, term), term), changed: true };
+        const result = withSources(substitute(term.target.body, term.target.param, term), term);
+        return { term: result, changed: true, event: event('fix', term, result, `unfold fixpoint ${term.target.param}`) };
       }
-      const target = reduceOnce(term.target, kind);
-      return target.changed ? { term: { kind: 'fix', target: target.term, ...sourcesFrom(term) }, changed: true } : { term, changed: false };
+      const target = reduceOnceDetailed(term.target, kind);
+      return target.changed ? { term: { kind: 'fix', target: target.term, ...sourcesFrom(term) }, changed: true, event: target.event } : { term, changed: false };
     }
+
     case 'numop':
     case 'boolop': {
-      const left = reduceOnce(term.left, kind);
-      if (left.changed) return { term: { ...term, left: left.term }, changed: true };
-      const right = reduceOnce(term.right, kind);
-      if (right.changed) return { term: { ...term, right: right.term }, changed: true };
+      const left = reduceOnceDetailed(term.left, kind);
+      if (left.changed) return { term: { ...term, left: left.term }, changed: true, event: left.event };
+      const right = reduceOnceDetailed(term.right, kind);
+      if (right.changed) return { term: { ...term, right: right.term }, changed: true, event: right.event };
       const primitive = computePrimitive(term);
-      return primitive ? { term: primitive, changed: true } : { term, changed: false };
+      return primitive ? { term: primitive, changed: true, event: event('primitive', term, primitive, 'primitive computation') } : { term, changed: false };
     }
+
     case 'if': {
-      const cond = reduceOnce(term.cond, kind);
-      if (cond.changed) return { term: { ...term, cond: cond.term }, changed: true };
-      if (term.cond.kind === 'bool') return { term: withSources(clone(term.cond.value ? term.thenTerm : term.elseTerm), term), changed: true };
+      const cond = reduceOnceDetailed(term.cond, kind);
+      if (cond.changed) return { term: { ...term, cond: cond.term }, changed: true, event: cond.event };
+      if (term.cond.kind === 'bool') {
+        const result = withSources(clone(term.cond.value ? term.thenTerm : term.elseTerm), term);
+        return { term: result, changed: true, event: event('if', term, result, term.cond.value ? 'select then branch' : 'select else branch') };
+      }
       return { term, changed: false };
     }
+
     case 'abs': {
       if (kind === 'value') return { term, changed: false };
-      const body = reduceOnce(term.body, kind);
-      return body.changed ? { term: { kind: 'abs', param: term.param, body: body.term, ...sourcesFrom(term) }, changed: true } : { term, changed: false };
+      const body = reduceOnceDetailed(term.body, kind);
+      return body.changed ? { term: { kind: 'abs', param: term.param, body: body.term, ...sourcesFrom(term) }, changed: true, event: body.event } : { term, changed: false };
     }
+
     default:
       return { term, changed: false };
   }
+}
+
+function reduceOnce(term: Term, kind: ReductionKind): { term: Term; changed: boolean } {
+  const next = reduceOnceDetailed(term, kind);
+  return { term: next.term, changed: next.changed };
 }
 
 function prettyRuntimeValue(term: Term): string {
@@ -561,68 +595,54 @@ function titleFor(kind: ReductionKind): string {
   return kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
 }
 
-function stepKind(before: Term, kind: ReductionKind): string {
-  if (before.kind === 'app' && before.func.kind === 'abs' && (kind === 'structure' || isValue(before.arg))) return 'β-reduction';
-  if (before.kind === 'app' && kind === 'value' && before.func.kind === 'abs' && !isValue(before.arg)) return 'evaluate argument first';
-  if (before.kind === 'let') return 'let substitution';
-  if (before.kind === 'letrec') return 'fixpoint creation';
-  if (before.kind === 'fix') return 'fixpoint unfolding';
-  if (before.kind === 'if' && before.cond.kind === 'bool') return before.cond.value ? 'select then branch' : 'select else branch';
-  if ((before.kind === 'numop' || before.kind === 'boolop') && computePrimitive(before)) return 'primitive computation';
-  return 'structural reduction';
+function displayArgumentForEvent(eventInfo: ReductionEvent, kind: ReductionKind): Term | null {
+  if (eventInfo.kind !== 'beta' || eventInfo.redex.kind !== 'app') return null;
+  return kind === 'value' ? evaluate(eventInfo.redex.arg, kind) : eventInfo.redex.arg;
 }
 
-function appendBetaDetails(workspace: Blockly.WorkspaceSvg, order: BlockOrder, before: Extract<Term, { kind: 'app' }>, after: Term, kind: ReductionKind): void {
-  if (before.func.kind !== 'abs') return;
+function renderMnlStyleBetaDetails(workspace: Blockly.WorkspaceSvg, order: BlockOrder, eventInfo: ReductionEvent, kind: ReductionKind): void {
+  if (eventInfo.kind !== 'beta' || eventInfo.redex.kind !== 'app' || eventInfo.redex.func.kind !== 'abs') return;
   const title = titleFor(kind);
-  const substitutionNote = kind === 'value'
-    ? `CBV substitutes the already evaluated value for parameter ${before.func.param}.`
-    : `CBS substitutes the argument structure directly for parameter ${before.func.param}.`;
-  appendLabel(workspace, order, `Substituted block for parameter ${before.func.param}`, substitutionNote);
-  appendTerm(workspace, order, before.arg);
-  appendLabel(workspace, order, `Function body of ${title}`, 'This is the function body after substitution.');
-  appendTerm(workspace, order, after);
+  const parameter = eventInfo.redex.func.param;
+  const argument = displayArgumentForEvent(eventInfo, kind);
+
+  appendLabel(
+    workspace,
+    order,
+    `Substituted block for parameter ${parameter}`,
+    kind === 'value'
+      ? 'CBV first reduces the argument to a value, then substitutes that value block.'
+      : 'CBS substitutes the argument block structure directly, preserving its visual structure.'
+  );
+  if (argument) appendTerm(workspace, order, argument);
+
+  appendLabel(workspace, order, `Function body of ${title}`, 'The body after substituting the parameter occurrence(s).');
+  appendTerm(workspace, order, eventInfo.result);
 }
 
-function appendReductionStep(
+function appendReductionState(
   workspace: Blockly.WorkspaceSvg,
   order: BlockOrder,
-  before: Term,
-  after: Term,
+  eventInfo: ReductionEvent | undefined,
+  wholeTermAfterStep: Term,
   kind: ReductionKind,
   index: number
 ): void {
   const title = titleFor(kind);
-  const kindLabel = stepKind(before, kind);
-  appendLabel(workspace, order, `${title} step ${index}: ${kindLabel}`);
+  const stepLabel = eventInfo?.label ?? 'structural reduction';
+  appendLabel(workspace, order, `${title} step ${index}: ${stepLabel}`);
 
-  if (before.kind === 'app' && before.func.kind === 'abs' && (kind === 'structure' || isValue(before.arg))) {
-    appendBetaDetails(workspace, order, before, after, kind);
-    return;
+  if (eventInfo?.kind === 'beta') {
+    renderMnlStyleBetaDetails(workspace, order, eventInfo, kind);
+  } else if (eventInfo) {
+    appendLabel(workspace, order, 'Reduced block');
+    appendTerm(workspace, order, eventInfo.redex);
+    appendLabel(workspace, order, 'Reduction result');
+    appendTerm(workspace, order, eventInfo.result);
   }
 
-  if (before.kind === 'letrec') {
-    appendLabel(workspace, order, 'Recursive binding encoded as fixpoint');
-    appendTerm(workspace, order, after);
-    return;
-  }
-
-  if (before.kind === 'fix') {
-    appendLabel(workspace, order, 'Fixpoint unfolding result');
-    appendTerm(workspace, order, after);
-    return;
-  }
-
-  if (before.kind === 'if' && before.cond.kind === 'bool') {
-    appendLabel(workspace, order, before.cond.value ? 'Selected then branch' : 'Selected else branch');
-    appendTerm(workspace, order, after);
-    return;
-  }
-
-  appendLabel(workspace, order, 'Before');
-  appendTerm(workspace, order, before);
-  appendLabel(workspace, order, 'After');
-  appendTerm(workspace, order, after);
+  appendLabel(workspace, order, `Program after step ${index}`, 'Full block-structured program state after this single reduction.');
+  appendTerm(workspace, order, wholeTermAfterStep);
 }
 
 export function renderLambdaReduction(appBlock: Blockly.Block, workspace: Blockly.WorkspaceSvg, kind: ReductionKind): BlockOrder {
@@ -634,41 +654,40 @@ export function renderLambdaReduction(appBlock: Blockly.Block, workspace: Blockl
   appendLabel(workspace, order, `${title} input`, 'The selected application from the main workspace.');
   appendTerm(workspace, order, current);
 
-  let truncated = false;
+  let reachedLimit = false;
   for (let index = 1; index <= MAX_VISUALIZATION_STEPS; index += 1) {
-    const next = reduceOnce(current, kind);
+    const next = reduceOnceDetailed(current, kind);
     if (!next.changed) break;
-    appendReductionStep(workspace, order, current, next.term, kind, index);
+    appendReductionState(workspace, order, next.event, next.term, kind, index);
     current = next.term;
 
     if (termSize(current) > MAX_RENDERED_TERM_SIZE * 2) {
-      truncated = true;
+      reachedLimit = true;
       appendLabel(
         workspace,
         order,
         `${title} trace truncated`,
-        `The intermediate term reached ${termSize(current)} nodes. The final result is still computed separately.`
+        `The intermediate term reached ${termSize(current)} nodes. The visible trace stops here to keep Blockly responsive.`
       );
       break;
     }
   }
 
-  if (!truncated) {
-    const next = reduceOnce(current, kind);
+  if (!reachedLimit) {
+    const next = reduceOnceDetailed(current, kind);
     if (next.changed) {
       appendLabel(
         workspace,
         order,
         `${title} trace limit reached`,
-        `Only the first ${MAX_VISUALIZATION_STEPS} steps are shown to keep the workspace usable.`
+        `Only the first ${MAX_VISUALIZATION_STEPS} single-step reductions are shown to keep the workspace usable.`
       );
     }
   }
 
-  const finalTerm = evaluate(initial, kind);
-  appendLabel(workspace, order, `${title} result`, 'Final value computed by the evaluator.');
-  appendTerm(workspace, order, finalTerm);
-  arrangeBlocksVertically(workspace, order, 36);
+  appendLabel(workspace, order, `${title} result`, 'Final visible result of the rendered reduction sequence.');
+  appendTerm(workspace, order, current);
+  arrangeBlocksVertically(workspace, order, 38);
   return order;
 }
 
