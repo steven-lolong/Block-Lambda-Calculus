@@ -8,7 +8,7 @@ import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
-import { installLambdaContextMenuFallback, registerLambdaContextMenus } from '../../core/ui/contextMenus';
+import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 import { syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
 import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
@@ -200,8 +200,6 @@ const workspace = Blockly.inject(blocklyDiv, {
   renderer: 'zelos',
   theme: lightTheme
 } as Blockly.BlocklyOptions);
-
-installLambdaContextMenuFallback(workspace);
 
 const resizeWorkspace = setupWorkspaceAutoResize(workspace, blocklyDiv);
 
