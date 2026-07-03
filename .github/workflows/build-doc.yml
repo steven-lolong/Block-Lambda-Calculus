@@ -1,4 +1,4 @@
-name: Build dist
+name: Build doc
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build-dist:
+  build-doc:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
@@ -26,17 +26,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build production dist
+      - name: Build production doc
         run: npm run build
 
-      - name: Commit dist output
+      - name: Commit doc output
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f dist
+          git add -f doc
           if git diff --cached --quiet; then
-            echo "No dist changes to commit."
+            echo "No doc changes to commit."
           else
-            git commit -m "Build dist [skip ci]"
+            git commit -m "Build doc [skip ci]"
             git push
           fi
