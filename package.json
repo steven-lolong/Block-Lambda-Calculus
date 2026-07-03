@@ -4,7 +4,7 @@
   "description": "A web-based block IDE for Block Lambda Calculus.",
   "private": true,
   "scripts": {
-    "clean": "rimraf doc",
+    "clean": "rimraf docs",
     "build": "webpack --mode production",
     "serve": "webpack serve --mode development --open",
     "dev": "webpack serve --mode development --open",

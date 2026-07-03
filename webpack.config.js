@@ -6,7 +6,7 @@ module.exports = {
   entry: './src/assets/js/block_lambda.ts',
   output: {
     filename: 'block_lambda.js',
-    path: path.resolve(__dirname, 'doc'),
+    path: path.resolve(__dirname, 'docs'),
     clean: true
   },
   resolve: {
@@ -38,7 +38,7 @@ module.exports = {
     })
   ],
   devServer: {
-    static: './doc',
+    static: './docs',
     hot: true,
     port: 8080
   }

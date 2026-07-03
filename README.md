@@ -96,7 +96,7 @@ http://localhost:8080
 npm run build
 ```
 
-The production output is generated in `doc/`, with the main bundle named:
+The production output is generated in `docs/`, with the main bundle named:
 
 ```text
 block_lambda.js
