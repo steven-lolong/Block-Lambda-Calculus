@@ -8,7 +8,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "outDir": "dist",
+    "outDir": "doc",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"]
