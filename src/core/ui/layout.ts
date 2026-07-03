@@ -289,7 +289,8 @@ export function setupPanelControls(
 
   const onPointerMove = (event: PointerEvent) => {
     if (!dragging) return;
-    const nextWidth = Math.min(Math.max(window.innerWidth - event.clientX, 280), 760);
+    const codePanelRight = codePanel.getBoundingClientRect().right;
+    const nextWidth = Math.min(Math.max(codePanelRight - event.clientX, 280), 760);
     document.documentElement.style.setProperty('--code-panel-width', `${nextWidth}px`);
     updateLayout();
   };

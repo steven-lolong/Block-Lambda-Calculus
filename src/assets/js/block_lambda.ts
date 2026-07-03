@@ -5,6 +5,7 @@ import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { generateLambdaFormalization } from '../../core/generator/lambdaFormalGenerator';
+import { LambdaTextParseError, parseLambdaTextToWorkspaceState } from '../../core/parser/lambdaTextParser';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { renderToolbox } from '../../core/renderer/toolbox';
@@ -47,6 +48,10 @@ function formatAutosaveInterval(minutes: number): string {
 const blocklyDiv = requireElement<HTMLDivElement>('blocklyDiv');
 const toolboxPanel = requireElement<HTMLElement>('toolboxPanel');
 const codeOutput = requireElement<HTMLElement>('codeOutput');
+const lambdaEditorPane = requireElement<HTMLElement>('lambdaEditorPane');
+const lambdaEditor = requireElement<HTMLTextAreaElement>('lambdaEditor');
+const lambdaEditorHighlight = requireElement<HTMLElement>('lambdaEditorHighlight');
+const lambdaEditorStatus = requireElement<HTMLElement>('lambdaEditorStatus');
 const statusLine = requireElement<HTMLElement>('statusLine');
 const workspaceTitle = requireElement<HTMLElement>('workspaceTitle');
 const workspaceFileLabel = requireElement<HTMLElement>('workspaceFileLabel');
@@ -62,7 +67,12 @@ const codeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 let lastTypeReport: LambdaInferenceReport | null = null;
-let activeCodeTarget: 'lambda' | 'formal' = 'lambda';
+let activeCodeTarget: 'code' | 'formal' = 'code';
+let lambdaImportTimer: number | undefined;
+let applyingCodeEditorText = false;
+let suppressCodeEditorSyncUntil = 0;
+
+const LAMBDA_EDITOR_HELP = '-- λ = \\ (you can type \\x. x or λx. x)';
 
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
@@ -220,14 +230,14 @@ function tokenSpan(className: string, value: string): string {
 }
 
 function highlightLambdaCode(code: string): string {
-  const tokenPattern = /(--[^\n]*|\b(?:let|letrec|in|if|then|else|and|or|true|false|fix)\b|[λ.()=+\-*/]|\b\d+(?:\.\d+)?\b|[A-Za-z_][A-Za-z0-9_']*|□|\s+|.)/gu;
+  const tokenPattern = /(--[^\n]*|\b(?:let|letrec|in|if|then|else|and|or|true|false|fix)\b|[λ\\.()=+\-*/]|\b\d+(?:\.\d+)?\b|[A-Za-z_][A-Za-z0-9_']*|□|\s+|.)/gu;
   const tokens = code.match(tokenPattern) ?? [];
 
   return tokens.map((token) => {
     if (/^--/.test(token)) return tokenSpan('syntax-comment', token);
     if (/^\s+$/.test(token)) return escapeHtml(token);
     if (token === '□') return tokenSpan('syntax-hole', token);
-    if (/^(?:let|letrec|in|if|then|else|and|or|true|false|fix|[λ.()=+\-*/]|\d+(?:\.\d+)?)$/.test(token)) {
+    if (/^(?:let|letrec|in|if|then|else|and|or|true|false|fix|[λ\\.()=+\-*/]|\d+(?:\.\d+)?)$/.test(token)) {
       return tokenSpan('syntax-terminal', token);
     }
     if (/^[A-Za-z_][A-Za-z0-9_']*$/.test(token)) {
@@ -247,14 +257,19 @@ function renderHighlightedCodeLines(code: string): string {
 }
 
 function renderCodeTargetTabs(): void {
+  const showingCodeEditor = activeCodeTarget === 'code';
   for (const button of codeTargetButtons) {
     const selected = button.dataset.codeTarget === activeCodeTarget;
     button.setAttribute('aria-selected', String(selected));
     button.removeAttribute('tabindex');
   }
+  codeOutput.hidden = showingCodeEditor;
+  lambdaEditorPane.hidden = !showingCodeEditor;
 }
 
 function renderGeneratedOutput(report: LambdaInferenceReport): void {
+  renderCodeTargetTabs();
+
   if (activeCodeTarget === 'formal') {
     const formalization = generateLambdaFormalization(workspace, report);
     codeOutput.dataset.rawCode = formalization.text;
@@ -263,14 +278,48 @@ function renderGeneratedOutput(report: LambdaInferenceReport): void {
     return;
   }
 
-  const code = generateLambdaCode(workspace, {
-    includeTypeAnnotations: true,
-    typeForBlock: (block) => report.topLevelTypes.get(block.id) ?? report.blockTypes.get(block.id),
-    errorForBlock: (block) => report.blockIssues.get(block.id)?.join('; ')
-  });
-  codeOutput.dataset.rawCode = code;
+  if (!applyingCodeEditorText && Date.now() >= suppressCodeEditorSyncUntil) {
+    syncLambdaEditorFromWorkspace();
+  }
+  codeOutput.dataset.rawCode = lambdaEditor.value;
   codeOutput.classList.remove('formal-output');
-  codeOutput.innerHTML = renderHighlightedCodeLines(code);
+}
+
+function generatedEditableLambdaCode(): string {
+  const code = generateLambdaCode(workspace);
+  const editableCode = code.startsWith('-- ') ? '' : code.replace(/λ/g, '\\');
+  return editableCode ? `${LAMBDA_EDITOR_HELP}\n${editableCode}` : `${LAMBDA_EDITOR_HELP}\n`;
+}
+
+function syncLambdaEditorHighlightScroll(): void {
+  lambdaEditorHighlight.style.transform = `translate(${-lambdaEditor.scrollLeft}px, ${-lambdaEditor.scrollTop}px)`;
+}
+
+function updateLambdaEditorHighlight(): void {
+  lambdaEditorHighlight.innerHTML = highlightLambdaCode(lambdaEditor.value) || '&nbsp;';
+  syncLambdaEditorHighlightScroll();
+}
+
+function hasLambdaEditorExpression(text: string): boolean {
+  return text
+    .split(/\r?\n/)
+    .some((line) => line.replace(/--.*$/, '').trim().length > 0);
+}
+
+function setLambdaEditorStatus(message: string, state: 'idle' | 'ok' | 'error' = 'idle'): void {
+  lambdaEditorStatus.textContent = message;
+  if (state === 'idle') {
+    lambdaEditorStatus.removeAttribute('data-state');
+  } else {
+    lambdaEditorStatus.dataset.state = state;
+  }
+}
+
+function syncLambdaEditorFromWorkspace(): void {
+  lambdaEditor.value = generatedEditableLambdaCode();
+  codeOutput.dataset.rawCode = lambdaEditor.value;
+  updateLambdaEditorHighlight();
+  setLambdaEditorStatus(lambdaEditor.value.trim() ? 'Synchronized from workspace.' : '', 'idle');
 }
 
 function setStatus(message: string): void {
@@ -504,6 +553,55 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   }
 }
 
+function applyLambdaTextToWorkspace(): void {
+  const source = lambdaEditor.value.trim();
+  codeOutput.dataset.rawCode = lambdaEditor.value;
+
+  if (!hasLambdaEditorExpression(source)) {
+    setLambdaEditorStatus('', 'idle');
+    return;
+  }
+
+  try {
+    const workspaceState = parseLambdaTextToWorkspaceState(source);
+    const topBlockCount = workspaceState.blocks.blocks.length;
+    suppressCodeEditorSyncUntil = Date.now() + 1500;
+    setVisualizationOpen(false);
+    workspace.clear();
+    Blockly.serialization.workspaces.load(workspaceState, workspace);
+    workspace.cleanUp();
+    currentWorkspaceFileName = 'lambda-text.blc';
+    setWorkspaceTitle(currentWorkspaceFileName);
+    saveWorkspaceToAutosave(false);
+    const report = runLambdaInferenceToFixpoint(workspace, 'lambda-text-import');
+    applyingCodeEditorText = true;
+    try {
+      refreshCode(report);
+    } finally {
+      applyingCodeEditorText = false;
+    }
+    resizeWorkspace();
+    const blockLabel = topBlockCount === 1 ? 'term' : 'terms';
+    setLambdaEditorStatus(`Converted ${topBlockCount} ${blockLabel}.`, 'ok');
+    setStatus(`Converted Lambda text to workspace blocks. ${report.summary}`);
+  } catch (error) {
+    const message = error instanceof LambdaTextParseError ? error.message : 'Could not parse Lambda text.';
+    setLambdaEditorStatus(message, 'error');
+    setStatus(message);
+  }
+}
+
+function scheduleLambdaTextImport(): void {
+  if (lambdaImportTimer !== undefined) window.clearTimeout(lambdaImportTimer);
+  codeOutput.dataset.rawCode = lambdaEditor.value;
+  updateLambdaEditorHighlight();
+  setLambdaEditorStatus(hasLambdaEditorExpression(lambdaEditor.value) ? 'Parsing...' : '', 'idle');
+  lambdaImportTimer = window.setTimeout(() => {
+    lambdaImportTimer = undefined;
+    applyLambdaTextToWorkspace();
+  }, 450);
+}
+
 renderToolbox(toolboxPanel, workspace, blocklyDiv);
 setupPanelControls(workspace, {
   lightTheme,
@@ -531,13 +629,24 @@ installExampleMenu(examplesMenuButton, examplesSubMenu, loadExampleWorkspace);
 for (const button of codeTargetButtons) {
   button.addEventListener('click', () => {
     const target = button.dataset.codeTarget;
-    if (target !== 'lambda' && target !== 'formal') return;
+    if (target !== 'code' && target !== 'formal') return;
     activeCodeTarget = target;
+    if (target === 'code') {
+      syncLambdaEditorFromWorkspace();
+      window.setTimeout(() => lambdaEditor.focus(), 0);
+    } else if (lambdaImportTimer !== undefined) {
+      window.clearTimeout(lambdaImportTimer);
+      lambdaImportTimer = undefined;
+    }
     renderCodeTargetTabs();
     refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
-    setStatus(target === 'formal' ? 'Showing formal derivation.' : 'Showing generated Lambda output.');
+    setStatus(target === 'formal' ? 'Showing formal derivation.' : 'Editing Lambda code.');
   });
 }
+
+lambdaEditor.addEventListener('input', scheduleLambdaTextImport);
+lambdaEditor.addEventListener('scroll', syncLambdaEditorHighlightScroll);
+updateLambdaEditorHighlight();
 
 autosaveInterval.addEventListener('input', () => {
   autosaveIntervalMinutes = clampAutosaveInterval(Number(autosaveInterval.value));
@@ -587,6 +696,7 @@ updateAutosaveIntervalUi();
 renderCodeTargetTabs();
 setWorkspaceTitle();
 const initialReport = runLambdaInferenceToFixpoint(workspace, 'initial-load');
+refreshCode(initialReport);
 saveWorkspaceToAutosave(false);
 resizeWorkspace();
 setStatus(`Ready. Drag blocks from the toolbox, load a .blc file, or recover a local autosave. ${initialReport.summary}`);

@@ -115,8 +115,9 @@
           </div>
         </section>
 
+        <div id="resizeHandle" class="resize-handle" aria-hidden="true"></div>
+
         <aside id="codePanel" class="code-panel" aria-label="Generated output">
-          <div id="resizeHandle" class="resize-handle" aria-hidden="true"></div>
           <div class="panel-header code-header">
             <span><span class="panel-icon" aria-hidden="true">&lt;/&gt;</span> Generated Output</span>
             <div class="code-header-actions">
@@ -125,7 +126,7 @@
             </div>
           </div>
           <div class="code-tabs" role="tablist" aria-label="Generated output target">
-            <button id="codeTargetLambda" class="code-tab" type="button" role="tab" data-code-target="lambda" aria-selected="true">
+            <button id="codeTargetCode" class="code-tab" type="button" role="tab" data-code-target="code" aria-selected="true">
               <span class="code-tab-icon" aria-hidden="true">λ</span>
               <span class="code-tab-label">Code</span>
             </button>
@@ -135,6 +136,13 @@
             </button>
           </div>
           <div id="codeOutput" class="code-output" role="region" aria-label="Generated output">-- Generated output appears here</div>
+          <div id="lambdaEditorPane" class="lambda-editor-pane" role="region" aria-label="Lambda code editor">
+            <div class="lambda-editor-stack">
+              <pre id="lambdaEditorHighlight" class="lambda-editor-highlight" aria-hidden="true"></pre>
+              <textarea id="lambdaEditor" class="lambda-editor" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off" aria-label="Lambda text"></textarea>
+            </div>
+            <div id="lambdaEditorStatus" class="lambda-editor-status" role="status" aria-live="polite"></div>
+          </div>
         </aside>
       </main>
 
