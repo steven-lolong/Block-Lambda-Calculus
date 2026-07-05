@@ -8,7 +8,7 @@ import { generateLambdaFormalization } from '../../core/generator/lambdaFormalGe
 import { LambdaTextParseError, parseLambdaTextToWorkspaceState } from '../../core/parser/lambdaTextParser';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
-import { GOROPA_RENDERER_NAME, registerGoropaRenderer } from '../../core/renderer/goropa';
+import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
@@ -18,7 +18,7 @@ import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../
 
 registerLambdaBlocks();
 registerLambdaContextMenus();
-registerGoropaRenderer();
+registerTudeRenderer();
 
 const AUTOSAVE_STORAGE_KEY = 'block-lambda-autosave-workspace';
 const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
@@ -27,7 +27,7 @@ const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
 const BLOCKLY_RENDERER_STORAGE_KEY = 'block-lambda-blockly-renderer';
 const ZELOS_RENDERER_NAME = 'zelos';
 
-type BlocklyRendererName = typeof GOROPA_RENDERER_NAME | typeof ZELOS_RENDERER_NAME;
+type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME;
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -48,12 +48,12 @@ function readAutosaveIntervalMinutes(): number {
 }
 
 function isBlocklyRendererName(value: string | null): value is BlocklyRendererName {
-  return value === GOROPA_RENDERER_NAME || value === ZELOS_RENDERER_NAME;
+  return value === TUDE_RENDERER_NAME || value === ZELOS_RENDERER_NAME;
 }
 
 function readBlocklyRendererName(): BlocklyRendererName {
   const stored = window.localStorage.getItem(BLOCKLY_RENDERER_STORAGE_KEY);
-  return isBlocklyRendererName(stored) ? stored : GOROPA_RENDERER_NAME;
+  return isBlocklyRendererName(stored) ? stored : TUDE_RENDERER_NAME;
 }
 
 function formatAutosaveInterval(minutes: number): string {
@@ -599,7 +599,7 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
 }
 
 function blocklyRendererLabel(rendererName: BlocklyRendererName): string {
-  return rendererName === ZELOS_RENDERER_NAME ? 'Zelos' : 'Goropa';
+  return rendererName === ZELOS_RENDERER_NAME ? 'Zelos' : 'Tude';
 }
 
 function renderBlocklyRendererMenu(): void {

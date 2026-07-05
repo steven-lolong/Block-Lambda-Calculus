@@ -90,7 +90,7 @@
   --shadow-glow: 0 0 28px rgba(198, 160, 246, 0.16);
 }
 
-html[data-blockly-renderer='goropa'] {
+html[data-blockly-renderer='tude'] {
   --radius-xl: 0;
   --radius-lg: 0;
   --radius-md: 0;

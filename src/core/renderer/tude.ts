@@ -1,9 +1,9 @@
 import * as Blockly from 'blockly';
 
-export const GOROPA_RENDERER_NAME = 'goropa';
+export const TUDE_RENDERER_NAME = 'tude';
 
 type ZelosShape = ReturnType<Blockly.zelos.ConstantProvider['shapeFor']>;
-type GoropaInsideCorners = Blockly.blockRendering.InsideCorners & {
+type TudeInsideCorners = Blockly.blockRendering.InsideCorners & {
   rightWidth: number;
   rightHeight: number;
   pathTopRight: string;
@@ -49,7 +49,7 @@ function makeSquareStatementNotch(type: number): Blockly.blockRendering.Notch {
   };
 }
 
-function makeSquareInsideCorners(): GoropaInsideCorners {
+function makeSquareInsideCorners(): TudeInsideCorners {
   return {
     width: 0,
     height: 0,
@@ -72,7 +72,7 @@ function makeSquareOutsideCorners(): Blockly.blockRendering.OutsideCorners {
   };
 }
 
-class GoropaConstantsProvider extends Blockly.zelos.ConstantProvider {
+class TudeConstantsProvider extends Blockly.zelos.ConstantProvider {
   constructor() {
     super();
 
@@ -118,21 +118,21 @@ class GoropaConstantsProvider extends Blockly.zelos.ConstantProvider {
   }
 }
 
-class GoropaRenderer extends Blockly.zelos.Renderer {
+class TudeRenderer extends Blockly.zelos.Renderer {
   constructor(name: string) {
     super(name);
   }
 
-  protected override makeConstants_(): GoropaConstantsProvider {
-    return new GoropaConstantsProvider();
+  protected override makeConstants_(): TudeConstantsProvider {
+    return new TudeConstantsProvider();
   }
 }
 
-function installGoropaStyle(): void {
-  if (typeof document === 'undefined' || document.getElementById('goropa-renderer-style')) return;
+function installTudeStyle(): void {
+  if (typeof document === 'undefined' || document.getElementById('tude-renderer-style')) return;
 
   const style = document.createElement('style');
-  style.id = 'goropa-renderer-style';
+  style.id = 'tude-renderer-style';
   style.textContent = `
     .blocklyPath,
     .blocklyPathLight,
@@ -152,13 +152,13 @@ function installGoropaStyle(): void {
   document.head.appendChild(style);
 }
 
-export function registerGoropaRenderer(): void {
+export function registerTudeRenderer(): void {
   try {
-    Blockly.blockRendering.register(GOROPA_RENDERER_NAME, GoropaRenderer);
+    Blockly.blockRendering.register(TUDE_RENDERER_NAME, TudeRenderer);
   } catch (error) {
     // Webpack dev-server hot reload can evaluate this module more than once.
     if (!(error instanceof Error) || !/already registered/i.test(error.message)) throw error;
   }
 
-  installGoropaStyle();
+  installTudeStyle();
 }
