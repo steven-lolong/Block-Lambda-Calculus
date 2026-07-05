@@ -19,8 +19,26 @@ function safeReducedValue(block: Blockly.Block): string {
   }
 }
 
+type RuntimeValueCacheEntry = { signature: string; values: Map<string, string> };
+
+const runtimeValueCache = new WeakMap<Blockly.Workspace, RuntimeValueCacheEntry>();
+
+// Positions and icons (comments, warnings) do not affect runtime values, so
+// they are excluded to keep the cache valid across drags and comment writes.
+const SIGNATURE_SKIP_KEYS = new Set(['x', 'y', 'icons']);
+
+function runtimeValueSignature(workspace: Blockly.Workspace): string {
+  const state = Blockly.serialization.workspaces.save(workspace) as Record<string, unknown>;
+  return JSON.stringify(state['blocks'] ?? null, (key, value) => (SIGNATURE_SKIP_KEYS.has(key) ? undefined : value));
+}
+
 export function contextualValueProvider(workspace: Blockly.Workspace): ValueProvider {
-  const values = runtimeValueTextsForWorkspace(workspace, 'value');
+  const signature = runtimeValueSignature(workspace);
+  const cached = runtimeValueCache.get(workspace);
+  const values = cached && cached.signature === signature
+    ? cached.values
+    : runtimeValueTextsForWorkspace(workspace, 'value');
+  runtimeValueCache.set(workspace, { signature, values });
   return (block) => values.get(block.id) ?? safeReducedValue(block);
 }
 

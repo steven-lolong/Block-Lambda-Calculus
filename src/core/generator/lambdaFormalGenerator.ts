@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import type { LambdaInferenceReport } from '../type-inference/lambdaTypeInference';
+import { childBlock as child, fieldText as field, isLambdaTermBlock, lambdaTermText as term } from './lambdaTermText';
 
 export type LambdaFormalization = {
   html: string;
@@ -20,86 +21,6 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-function field(block: Blockly.Block, name: string, fallback = ''): string {
-  const value = block.getFieldValue(name);
-  return value === null || value === undefined || value === '' ? fallback : String(value);
-}
-
-function child(block: Blockly.Block, inputName: string): Blockly.Block | null {
-  return block.getInputTargetBlock(inputName);
-}
-
-function isLambdaTermBlock(block: Blockly.Block): boolean {
-  return Boolean(block.outputConnection) && block.type.startsWith('lambda_') && block.type !== 'lambda_viz_description';
-}
-
-function term(block: Blockly.Block | null): string {
-  if (!block) return '□';
-
-  switch (block.type) {
-    case 'lambda_variable':
-      return field(block, 'NAME', 'x');
-
-    case 'lambda_abstraction': {
-      const parameter = field(block, 'PARAM', 'x');
-      return `λ${parameter}. ${term(child(block, 'BODY'))}`;
-    }
-
-    case 'lambda_application': {
-      const fn = term(child(block, 'FUNC'));
-      const arg = term(child(block, 'ARG'));
-      return `(${fn} ${arg})`;
-    }
-
-    case 'lambda_parentheses':
-      return `(${term(child(block, 'TERM'))})`;
-
-    case 'lambda_let': {
-      const name = field(block, 'NAME', 'id');
-      const value = term(child(block, 'VALUE'));
-      const body = term(child(block, 'BODY'));
-      return `let ${name} = ${value} in ${body}`;
-    }
-
-    case 'lambda_letrec': {
-      const name = field(block, 'NAME', 'f');
-      const value = term(child(block, 'VALUE'));
-      const body = term(child(block, 'BODY'));
-      return `letrec ${name} = ${value} in ${body}`;
-    }
-
-    case 'lambda_number':
-      return field(block, 'VALUE', '0');
-
-    case 'lambda_boolean':
-      return field(block, 'VALUE', 'true');
-
-    case 'lambda_number_operator': {
-      const left = term(child(block, 'LEFT'));
-      const operator = field(block, 'OP', '+');
-      const right = term(child(block, 'RIGHT'));
-      return `(${left} ${operator} ${right})`;
-    }
-
-    case 'lambda_boolean_operator': {
-      const left = term(child(block, 'LEFT'));
-      const operator = field(block, 'OP', 'and');
-      const right = term(child(block, 'RIGHT'));
-      return `(${left} ${operator} ${right})`;
-    }
-
-    case 'lambda_if': {
-      const condition = term(child(block, 'COND'));
-      const thenBranch = term(child(block, 'THEN'));
-      const elseBranch = term(child(block, 'ELSE'));
-      return `if ${condition} then ${thenBranch} else ${elseBranch}`;
-    }
-
-    default:
-      return block.type;
-  }
 }
 
 function typeOf(block: Blockly.Block, report: LambdaInferenceReport): string {

@@ -5,7 +5,7 @@ import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
 import { generateLambdaCode } from '../../core/generator/lambdaGenerator';
 import { generateLambdaFormalization } from '../../core/generator/lambdaFormalGenerator';
-import { LambdaTextParseError, parseLambdaTextToWorkspaceState } from '../../core/parser/lambdaTextParser';
+import { LambdaTextParseError, parseLambdaTextToWorkspaceState, type LambdaWorkspaceState } from '../../core/parser/lambdaTextParser';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
@@ -419,7 +419,8 @@ function refreshAfterInference(report: LambdaInferenceReport): void {
 function installCurrentWorkspaceInferenceDriver(): void {
   installLambdaInferenceDriver(workspace, {
     onViewport: updateZoomLabel,
-    onSettled: (report) => refreshAfterInference(report)
+    onSettled: (report) => refreshAfterInference(report),
+    onPassiveMove: scheduleAutosave
   });
 }
 
@@ -693,6 +694,20 @@ function installBlocklyThemeMenu(): void {
   renderBlocklyRendererMenu();
 }
 
+// Signature of the term structure only (block positions are irrelevant),
+// used to detect editor input that would rebuild an identical workspace.
+function logicalSignature(state: LambdaWorkspaceState): string {
+  return JSON.stringify(state.blocks.blocks.map(({ x, y, ...logical }) => logical));
+}
+
+function workspaceLogicalSignature(): string | null {
+  try {
+    return logicalSignature(parseLambdaTextToWorkspaceState(generateLambdaCode(workspace)));
+  } catch {
+    return null;
+  }
+}
+
 function applyLambdaTextToWorkspace(): void {
   const source = lambdaEditor.value.trim();
   codeOutput.dataset.rawCode = lambdaEditor.value;
@@ -705,6 +720,14 @@ function applyLambdaTextToWorkspace(): void {
   try {
     const workspaceState = parseLambdaTextToWorkspaceState(source);
     const topBlockCount = workspaceState.blocks.blocks.length;
+    const blockLabel = topBlockCount === 1 ? 'term' : 'terms';
+
+    // Whitespace, comment, or formatting edits parse to the same structure;
+    // skip the rebuild to keep block ids, undo history, and layout intact.
+    if (logicalSignature(workspaceState) === workspaceLogicalSignature()) {
+      setLambdaEditorStatus(`Workspace already matches (${topBlockCount} ${blockLabel}).`, 'ok');
+      return;
+    }
     suppressCodeEditorSyncUntil = Date.now() + 1500;
     applyingCodeEditorText = true;
     let report: LambdaInferenceReport;
@@ -722,7 +745,6 @@ function applyLambdaTextToWorkspace(): void {
       applyingCodeEditorText = false;
     }
     resizeWorkspace();
-    const blockLabel = topBlockCount === 1 ? 'term' : 'terms';
     setLambdaEditorStatus(`Converted ${topBlockCount} ${blockLabel}.`, 'ok');
     setStatus(`Converted Lambda text to workspace blocks. ${report.summary}`);
   } catch (error) {

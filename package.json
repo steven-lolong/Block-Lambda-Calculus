@@ -8,7 +8,8 @@
     "build": "webpack --mode production",
     "serve": "webpack serve --mode development --open",
     "dev": "webpack serve --mode development --open",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:roundtrip": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js"
   },
   "keywords": [
     "blockly",

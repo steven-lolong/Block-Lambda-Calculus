@@ -8,7 +8,8 @@ type LambdaAst =
   | { kind: 'bool'; value: boolean }
   | { kind: 'numop'; op: string; left: LambdaAst; right: LambdaAst }
   | { kind: 'boolop'; op: string; left: LambdaAst; right: LambdaAst }
-  | { kind: 'if'; cond: LambdaAst; thenTerm: LambdaAst; elseTerm: LambdaAst };
+  | { kind: 'if'; cond: LambdaAst; thenTerm: LambdaAst; elseTerm: LambdaAst }
+  | { kind: 'hole' };
 
 export type LambdaBlockState = {
   type: string;
@@ -34,6 +35,16 @@ type Token = {
 };
 
 const KEYWORDS = new Set(['lambda', 'let', 'letrec', 'in', 'if', 'then', 'else', 'true', 'false', 'and', 'or', 'fix']);
+
+const WHITESPACE_PATTERN = /\s/;
+const IDENTIFIER_START_PATTERN = /[A-Za-z_]/;
+const IDENTIFIER_PART_PATTERN = /[A-Za-z0-9_']/;
+const DIGIT_PATTERN = /\d/;
+const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_']*$/;
+
+export function isValidLambdaName(value: string): boolean {
+  return IDENTIFIER_PATTERN.test(value) && !KEYWORDS.has(value);
+}
 
 export class LambdaTextParseError extends Error {
   constructor(message: string, readonly index: number) {
@@ -80,27 +91,27 @@ function tokenize(source: string): Token[] {
   while (index < source.length) {
     const char = source[index];
 
-    if (/\s/.test(char)) {
+    if (WHITESPACE_PATTERN.test(char)) {
       index += 1;
       continue;
     }
 
-    if (/[A-Za-z_]/.test(char)) {
+    if (IDENTIFIER_START_PATTERN.test(char)) {
       const start = index;
       index += 1;
-      while (index < source.length && /[A-Za-z0-9_']/.test(source[index])) index += 1;
+      while (index < source.length && IDENTIFIER_PART_PATTERN.test(source[index])) index += 1;
       const value = source.slice(start, index);
       tokens.push({ kind: KEYWORDS.has(value) ? 'keyword' : 'identifier', value, index: start });
       continue;
     }
 
-    if (/\d/.test(char)) {
+    if (DIGIT_PATTERN.test(char)) {
       const start = index;
       index += 1;
-      while (index < source.length && /\d/.test(source[index])) index += 1;
-      if (source[index] === '.' && /\d/.test(source[index + 1] ?? '')) {
+      while (index < source.length && DIGIT_PATTERN.test(source[index])) index += 1;
+      if (source[index] === '.' && DIGIT_PATTERN.test(source[index + 1] ?? '')) {
         index += 1;
-        while (index < source.length && /\d/.test(source[index])) index += 1;
+        while (index < source.length && DIGIT_PATTERN.test(source[index])) index += 1;
       }
       tokens.push({ kind: 'number', value: source.slice(start, index), index: start });
       continue;
@@ -291,12 +302,17 @@ class Parser {
 
     if (token.kind === 'identifier') {
       this.advance();
-      return { kind: 'var', name: token.value };
+      return token.value === '□' ? { kind: 'hole' } : { kind: 'var', name: token.value };
     }
 
     if (token.kind === 'number') {
       this.advance();
       return { kind: 'num', value: Number(token.value) };
+    }
+
+    if (token.value === '-' && this.peek().kind === 'number') {
+      this.advance();
+      return { kind: 'num', value: -Number(this.advance().value) };
     }
 
     if (token.value === 'true' || token.value === 'false') {
@@ -327,43 +343,58 @@ class Parser {
   }
 }
 
+// A hole (□) means "leave this input empty", so its entry is omitted entirely.
+function inputsFor(children: Record<string, LambdaAst>): { inputs?: Record<string, { block: LambdaBlockState }> } {
+  let inputs: Record<string, { block: LambdaBlockState }> | undefined;
+  for (const [name, ast] of Object.entries(children)) {
+    if (ast.kind === 'hole') continue;
+    (inputs ??= {})[name] = { block: blockState(ast) };
+  }
+  return inputs ? { inputs } : {};
+}
+
 function blockState(ast: LambdaAst): LambdaBlockState {
   switch (ast.kind) {
     case 'var':
       return { type: 'lambda_variable', fields: { NAME: ast.name } };
     case 'abs':
-      return { type: 'lambda_abstraction', fields: { PARAM: ast.param }, inputs: { BODY: { block: blockState(ast.body) } } };
+      return { type: 'lambda_abstraction', fields: { PARAM: ast.param }, ...inputsFor({ BODY: ast.body }) };
     case 'app':
-      return { type: 'lambda_application', inputs: { FUNC: { block: blockState(ast.func) }, ARG: { block: blockState(ast.arg) } } };
+      return { type: 'lambda_application', ...inputsFor({ FUNC: ast.func, ARG: ast.arg }) };
     case 'let':
-      return { type: 'lambda_let', fields: { NAME: ast.name }, inputs: { VALUE: { block: blockState(ast.value) }, BODY: { block: blockState(ast.body) } } };
+      return { type: 'lambda_let', fields: { NAME: ast.name }, ...inputsFor({ VALUE: ast.value, BODY: ast.body }) };
     case 'letrec':
-      return { type: 'lambda_letrec', fields: { NAME: ast.name }, inputs: { VALUE: { block: blockState(ast.value) }, BODY: { block: blockState(ast.body) } } };
+      return { type: 'lambda_letrec', fields: { NAME: ast.name }, ...inputsFor({ VALUE: ast.value, BODY: ast.body }) };
     case 'num':
       return { type: 'lambda_number', fields: { VALUE: ast.value } };
     case 'bool':
       return { type: 'lambda_boolean', fields: { VALUE: ast.value ? 'true' : 'false' } };
     case 'numop':
-      return { type: 'lambda_number_operator', fields: { OP: ast.op }, inputs: { LEFT: { block: blockState(ast.left) }, RIGHT: { block: blockState(ast.right) } } };
+      return { type: 'lambda_number_operator', fields: { OP: ast.op }, ...inputsFor({ LEFT: ast.left, RIGHT: ast.right }) };
     case 'boolop':
-      return { type: 'lambda_boolean_operator', fields: { OP: ast.op }, inputs: { LEFT: { block: blockState(ast.left) }, RIGHT: { block: blockState(ast.right) } } };
+      return { type: 'lambda_boolean_operator', fields: { OP: ast.op }, ...inputsFor({ LEFT: ast.left, RIGHT: ast.right }) };
     case 'if':
-      return { type: 'lambda_if', inputs: { COND: { block: blockState(ast.cond) }, THEN: { block: blockState(ast.thenTerm) }, ELSE: { block: blockState(ast.elseTerm) } } };
+      return { type: 'lambda_if', ...inputsFor({ COND: ast.cond, THEN: ast.thenTerm, ELSE: ast.elseTerm }) };
+    case 'hole':
+      throw new LambdaTextParseError('A hole (□) cannot be converted to a block on its own.', 0);
   }
 }
 
 export function parseLambdaTextToWorkspaceState(text: string): LambdaWorkspaceState {
   const sources = splitTopLevelSources(text);
+  const terms = sources
+    .map((source) => new Parser(tokenize(source)).parse())
+    .filter((ast) => ast.kind !== 'hole');
 
-  if (sources.length === 0) {
+  if (terms.length === 0) {
     throw new LambdaTextParseError('Enter a Lambda expression.', 0);
   }
 
   return {
     blocks: {
       languageVersion: 0,
-      blocks: sources.map((source, index) => ({
-        ...blockState(new Parser(tokenize(source)).parse()),
+      blocks: terms.map((ast, index) => ({
+        ...blockState(ast),
         x: 72,
         y: 72 + index * 150
       }))

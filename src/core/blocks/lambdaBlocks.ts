@@ -1,11 +1,23 @@
 import * as Blockly from 'blockly';
+import { isValidLambdaName } from '../parser/lambdaTextParser';
+
+// Restrict names to identifiers the Lambda text parser can read back,
+// so every block program stays convertible to text and back.
+function nameField(defaultName: string): Blockly.FieldTextInput {
+  const field = new Blockly.FieldTextInput(defaultName);
+  field.setValidator((value: string) => {
+    const trimmed = value.trim();
+    return isValidLambdaName(trimmed) ? trimmed : null;
+  });
+  return field;
+}
 
 export function registerLambdaBlocks(): void {
   Blockly.Blocks['lambda_variable'] = {
     init: function () {
       this.appendDummyInput()
         .appendField('bound')
-        .appendField(new Blockly.FieldTextInput('x'), 'NAME');
+        .appendField(nameField('x'), 'NAME');
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_term');
       this.setTooltip('A lambda-calculus variable. Open the Blockly comment icon to see the inferred type and value.');
@@ -17,7 +29,7 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendDummyInput()
         .appendField('lambda, variable')
-        .appendField(new Blockly.FieldTextInput('x'), 'PARAM')
+        .appendField(nameField('x'), 'PARAM')
         .appendField('.');
       this.appendValueInput('BODY')
         .setCheck('LambdaTerm')
@@ -63,7 +75,7 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendDummyInput()
         .appendField('let')
-        .appendField(new Blockly.FieldTextInput('id'), 'NAME');
+        .appendField(nameField('id'), 'NAME');
       this.appendValueInput('VALUE')
         .setCheck('LambdaTerm')
         .appendField('=');
@@ -81,7 +93,7 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendDummyInput()
         .appendField('letrec')
-        .appendField(new Blockly.FieldTextInput('factorial'), 'NAME');
+        .appendField(nameField('factorial'), 'NAME');
       this.appendValueInput('VALUE')
         .setCheck('LambdaTerm')
         .appendField('=');

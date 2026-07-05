@@ -17,11 +17,14 @@ export type LambdaStructuralEvent = {
   ids?: string[];
   newParentId?: string;
   oldParentId?: string;
+  newInputName?: string;
+  oldInputName?: string;
 };
 
 type DriverOptions = {
   onSettled: (report: LambdaInferenceReport, events: LambdaStructuralEvent[]) => void;
   onViewport?: () => void;
+  onPassiveMove?: () => void;
 };
 
 type LambdaTypedBlock = Blockly.Block & {
@@ -40,6 +43,7 @@ let pendingEvents: LambdaStructuralEvent[] = [];
 let driverWorkspace: Blockly.Workspace | null = null;
 let onSettled: DriverOptions['onSettled'] | null = null;
 let onViewport: DriverOptions['onViewport'] | null = null;
+let onPassiveMove: DriverOptions['onPassiveMove'] | null = null;
 let lastInferenceStats: LambdaInferenceStats = {
   mode: 'full',
   totalBlocks: 0,
@@ -54,7 +58,12 @@ export function isLambdaStructuralEvent(event: LambdaStructuralEvent | null | un
   const type = event.type;
 
   if (type === Blockly.Events.VIEWPORT_CHANGE) return false;
-  if (type === 'move' || type === 'create' || type === 'delete' || type === 'finished_loading') return true;
+  // A move only changes term structure when a connection changes; dragging a
+  // block to a new position keeps types, values, and generated code identical.
+  if (type === 'move') {
+    return event.oldParentId !== event.newParentId || event.oldInputName !== event.newInputName;
+  }
+  if (type === 'create' || type === 'delete' || type === 'finished_loading') return true;
   if (type === 'block_field_intermediate_change') return true;
   if (type === 'change') return event.element !== 'comment';
 
@@ -85,8 +94,10 @@ function runFullInference(workspace: Blockly.Workspace, reason?: string): Lambda
   const start = Date.now();
   const blocks = workspace.getAllBlocks(false).filter(isLambdaBlock);
   let passes = 0;
-  let previous: string | null = null;
-  let report = annotateLambdaWorkspaceTypes(workspace);
+  // Seed with the current annotations so an already-settled workspace needs a
+  // single pass; a changed workspace settles on the second.
+  let previous: string | null = snapshot(blocks);
+  let report: LambdaInferenceReport | null = null;
 
   Blockly.Events.disable();
   try {
@@ -109,7 +120,7 @@ function runFullInference(workspace: Blockly.Workspace, reason?: string): Lambda
     elapsedMs: Date.now() - start,
     reason
   };
-  return report;
+  return report ?? annotateLambdaWorkspaceTypes(workspace);
 }
 
 function emitSettled(workspace: Blockly.Workspace, report: LambdaInferenceReport, events: LambdaStructuralEvent[]): void {
@@ -162,6 +173,7 @@ export function installLambdaInferenceDriver(workspace: Blockly.Workspace, optio
   driverWorkspace = workspace;
   onSettled = options.onSettled;
   onViewport = options.onViewport ?? null;
+  onPassiveMove = options.onPassiveMove ?? null;
 
   workspace.addChangeListener((event: Blockly.Events.Abstract) => {
     if (driverRunning) return;
@@ -172,7 +184,10 @@ export function installLambdaInferenceDriver(workspace: Blockly.Workspace, optio
       return;
     }
 
-    if (!isLambdaStructuralEvent(lambdaEvent)) return;
+    if (!isLambdaStructuralEvent(lambdaEvent)) {
+      if (lambdaEvent.type === 'move') onPassiveMove?.();
+      return;
+    }
     scheduleInference(workspace, lambdaEvent);
   });
 }
