@@ -1,15 +1,24 @@
 import * as Blockly from 'blockly';
 
 const GOROPA_RENDERER_NAME = 'goropa';
+const ZHELOS_COMPAT_RENDERER_NAME = 'zelos';
+
+type RendererConstructor = new (name: string) => Blockly.blockRendering.Renderer;
 
 type BlocklyWithZelos = typeof Blockly & {
   zelos?: {
-    Renderer?: new (name: string) => Blockly.blockRendering.Renderer;
+    Renderer?: RendererConstructor;
     ConstantProvider?: new () => Blockly.blockRendering.ConstantProvider;
   };
 };
 
+type BlocklyRegistry = typeof Blockly.registry & {
+  unregister?: (type: string, name: string) => void;
+  Type?: { RENDERER?: string };
+};
+
 const blocklyWithZelos = Blockly as BlocklyWithZelos;
+const blocklyRegistry = Blockly.registry as BlocklyRegistry;
 
 class GoropaConstantProvider extends (blocklyWithZelos.zelos?.ConstantProvider ?? Blockly.blockRendering.ConstantProvider) {
   override init(): void {
@@ -41,20 +50,32 @@ class GoropaRenderer extends (blocklyWithZelos.zelos?.Renderer ?? Blockly.blockR
   }
 }
 
+function registerRendererName(name: string, renderer: RendererConstructor, replaceExisting = false): void {
+  try {
+    Blockly.blockRendering.register(name, renderer);
+  } catch (error) {
+    const alreadyRegistered = error instanceof Error && /already registered/i.test(error.message);
+    if (!alreadyRegistered) throw error;
+
+    if (!replaceExisting) return;
+
+    const rendererType = blocklyRegistry.Type?.RENDERER ?? 'renderer';
+    blocklyRegistry.unregister?.(rendererType, name);
+    Blockly.blockRendering.register(name, renderer);
+  }
+}
+
 export function registerGoropaRenderer(): void {
   if (!blocklyWithZelos.zelos?.Renderer) {
     throw new Error('The goropa renderer requires Blockly zelos to be available.');
   }
 
-  try {
-    Blockly.blockRendering.register(GOROPA_RENDERER_NAME, GoropaRenderer);
-  } catch (error) {
-    // Blockly throws when a renderer name is already registered. This makes the
-    // registration safe during hot reloads and repeated module evaluation.
-    if (!(error instanceof Error) || !/already registered/i.test(error.message)) {
-      throw error;
-    }
-  }
+  registerRendererName(GOROPA_RENDERER_NAME, GoropaRenderer);
+
+  // The main entry currently asks Blockly for the Zelos renderer. Rebinding the
+  // existing renderer key lets the IDE immediately use Goropa while keeping the
+  // public Goropa renderer name available for future direct injection.
+  registerRendererName(ZHELOS_COMPAT_RENDERER_NAME, GoropaRenderer, true);
 }
 
 export { GOROPA_RENDERER_NAME };
