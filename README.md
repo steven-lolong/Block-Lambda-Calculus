@@ -9,6 +9,10 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - middle Blockly workspace,
   - right generated text-code panel.
 - Uses Blockly 12.
+- Custom **Goropa** Blockly renderer:
+  - based on the same renderer family as Zelos,
+  - keeps the modern Blockly connection model,
+  - removes rounded corners so blocks look more like rectangular text/program fragments.
 - Hide/show toolbox panel.
 - Hide/show generated-code panel, including a phone-layout restore button that scrolls back to the code panel.
 - Resizable right code panel.
@@ -41,7 +45,7 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 - Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
 - Responsive top menu with grouped file, example, workspace, and theme actions.
 - Searchable custom toolbox.
-- Theme-aware Blockly colors while preserving the current Blockly renderer/shape style.
+- Theme-aware Blockly colors with the Goropa square-corner block shape style.
 - Manual `.blc` workspace save/load plus local autosave recovery.
 - Logo, favicon, dark/light variants, and 512x512 PWA icon.
 - Webpack output bundle name: `block_lambda.js`.
@@ -150,6 +154,7 @@ The recursive evaluator reduces the application to `120`.
 - `src/core/generator/lambdaGenerator.ts` — block-to-text generator with optional type annotations.
 - `src/core/type-inference/lambdaTypeInference.ts` — Hindley-Milner-style type inference for Lambda blocks.
 - `src/core/ui/typeInfoPopup.ts` — Blockly comment report generation for per-block type/value information.
+- `src/core/renderer/goropa.ts` — custom Zelos-based square-corner Blockly renderer.
 - `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
 - `src/core/ui/layout.ts` — hide/show and resize UI behavior.
 
@@ -171,7 +176,7 @@ The recursive evaluator reduces the application to `120`.
 
 ## Notes
 
-The toolbox is implemented as a custom collapsible left panel. Clicking or dragging a block in the toolbox creates the corresponding Blockly block in the center workspace. The UI uses a neon-glass dark-first design, but the Blockly renderer remains the existing `zelos` renderer so the block render/shape style stays consistent.
+The toolbox is implemented as a custom collapsible left panel. Clicking or dragging a block in the toolbox creates the corresponding Blockly block in the center workspace. The UI uses a neon-glass dark-first design, and the Blockly workspace uses the custom `goropa` renderer so Lambda blocks keep Blockly connections while using square, text-like block geometry.
 
 ## UI Design Update
 
@@ -183,4 +188,4 @@ The IDE keeps the stable three-column application shell and applies a more polis
 - Middle Workspace panel with a persistent file-aware title.
 - Right generated-code panel with line numbers and theme-aware syntax highlighting.
 - Bottom status bar with autosave indicator, user-configurable autosave interval, block count, tip text, version, and theme-aware logo.
-- Blockly remains on the current renderer (`zelos`); only the UI colors and block theme colors were updated.
+- Blockly now uses the custom `goropa` renderer for square-corner, text-like blocks while preserving the existing Block Lambda theme colors.
