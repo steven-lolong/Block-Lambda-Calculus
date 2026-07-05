@@ -338,9 +338,9 @@ html[data-theme='dark'] .brand-logo-dark { display: block; }
 .theme-switch {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
   min-height: 42px;
-  padding: 6px 9px 6px 12px;
+  padding: 5px;
   color: var(--text-soft);
   border: 1px solid var(--button-border);
   border-radius: var(--radius-md);
@@ -1517,8 +1517,8 @@ html[data-theme='dark'] .about-logo-dark { display: block; }
     grid-template-columns: 1fr;
   }
   .action-group { display: grid; grid-template-columns: 1fr; gap: 8px; }
-  .topbar-actions > *, .topbar-actions button, .theme-switch { width: 100%; }
-  .theme-switch { justify-content: space-between; }
+  .topbar-actions > *, .topbar-actions button { width: 100%; }
+  .theme-switch { width: max-content; }
   .viz-dock[data-open='true'] {
     height: min(var(--viz-height), 52vh);
     grid-template-rows: 16px minmax(0, 1fr);
