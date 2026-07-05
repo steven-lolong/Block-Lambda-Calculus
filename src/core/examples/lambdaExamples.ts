@@ -1,6 +1,11 @@
 import * as Blockly from 'blockly';
 
-export type LambdaExampleId = 'simple-factorial' | 'identity-function';
+export type LambdaExampleId =
+  | 'identity-function'
+  | 'let-binding'
+  | 'if-else'
+  | 'palindrome-number'
+  | 'simple-factorial';
 
 type BlockState = {
   type: string;
@@ -30,6 +35,10 @@ type ExampleLoader = (exampleId: LambdaExampleId) => void;
 
 function numberBlock(value: number): BlockState {
   return { type: 'lambda_number', fields: { VALUE: value } };
+}
+
+function booleanBlock(value: boolean): BlockState {
+  return { type: 'lambda_boolean', fields: { VALUE: value ? 'true' : 'false' } };
 }
 
 function variableBlock(name: string): BlockState {
@@ -91,6 +100,19 @@ function ifBlock(condition: BlockState, thenBranch: BlockState, elseBranch: Bloc
   };
 }
 
+function letBlock(name: string, value: BlockState, body: BlockState, x?: number, y?: number): BlockState {
+  return {
+    type: 'lambda_let',
+    x,
+    y,
+    fields: { NAME: name },
+    inputs: {
+      VALUE: { block: value },
+      BODY: { block: body }
+    }
+  };
+}
+
 function letrecBlock(name: string, value: BlockState, body: BlockState): BlockState {
   return {
     type: 'lambda_letrec',
@@ -106,6 +128,31 @@ function letrecBlock(name: string, value: BlockState, body: BlockState): BlockSt
 
 function identityFunction(): BlockState {
   return abstractionBlock('x', variableBlock('x'), 72, 72);
+}
+
+function letBindingExample(): BlockState {
+  return letBlock('x', numberBlock(10), numberOperatorBlock('+', variableBlock('x'), numberBlock(5)), 72, 72);
+}
+
+function ifElseExample(): BlockState {
+  return ifBlock(booleanOperatorBlock('=', numberBlock(7), numberBlock(7)), numberBlock(1), numberBlock(0));
+}
+
+function palindromeNumberExample(): BlockState {
+  const outerDigitsMatch = booleanOperatorBlock('=', variableBlock('hundreds'), variableBlock('ones'));
+  const checkResult = ifBlock(outerDigitsMatch, booleanBlock(true), booleanBlock(false));
+
+  return letBlock(
+    'number',
+    numberBlock(121),
+    letBlock(
+      'hundreds',
+      numberBlock(1),
+      letBlock('tens', numberBlock(2), letBlock('ones', numberBlock(1), checkResult))
+    ),
+    72,
+    72
+  );
 }
 
 function decrementN(): BlockState {
@@ -136,6 +183,42 @@ export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> =
       blocks: {
         languageVersion: 0,
         blocks: [identityFunction()]
+      }
+    }
+  },
+  'let-binding': {
+    id: 'let-binding',
+    title: 'Let Binding',
+    description: 'Loads let x = 10 in x + 5.',
+    fileName: 'example-let-binding.blc',
+    workspace: {
+      blocks: {
+        languageVersion: 0,
+        blocks: [letBindingExample()]
+      }
+    }
+  },
+  'if-else': {
+    id: 'if-else',
+    title: 'If Else',
+    description: 'Loads if 7 = 7 then 1 else 0.',
+    fileName: 'example-if-else.blc',
+    workspace: {
+      blocks: {
+        languageVersion: 0,
+        blocks: [ifElseExample()]
+      }
+    }
+  },
+  'palindrome-number': {
+    id: 'palindrome-number',
+    title: 'Palindrome Number 121',
+    description: 'Loads a digit-based palindrome check for 121.',
+    fileName: 'example-palindrome-number.blc',
+    workspace: {
+      blocks: {
+        languageVersion: 0,
+        blocks: [palindromeNumberExample()]
       }
     }
   },
