@@ -1,25 +1,7 @@
 import * as Blockly from 'blockly';
-import { GOROPA_RENDERER_NAME, registerGoropaRenderer } from './goropa';
+import { registerGoropaRenderer } from './goropa';
 
 registerGoropaRenderer();
-
-const originalInject = Blockly.inject;
-let injectPatchedForGoropa = false;
-
-function installGoropaInjectPatch(): void {
-  if (injectPatchedForGoropa) return;
-  injectPatchedForGoropa = true;
-
-  (Blockly as typeof Blockly & { inject: typeof Blockly.inject }).inject = (container, options) => {
-    const normalizedOptions = options && options.renderer === 'zelos'
-      ? { ...options, renderer: GOROPA_RENDERER_NAME }
-      : options;
-
-    return originalInject(container, normalizedOptions);
-  };
-}
-
-installGoropaInjectPatch();
 
 type ToolboxBlock = {
   type: string;
