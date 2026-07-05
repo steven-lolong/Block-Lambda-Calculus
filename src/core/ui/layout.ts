@@ -13,6 +13,8 @@ type PanelControlOptions = {
   onResize: () => void;
 };
 
+type WorkspaceProvider = Blockly.WorkspaceSvg | (() => Blockly.WorkspaceSvg);
+
 const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
 const CODE_PANEL_MIN_WIDTH = 280;
 const CODE_PANEL_MAX_WIDTH = 760;
@@ -58,16 +60,18 @@ function isPhoneLayout(): boolean {
 }
 
 export function setupWorkspaceAutoResize(
-  workspace: Blockly.WorkspaceSvg,
+  workspaceProvider: WorkspaceProvider,
   resizeRoot: HTMLElement
 ): () => void {
   let frame = 0;
+
+  const getWorkspace = () => typeof workspaceProvider === 'function' ? workspaceProvider() : workspaceProvider;
 
   const requestResize = () => {
     updateViewportHeightVariable();
     if (frame) window.cancelAnimationFrame(frame);
     frame = window.requestAnimationFrame(() => {
-      Blockly.svgResize(workspace);
+      Blockly.svgResize(getWorkspace());
       frame = 0;
     });
   };
@@ -108,9 +112,10 @@ export function setupWorkspaceAutoResize(
 }
 
 export function setupPanelControls(
-  workspace: Blockly.WorkspaceSvg,
+  workspaceProvider: WorkspaceProvider,
   options: PanelControlOptions
 ): void {
+  const getWorkspace = () => typeof workspaceProvider === 'function' ? workspaceProvider() : workspaceProvider;
   const app = document.getElementById('app');
   const menuToggle = document.getElementById('menuToggle') as HTMLButtonElement | null;
   const toggleToolboxPanel = document.getElementById('toggleToolboxPanel') as HTMLButtonElement | null;
@@ -299,20 +304,27 @@ export function setupPanelControls(
 
   copyCode?.addEventListener('click', async () => {
     const code = codeOutput instanceof HTMLElement ? (codeOutput.dataset.rawCode ?? codeOutput.textContent ?? '') : '';
+    const copyIcon = copyCode.querySelector<HTMLElement>('[aria-hidden="true"]');
+    const setCopyButtonState = (icon: string, label: string) => {
+      if (copyIcon) copyIcon.textContent = icon;
+      else copyCode.textContent = icon;
+      copyCode.setAttribute('aria-label', label);
+      copyCode.title = label;
+    };
     await navigator.clipboard.writeText(code);
-    copyCode.textContent = 'Copied';
+    setCopyButtonState('✓', 'Copied generated output');
     window.setTimeout(() => {
-      copyCode.textContent = 'Copy';
+      setCopyButtonState('⧉', 'Copy generated output');
     }, 1200);
   });
 
   const savedThemeMode = readThemeMode();
-  applyTheme(workspace, savedThemeMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
+  applyTheme(getWorkspace(), savedThemeMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
 
   themeToggle?.addEventListener('change', () => {
     const nextMode: IdeThemeMode = themeToggle.checked ? 'dark' : 'light';
     window.localStorage.setItem(THEME_STORAGE_KEY, nextMode);
-    applyTheme(workspace, nextMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
+    applyTheme(getWorkspace(), nextMode, options.lightTheme, options.darkTheme, options.onResize, themeToggle);
     window.dispatchEvent(new CustomEvent('block-lambda:refresh-code'));
     window.dispatchEvent(new CustomEvent('block-lambda:theme-changed'));
     updateLayout();

@@ -12,7 +12,7 @@
   min-width: 280px;
   padding: 8px;
   border: 1px solid var(--panel-border-bright);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: var(--panel-bg-strong);
   box-shadow: var(--shadow-soft), var(--shadow-glow);
   backdrop-filter: blur(18px);
@@ -30,7 +30,7 @@
   color: var(--text-main);
   text-align: left;
   border: 1px solid transparent;
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background: transparent;
   cursor: pointer;
 }
@@ -41,6 +41,12 @@
   border-color: var(--panel-border-bright);
   background: var(--button-bg-hover);
   outline: none;
+}
+
+.theme-menu-item[aria-checked='true'] {
+  border-color: var(--panel-border-bright);
+  background: var(--button-bg-hover);
+  box-shadow: inset 4px 0 0 var(--accent-cyan);
 }
 
 .example-menu-title {
@@ -64,7 +70,7 @@
 .toolbox-category {
   position: relative;
   margin-bottom: 0;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   overflow: visible;
   background:
     linear-gradient(180deg, rgba(54, 58, 79, 0.48), rgba(24, 25, 38, 0.34)),
@@ -104,7 +110,7 @@ html[data-theme='light'] .toolbox-category::before {
   padding: 11px 12px 11px 13px;
   color: var(--toolbox-fg);
   border-bottom: 1px solid rgba(183, 189, 248, 0.12);
-  border-radius: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   font-size: 0.88rem;
   font-weight: 900;
   letter-spacing: 0.015em;
@@ -114,7 +120,7 @@ html[data-theme='light'] .toolbox-category::before {
 
 .toolbox-category:not([open]) summary {
   border-bottom-color: transparent;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
 }
 
 html[data-theme='light'] .toolbox-category summary {
@@ -141,7 +147,7 @@ html[data-theme='light'] .toolbox-category:not([open]) summary {
   float: none;
   color: var(--text-soft);
   border: 1px solid rgba(183, 189, 248, 0.20);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: rgba(54, 58, 79, 0.55);
   font-size: 0.95rem;
   line-height: 1;
@@ -164,7 +170,7 @@ html[data-theme='light'] .toolbox-category summary::after {
   place-items: center;
   justify-self: start;
   color: var(--text-inverse);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: linear-gradient(135deg, var(--accent-violet), var(--accent-cyan));
   box-shadow: 0 8px 22px rgba(198, 160, 246, 0.20);
   font-size: 0.93rem;
@@ -201,7 +207,7 @@ html[data-theme='light'] .toolbox-category summary::after {
   color: var(--toolbox-card-fg);
   text-align: left;
   border: 1px solid rgba(183, 189, 248, 0.16);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background:
     linear-gradient(180deg, rgba(73, 77, 100, 0.54), rgba(54, 58, 79, 0.48)),
     var(--toolbox-card-bg);

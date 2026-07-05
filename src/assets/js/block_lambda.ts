@@ -24,6 +24,10 @@ const AUTOSAVE_STORAGE_KEY = 'block-lambda-autosave-workspace';
 const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
 const AUTOSAVE_INTERVAL_STORAGE_KEY = 'block-lambda-autosave-interval-minutes';
 const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
+const BLOCKLY_RENDERER_STORAGE_KEY = 'block-lambda-blockly-renderer';
+const ZELOS_RENDERER_NAME = 'zelos';
+
+type BlocklyRendererName = typeof GOROPA_RENDERER_NAME | typeof ZELOS_RENDERER_NAME;
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -41,6 +45,15 @@ function clampAutosaveInterval(value: number): number {
 function readAutosaveIntervalMinutes(): number {
   const stored = window.localStorage.getItem(AUTOSAVE_INTERVAL_STORAGE_KEY);
   return clampAutosaveInterval(stored ? Number(stored) : AUTOSAVE_DEFAULT_INTERVAL_MINUTES);
+}
+
+function isBlocklyRendererName(value: string | null): value is BlocklyRendererName {
+  return value === GOROPA_RENDERER_NAME || value === ZELOS_RENDERER_NAME;
+}
+
+function readBlocklyRendererName(): BlocklyRendererName {
+  const stored = window.localStorage.getItem(BLOCKLY_RENDERER_STORAGE_KEY);
+  return isBlocklyRendererName(stored) ? stored : GOROPA_RENDERER_NAME;
 }
 
 function formatAutosaveInterval(minutes: number): string {
@@ -64,10 +77,14 @@ const autosaveInterval = requireElement<HTMLInputElement>('autosaveInterval');
 const autosaveIntervalLabel = requireElement<HTMLElement>('autosaveIntervalLabel');
 const examplesMenuButton = requireElement<HTMLButtonElement>('examplesMenuButton');
 const examplesSubMenu = requireElement<HTMLElement>('examplesSubMenu');
+const blocklyThemeMenuButton = requireElement<HTMLButtonElement>('blocklyThemeMenuButton');
+const blocklyThemeSubMenu = requireElement<HTMLElement>('blocklyThemeSubMenu');
 const codeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-code-target]'));
+const blocklyRendererButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-blockly-renderer]'));
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
+let activeBlocklyRenderer = readBlocklyRendererName();
 let lastTypeReport: LambdaInferenceReport | null = null;
 let activeCodeTarget: 'code' | 'formal' = 'code';
 let lambdaImportTimer: number | undefined;
@@ -75,6 +92,12 @@ let applyingCodeEditorText = false;
 let suppressCodeEditorSyncUntil = 0;
 
 const LAMBDA_EDITOR_HELP = '-- λ = \\ (you can type \\x. x or λx. x)';
+
+function applyBlocklyRendererStyle(rendererName: BlocklyRendererName): void {
+  document.documentElement.dataset.blocklyRenderer = rendererName;
+}
+
+applyBlocklyRendererStyle(activeBlocklyRenderer);
 
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
@@ -188,35 +211,43 @@ const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
   }
 });
 
-const workspace = Blockly.inject(blocklyDiv, {
-  trashcan: true,
-  comments: true,
-  contextMenu: true,
-  grid: {
-    spacing: 24,
-    length: 3,
-    colour: '#6e738d',
-    snap: true
-  },
-  move: {
-    scrollbars: true,
-    drag: true,
-    wheel: true
-  },
-  zoom: {
-    controls: true,
-    wheel: true,
-    startScale: 0.92,
-    maxScale: 2,
-    minScale: 0.45,
-    scaleSpeed: 1.08,
-    pinch: true
-  },
-  renderer: GOROPA_RENDERER_NAME,
-  theme: lightTheme
-} as Blockly.BlocklyOptions);
+function currentBlocklyTheme(): Blockly.Theme {
+  return document.documentElement.dataset.theme === 'dark' ? darkTheme : lightTheme;
+}
 
-const resizeWorkspace = setupWorkspaceAutoResize(workspace, blocklyDiv);
+function injectMainWorkspace(rendererName: BlocklyRendererName): Blockly.WorkspaceSvg {
+  return Blockly.inject(blocklyDiv, {
+    trashcan: true,
+    comments: true,
+    contextMenu: true,
+    grid: {
+      spacing: 24,
+      length: 3,
+      colour: '#6e738d',
+      snap: true
+    },
+    move: {
+      scrollbars: true,
+      drag: true,
+      wheel: true
+    },
+    zoom: {
+      controls: true,
+      wheel: true,
+      startScale: 0.92,
+      maxScale: 2,
+      minScale: 0.45,
+      scaleSpeed: 1.08,
+      pinch: true
+    },
+    renderer: rendererName,
+    theme: currentBlocklyTheme()
+  } as Blockly.BlocklyOptions);
+}
+
+let workspace = injectMainWorkspace(activeBlocklyRenderer);
+
+const resizeWorkspace = setupWorkspaceAutoResize(() => workspace, blocklyDiv);
 
 function escapeHtml(value: string): string {
   return value
@@ -383,6 +414,18 @@ function refreshAfterInference(report: LambdaInferenceReport): void {
   const refreshed = refreshCode(report);
   if (refreshed.hasErrors) setStatus(refreshed.summary);
   scheduleAutosave();
+}
+
+function installCurrentWorkspaceInferenceDriver(): void {
+  installLambdaInferenceDriver(workspace, {
+    onViewport: updateZoomLabel,
+    onSettled: (report) => refreshAfterInference(report)
+  });
+}
+
+function renderCurrentToolbox(): void {
+  toolboxPanel.querySelector('.custom-toolbox-list')?.remove();
+  renderToolbox(toolboxPanel, workspace, blocklyDiv);
 }
 
 function clearWorkspace(): void {
@@ -555,6 +598,101 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   }
 }
 
+function blocklyRendererLabel(rendererName: BlocklyRendererName): string {
+  return rendererName === ZELOS_RENDERER_NAME ? 'Zelos' : 'Goropa';
+}
+
+function renderBlocklyRendererMenu(): void {
+  applyBlocklyRendererStyle(activeBlocklyRenderer);
+
+  for (const button of blocklyRendererButtons) {
+    const rendererName = button.dataset.blocklyRenderer;
+    button.setAttribute('aria-checked', String(rendererName === activeBlocklyRenderer));
+  }
+
+  blocklyThemeMenuButton.title = `Blockly theme: ${blocklyRendererLabel(activeBlocklyRenderer)}`;
+}
+
+function closeBlocklyThemeMenu(): void {
+  blocklyThemeSubMenu.hidden = true;
+  blocklyThemeMenuButton.setAttribute('aria-expanded', 'false');
+}
+
+function toggleBlocklyThemeMenu(): void {
+  const willOpen = blocklyThemeSubMenu.hidden;
+  blocklyThemeSubMenu.hidden = !willOpen;
+  blocklyThemeMenuButton.setAttribute('aria-expanded', String(willOpen));
+}
+
+function setBlocklyRenderer(rendererName: BlocklyRendererName): void {
+  closeBlocklyThemeMenu();
+  if (rendererName === activeBlocklyRenderer) {
+    setStatus(`Blockly theme already set to ${blocklyRendererLabel(rendererName)}.`);
+    return;
+  }
+
+  const workspaceState = Blockly.serialization.workspaces.save(workspace);
+  const scale = workspace.getScale();
+  const blocklyParent = blocklyDiv.parentElement;
+
+  activeBlocklyRenderer = rendererName;
+  applyBlocklyRendererStyle(activeBlocklyRenderer);
+  window.localStorage.setItem(BLOCKLY_RENDERER_STORAGE_KEY, rendererName);
+  setVisualizationOpen(false);
+  disposeVisualizationWorkspaces();
+
+  Blockly.Events.disable();
+  try {
+    workspace.dispose();
+    if (blocklyParent && !blocklyDiv.isConnected) blocklyParent.appendChild(blocklyDiv);
+    blocklyDiv.innerHTML = '';
+
+    workspace = injectMainWorkspace(activeBlocklyRenderer);
+    Blockly.serialization.workspaces.load(workspaceState, workspace);
+    workspace.setScale(scale);
+  } finally {
+    Blockly.Events.enable();
+  }
+
+  renderCurrentToolbox();
+  installCurrentWorkspaceInferenceDriver();
+  renderBlocklyRendererMenu();
+
+  const report = runLambdaInferenceToFixpoint(workspace, 'renderer-change');
+  refreshCode(report);
+  resizeWorkspace();
+  setStatus(`Blockly theme set to ${blocklyRendererLabel(rendererName)}. ${report.summary}`);
+}
+
+function installBlocklyThemeMenu(): void {
+  blocklyThemeMenuButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleBlocklyThemeMenu();
+  });
+
+  for (const button of blocklyRendererButtons) {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const rendererName = button.dataset.blocklyRenderer ?? null;
+      if (!isBlocklyRendererName(rendererName)) return;
+      setBlocklyRenderer(rendererName);
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (!blocklyThemeMenuButton.contains(target) && !blocklyThemeSubMenu.contains(target)) closeBlocklyThemeMenu();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeBlocklyThemeMenu();
+  });
+
+  renderBlocklyRendererMenu();
+}
+
 function applyLambdaTextToWorkspace(): void {
   const source = lambdaEditor.value.trim();
   codeOutput.dataset.rawCode = lambdaEditor.value;
@@ -605,8 +743,8 @@ function scheduleLambdaTextImport(): void {
   }, 450);
 }
 
-renderToolbox(toolboxPanel, workspace, blocklyDiv);
-setupPanelControls(workspace, {
+renderCurrentToolbox();
+setupPanelControls(() => workspace, {
   lightTheme,
   darkTheme,
   onRefreshCode: () => {
@@ -624,10 +762,12 @@ setupPanelControls(workspace, {
 initVisualizationPanel({
   lightTheme,
   darkTheme,
+  getRendererName: () => activeBlocklyRenderer,
   onResize: resizeWorkspace
 });
 
 installExampleMenu(examplesMenuButton, examplesSubMenu, loadExampleWorkspace);
+installBlocklyThemeMenu();
 
 for (const button of codeTargetButtons) {
   button.addEventListener('click', () => {
@@ -661,10 +801,7 @@ autosaveInterval.addEventListener('input', () => {
   setStatus(`Autosave interval set to ${formatAutosaveInterval(autosaveIntervalMinutes)}.`);
 });
 
-installLambdaInferenceDriver(workspace, {
-  onViewport: updateZoomLabel,
-  onSettled: (report) => refreshAfterInference(report)
-});
+installCurrentWorkspaceInferenceDriver();
 
 window.addEventListener('block-lambda:refresh-code', () => {
   const report = runLambdaInferenceToFixpoint(workspace, 'external-refresh');

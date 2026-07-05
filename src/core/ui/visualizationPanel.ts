@@ -13,6 +13,7 @@ type VizKind = ReductionKind;
 type VisualizationOptions = {
   lightTheme: Blockly.Theme;
   darkTheme: Blockly.Theme;
+  getRendererName?: () => string;
   onResize: () => void;
 };
 
@@ -73,7 +74,7 @@ function injectWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
   if (!host) throw new Error(`Missing visualization host for ${kind}`);
 
   return Blockly.inject(host, {
-    renderer: GOROPA_RENDERER_NAME,
+    renderer: options?.getRendererName?.() ?? GOROPA_RENDERER_NAME,
     theme: currentTheme(),
     trashcan: false,
     comments: true,
