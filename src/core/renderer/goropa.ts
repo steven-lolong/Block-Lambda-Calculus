@@ -4,6 +4,7 @@ export const GOROPA_RENDERER_NAME = 'goropa';
 
 type RendererConstructor = new (name: string) => unknown;
 type ConstantsConstructor = new () => Record<string, unknown>;
+type ShapeRecord = Record<string, unknown>;
 type BlocklyRuntime = typeof Blockly & {
   blockRendering?: {
     Renderer?: RendererConstructor;
@@ -29,6 +30,41 @@ function setOptionalConstant(target: Record<string, unknown>, name: string, valu
   if (name in target) target[name] = value;
 }
 
+function squareValueShape(type: number): ShapeRecord {
+  return {
+    type,
+    isDynamic: true,
+    width: () => 0,
+    height: (height: number) => height,
+    connectionOffsetY: (height: number) => height / 2,
+    connectionOffsetX: () => 0,
+    pathDown: (height: number) => `v ${height}`,
+    pathUp: (height: number) => `v ${-height}`,
+    pathRightDown: (height: number) => `v ${height}`,
+    pathRightUp: (height: number) => `v ${-height}`
+  };
+}
+
+function squarePuzzleTab(type: number): ShapeRecord {
+  return {
+    type,
+    width: 8,
+    height: 15,
+    pathDown: 'v 3 h -8 v 9 h 8 v 3',
+    pathUp: 'v -3 h -8 v -9 h 8 v -3'
+  };
+}
+
+function squareStatementNotch(type: number): ShapeRecord {
+  return {
+    type,
+    width: 36,
+    height: 8,
+    pathLeft: 'h 12 v 8 h 12 v -8 h 12',
+    pathRight: 'h -12 v 8 h -12 v -8 h -12'
+  };
+}
+
 class GoropaConstantsProvider extends (ZelosConstantsBase ?? class {}) {
   constructor() {
     super();
@@ -46,11 +82,42 @@ class GoropaConstantsProvider extends (ZelosConstantsBase ?? class {}) {
 
   private applySquareGeometry(): void {
     const constants = this as Record<string, unknown>;
+    const shapes = constants.SHAPES as Record<string, number> | undefined;
+    const squareType = shapes?.SQUARE ?? 3;
+    const puzzleType = shapes?.PUZZLE ?? 4;
+    const notchType = shapes?.NOTCH ?? 5;
+    const squareShape = squareValueShape(squareType);
 
     // Goropa uses the same base renderer family as Zelos, but deliberately
-    // removes rounded block and field corners. The result keeps Blockly's
-    // connection semantics while making lambda blocks read more like text.
+    // removes rounded block, reporter, tab, notch, and field corners. Zelos
+    // normally maps value/output connections to ROUNDED by default; Goropa
+    // remaps those reporter shapes to a straight rectangular profile so
+    // LambdaTerm blocks read like text/program fragments instead of ellipses.
     constants.CORNER_RADIUS = 0;
+    constants.CURSOR_RADIUS = 0;
+    constants.ROUNDED = squareShape;
+    constants.HEXAGONAL = squareShape;
+    constants.SQUARED = squareShape;
+    constants.PUZZLE_TAB = squarePuzzleTab(puzzleType);
+    constants.NOTCH = squareStatementNotch(notchType);
+    constants.INSIDE_CORNERS = {
+      width: 0,
+      height: 0,
+      rightWidth: 0,
+      rightHeight: 0,
+      pathTop: '',
+      pathBottom: '',
+      pathTopRight: '',
+      pathBottomRight: ''
+    };
+    constants.OUTSIDE_CORNERS = {
+      topLeft: '',
+      topRight: '',
+      bottomRight: '',
+      bottomLeft: '',
+      rightHeight: 0
+    };
+
     setOptionalConstant(constants, 'FIELD_BORDER_RECT_RADIUS', 0);
     setOptionalConstant(constants, 'EMPTY_INLINE_INPUT_PADDING', 5);
     setOptionalConstant(constants, 'EMPTY_STATEMENT_INPUT_HEIGHT', 20);
@@ -58,6 +125,8 @@ class GoropaConstantsProvider extends (ZelosConstantsBase ?? class {}) {
     setOptionalConstant(constants, 'LARGE_PADDING', 12);
     setOptionalConstant(constants, 'STATEMENT_INPUT_PADDING_LEFT', 8);
     setOptionalConstant(constants, 'STATEMENT_INPUT_PADDING_RIGHT', 8);
+    setOptionalConstant(constants, 'STATEMENT_INPUT_NOTCH_OFFSET', 8);
+    setOptionalConstant(constants, 'STATEMENT_BOTTOM_SPACER', 0);
   }
 }
 
