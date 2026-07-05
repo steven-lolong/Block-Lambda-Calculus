@@ -8,6 +8,7 @@ import { generateLambdaFormalization } from '../../core/generator/lambdaFormalGe
 import { LambdaTextParseError, parseLambdaTextToWorkspaceState } from '../../core/parser/lambdaTextParser';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
+import { GOROPA_RENDERER_NAME, registerGoropaRenderer } from '../../core/renderer/goropa';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
@@ -17,6 +18,7 @@ import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../
 
 registerLambdaBlocks();
 registerLambdaContextMenus();
+registerGoropaRenderer();
 
 const AUTOSAVE_STORAGE_KEY = 'block-lambda-autosave-workspace';
 const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
@@ -210,7 +212,7 @@ const workspace = Blockly.inject(blocklyDiv, {
     scaleSpeed: 1.08,
     pinch: true
   },
-  renderer: 'zelos',
+  renderer: GOROPA_RENDERER_NAME,
   theme: lightTheme
 } as Blockly.BlocklyOptions);
 
@@ -566,16 +568,17 @@ function applyLambdaTextToWorkspace(): void {
     const workspaceState = parseLambdaTextToWorkspaceState(source);
     const topBlockCount = workspaceState.blocks.blocks.length;
     suppressCodeEditorSyncUntil = Date.now() + 1500;
-    setVisualizationOpen(false);
-    workspace.clear();
-    Blockly.serialization.workspaces.load(workspaceState, workspace);
-    workspace.cleanUp();
-    currentWorkspaceFileName = 'lambda-text.blc';
-    setWorkspaceTitle(currentWorkspaceFileName);
-    saveWorkspaceToAutosave(false);
-    const report = runLambdaInferenceToFixpoint(workspace, 'lambda-text-import');
     applyingCodeEditorText = true;
+    let report: LambdaInferenceReport;
     try {
+      setVisualizationOpen(false);
+      workspace.clear();
+      Blockly.serialization.workspaces.load(workspaceState, workspace);
+      workspace.cleanUp();
+      currentWorkspaceFileName = 'lambda-text.blc';
+      setWorkspaceTitle(currentWorkspaceFileName);
+      saveWorkspaceToAutosave(false);
+      report = runLambdaInferenceToFixpoint(workspace, 'lambda-text-import');
       refreshCode(report);
     } finally {
       applyingCodeEditorText = false;

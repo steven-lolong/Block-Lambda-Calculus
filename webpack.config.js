@@ -3,7 +3,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-  entry: ['./src/core/renderer/goropa.ts', './src/assets/js/block_lambda.ts'],
+  entry: './src/assets/js/block_lambda.ts',
   output: {
     filename: 'block_lambda.js',
     path: path.resolve(__dirname, 'docs'),

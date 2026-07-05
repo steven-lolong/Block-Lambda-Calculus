@@ -6,6 +6,7 @@ import {
   type BlockOrder,
   type ReductionKind
 } from '../semantics/lambdaReduction';
+import { GOROPA_RENDERER_NAME } from '../renderer/goropa';
 
 type VizKind = ReductionKind;
 
@@ -72,7 +73,7 @@ function injectWorkspace(kind: VizKind): Blockly.WorkspaceSvg {
   if (!host) throw new Error(`Missing visualization host for ${kind}`);
 
   return Blockly.inject(host, {
-    renderer: 'zelos',
+    renderer: GOROPA_RENDERER_NAME,
     theme: currentTheme(),
     trashcan: false,
     comments: true,

@@ -57,14 +57,8 @@
           </div>
 
           <div class="action-group run-actions" aria-label="Workspace actions">
-            <button id="refreshCode" class="ghost-button" type="button">
-              <span class="button-icon" aria-hidden="true">⟳</span> Refresh Output
-            </button>
             <button id="toggleVizDock" class="ghost-button" type="button" aria-pressed="false">
               <span class="button-icon" aria-hidden="true">◧</span> Reduction
-            </button>
-            <button id="clearWorkspace" class="ghost-button danger-button" type="button">
-              <span class="button-icon" aria-hidden="true">🗑</span> Clear Workspace
             </button>
             <button id="aboutApp" class="ghost-button" type="button">
               <span class="button-icon" aria-hidden="true">ⓘ</span> About
@@ -105,6 +99,9 @@
             <div class="workspace-controls">
               <span id="workspaceFileLabel" class="workspace-badge workspace-file-label" title="Current workspace file"></span>
               <span id="zoomLabel" class="workspace-badge" title="Blockly zoom level">92%</span>
+              <button id="clearWorkspace" class="small-button icon-only workspace-clear-button danger-button" type="button" aria-label="Clear workspace" title="Clear workspace">
+                <span aria-hidden="true">🗑</span>
+              </button>
               <button id="showCodeFromWorkspace" class="small-button workspace-restore-button restore-code-button" type="button" hidden aria-label="Show generated output" title="Show generated output">
                 Show Output <span aria-hidden="true">▶</span>
               </button>

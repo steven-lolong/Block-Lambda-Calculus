@@ -1,7 +1,4 @@
 import * as Blockly from 'blockly';
-import { registerGoropaRenderer } from './goropa';
-
-registerGoropaRenderer();
 
 type ToolboxBlock = {
   type: string;

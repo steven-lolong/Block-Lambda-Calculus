@@ -14,6 +14,10 @@ type PanelControlOptions = {
 };
 
 const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
+const CODE_PANEL_MIN_WIDTH = 280;
+const CODE_PANEL_MAX_WIDTH = 760;
+const WORKSPACE_PANEL_MIN_WIDTH = 340;
+const RESIZE_HANDLE_WIDTH = 14;
 
 function readThemeMode(): IdeThemeMode {
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -126,11 +130,49 @@ export function setupPanelControls(
   const codeOutput = document.getElementById('codeOutput');
   const codePanel = document.getElementById('codePanel');
   const resizeHandle = document.getElementById('resizeHandle');
+  const toolboxPanel = document.getElementById('toolboxPanel');
+  const ideGrid = codePanel?.closest<HTMLElement>('.ide-grid') ?? null;
+
+  const parsePixelValue = (value: string): number => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const syncResizeHandlePosition = () => {
+    if (!(codePanel instanceof HTMLElement) || !(resizeHandle instanceof HTMLElement) || !ideGrid) return;
+    if (getComputedStyle(resizeHandle).display === 'none' || getComputedStyle(codePanel).display === 'none') return;
+
+    const gridRect = ideGrid.getBoundingClientRect();
+    const codeRect = codePanel.getBoundingClientRect();
+    const handleWidth = resizeHandle.getBoundingClientRect().width || RESIZE_HANDLE_WIDTH;
+    ideGrid.style.setProperty('--resize-handle-left', `${Math.max(0, codeRect.left - gridRect.left - handleWidth)}px`);
+  };
+
+  const getMaxCodePanelWidth = (): number => {
+    if (!ideGrid) return CODE_PANEL_MAX_WIDTH;
+
+    const gridStyle = getComputedStyle(ideGrid);
+    const gridRect = ideGrid.getBoundingClientRect();
+    const columnGap = parsePixelValue(gridStyle.columnGap || gridStyle.gap);
+    const contentWidth = gridRect.width - parsePixelValue(gridStyle.paddingLeft) - parsePixelValue(gridStyle.paddingRight);
+    const toolboxVisible = toolboxPanel instanceof HTMLElement && getComputedStyle(toolboxPanel).display !== 'none';
+    const toolboxWidth = toolboxVisible && toolboxPanel instanceof HTMLElement ? toolboxPanel.getBoundingClientRect().width : 0;
+    const toolboxGap = toolboxVisible ? columnGap : 0;
+    const maxPanelWidth = contentWidth - toolboxWidth - toolboxGap - WORKSPACE_PANEL_MIN_WIDTH - columnGap;
+
+    return Math.max(CODE_PANEL_MIN_WIDTH, Math.min(CODE_PANEL_MAX_WIDTH, maxPanelWidth));
+  };
 
   const updateLayout = () => {
     updateViewportHeightVariable();
+    syncResizeHandlePosition();
     options.onResize();
-    [0, 80, 180, 320].forEach((delay) => window.setTimeout(options.onResize, delay));
+    [0, 80, 180, 320].forEach((delay) => {
+      window.setTimeout(() => {
+        syncResizeHandlePosition();
+        options.onResize();
+      }, delay);
+    });
   };
 
   const renderToolboxToggleState = () => {
@@ -290,7 +332,7 @@ export function setupPanelControls(
   const onPointerMove = (event: PointerEvent) => {
     if (!dragging) return;
     const codePanelRight = codePanel.getBoundingClientRect().right;
-    const nextWidth = Math.min(Math.max(codePanelRight - event.clientX, 280), 760);
+    const nextWidth = Math.min(Math.max(codePanelRight - event.clientX, CODE_PANEL_MIN_WIDTH), getMaxCodePanelWidth());
     document.documentElement.style.setProperty('--code-panel-width', `${nextWidth}px`);
     updateLayout();
   };
@@ -311,4 +353,7 @@ export function setupPanelControls(
 
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', stopDragging);
+  window.addEventListener('resize', updateLayout);
+  window.visualViewport?.addEventListener('resize', updateLayout);
+  updateLayout();
 }
