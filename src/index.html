@@ -185,6 +185,9 @@
               <button class="viz-tab" data-kind="value" role="tab" type="button" aria-selected="false">
                 <span class="viz-tab-icon" aria-hidden="true">V</span><span class="viz-tab-label">Call-by-Value</span>
               </button>
+              <button class="viz-tab" data-kind="stepper" role="tab" type="button" aria-selected="false">
+                <span class="viz-tab-icon" aria-hidden="true">⏭</span><span class="viz-tab-label">Stepper</span>
+              </button>
             </div>
             <div id="vizDockInfo" class="viz-info" aria-live="polite"></div>
             <div class="viz-tools" aria-label="Visualization tools">
@@ -196,7 +199,21 @@
           <div class="viz-body">
             <div class="viz-host" data-kind="structure"></div>
             <div class="viz-host" data-kind="value"></div>
-            <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value.</div>
+            <div class="viz-host stepper-host" data-kind="stepper">
+              <div class="stepper-controls" aria-label="Reduction stepper controls">
+                <div class="stepper-strategy" role="group" aria-label="Stepper strategy">
+                  <button id="stepperStrategyStructure" class="small-button stepper-strategy-button is-active" type="button" title="Step under Call-by-Structure">CbS</button>
+                  <button id="stepperStrategyValue" class="small-button stepper-strategy-button" type="button" title="Step under Call-by-Value">CbV</button>
+                </div>
+                <button id="stepperLoad" class="small-button" type="button" title="Load the program from the workspace">⟲ Load</button>
+                <button id="stepperBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous step" disabled>◀</button>
+                <button id="stepperStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next step" disabled>▶</button>
+                <button id="stepperPlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause" disabled>⏵</button>
+                <div id="stepperStatus" class="stepper-status" aria-live="polite">Press ⟲ Load to step a program's reduction.</div>
+              </div>
+              <div id="stepperWorkspace" class="stepper-workspace"></div>
+            </div>
+            <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value, or open the Stepper tab.</div>
           </div>
         </div>
       </section>

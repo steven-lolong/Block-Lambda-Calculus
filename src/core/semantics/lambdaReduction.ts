@@ -761,6 +761,70 @@ function titleFor(kind: ReductionKind): string {
   return kind === 'value' ? 'Call-by-Value' : 'Call-by-Structure';
 }
 
+/* ----------------------------------------------------------- step-through */
+/* A discrete, navigable reduction: the whole current term is serialized at
+   every small step so the stepper UI can render one state at a time and move
+   back and forth by index. This reuses the same reduceOnceDetailed engine that
+   the full-trace view uses, so the stepper and the trace never disagree. */
+
+export interface ReductionFrame {
+  /** 0 = the initial term; each later frame is one small step further. */
+  index: number;
+  /** termToState(term) — a serialized block tree for the whole current term. */
+  state: unknown;
+  /** The event kind that produced this frame ('initial' for frame 0). */
+  rule: string;
+  /** Human-readable description of the step that produced this frame. */
+  label: string;
+  /** The frame's value text when it is a value; '' otherwise. */
+  value: string;
+}
+
+export interface ReductionRun {
+  frames: ReductionFrame[];
+  /** True when the step budget was hit before reaching a normal form. */
+  truncated: boolean;
+  /** True when reduction reached an irreducible term within the budget. */
+  normalForm: boolean;
+  /** Pretty value (or "not a value: …") of the final frame's term. */
+  finalValue: string;
+}
+
+/** Resolve free variables bound by enclosing let/letrec blocks in the workspace. */
+function inlineEnv(term: Term, env: RuntimeEnv): Term {
+  let resolved = term;
+  for (const [name, value] of env) resolved = substitute(resolved, name, value);
+  return resolved;
+}
+
+/** Compute the full sequence of reduction states for a block, one per small step. */
+export function computeReductionRun(block: Blockly.Block, kind: ReductionKind): ReductionRun {
+  let term = inlineEnv(blockToTerm(block), contextualEnvForBlock(block));
+  const frames: ReductionFrame[] = [];
+  const push = (rule: string, label: string): void => {
+    frames.push({
+      index: frames.length,
+      state: termToState(term),
+      rule,
+      label,
+      value: isValue(term) ? prettyRuntimeValue(term) : ''
+    });
+  };
+
+  push('initial', 'Initial term');
+
+  let steps = 0;
+  for (; steps < MAX_REDUCTION_STEPS; steps++) {
+    const next = reduceOnceDetailed(term, kind);
+    if (!next.changed) break;
+    term = next.term;
+    push(next.event?.kind ?? 'context', next.event?.label ?? 'reduction step');
+  }
+
+  const truncated = steps >= MAX_REDUCTION_STEPS;
+  return { frames, truncated, normalForm: !truncated, finalValue: prettyRuntimeValue(term) };
+}
+
 function parameterValueNote(original: Term, evaluated: Term, kind: ReductionKind): string {
   const strategy = kind === 'value' ? 'CBV' : 'CBS';
   const summary = isValue(evaluated) ? prettyRuntimeValue(evaluated) : prettyPreview(evaluated);

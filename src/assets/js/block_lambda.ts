@@ -785,6 +785,7 @@ initVisualizationPanel({
   lightTheme,
   darkTheme,
   getRendererName: () => activeBlocklyRenderer,
+  getMainWorkspace: () => workspace,
   onResize: resizeWorkspace
 });
 
