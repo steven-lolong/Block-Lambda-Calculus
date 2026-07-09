@@ -8,6 +8,7 @@ type LambdaAst =
   | { kind: 'bool'; value: boolean }
   | { kind: 'numop'; op: string; left: LambdaAst; right: LambdaAst }
   | { kind: 'boolop'; op: string; left: LambdaAst; right: LambdaAst }
+  | { kind: 'cmpop'; op: string; left: LambdaAst; right: LambdaAst }
   | { kind: 'if'; cond: LambdaAst; thenTerm: LambdaAst; elseTerm: LambdaAst }
   | { kind: 'hole' };
 
@@ -34,7 +35,7 @@ type Token = {
   index: number;
 };
 
-const KEYWORDS = new Set(['lambda', 'let', 'letrec', 'in', 'if', 'then', 'else', 'true', 'false', 'and', 'or', 'fix']);
+const KEYWORDS = new Set(['lambda', 'let', 'letrec', 'in', 'if', 'then', 'else', 'true', 'false', 'and', 'or', 'equal', 'fix']);
 
 const WHITESPACE_PATTERN = /\s/;
 const IDENTIFIER_START_PATTERN = /[A-Za-z_]/;
@@ -117,8 +118,15 @@ function tokenize(source: string): Token[] {
       continue;
     }
 
+    // Two-character comparison operators <= and >= before the single-char pass.
+    if ((char === '<' || char === '>') && source[index + 1] === '=') {
+      tokens.push({ kind: 'symbol', value: char + '=', index });
+      index += 2;
+      continue;
+    }
+
     const symbol = normalizeSymbol(char);
-    if ('λ\\.()=+-*/'.includes(symbol)) {
+    if ('λ\\.()=+-*/<>'.includes(symbol)) {
       tokens.push({ kind: 'symbol', value: symbol, index });
       index += 1;
       continue;
@@ -240,19 +248,33 @@ class Parser {
   }
 
   private parseAnd(stopValues: Set<string>): LambdaAst {
-    let left = this.parseEquality(stopValues);
+    let left = this.parseEqual(stopValues);
     while (!this.atStop(stopValues) && this.matches('and')) {
       const op = this.advance().value;
-      left = { kind: 'boolop', op, left, right: this.parseEquality(stopValues) };
+      left = { kind: 'boolop', op, left, right: this.parseEqual(stopValues) };
     }
     return left;
   }
 
-  private parseEquality(stopValues: Set<string>): LambdaAst {
-    let left = this.parseAdditive(stopValues);
-    while (!this.atStop(stopValues) && this.matches('=')) {
+  // Boolean equality: `a equal b` (booleans only).
+  private parseEqual(stopValues: Set<string>): LambdaAst {
+    let left = this.parseComparison(stopValues);
+    while (!this.atStop(stopValues) && this.matches('equal')) {
       const op = this.advance().value;
-      left = { kind: 'boolop', op, left, right: this.parseAdditive(stopValues) };
+      left = { kind: 'boolop', op, left, right: this.parseComparison(stopValues) };
+    }
+    return left;
+  }
+
+  // Numeric comparison: `a = b`, `a < b`, `a <= b`, `a > b`, `a >= b`.
+  private parseComparison(stopValues: Set<string>): LambdaAst {
+    let left = this.parseAdditive(stopValues);
+    while (
+      !this.atStop(stopValues) &&
+      (this.matches('=') || this.matches('<') || this.matches('<=') || this.matches('>') || this.matches('>='))
+    ) {
+      const op = this.advance().value;
+      left = { kind: 'cmpop', op, left, right: this.parseAdditive(stopValues) };
     }
     return left;
   }
@@ -373,6 +395,8 @@ function blockState(ast: LambdaAst): LambdaBlockState {
       return { type: 'lambda_number_operator', fields: { OP: ast.op }, ...inputsFor({ LEFT: ast.left, RIGHT: ast.right }) };
     case 'boolop':
       return { type: 'lambda_boolean_operator', fields: { OP: ast.op }, ...inputsFor({ LEFT: ast.left, RIGHT: ast.right }) };
+    case 'cmpop':
+      return { type: 'lambda_number_comparison', fields: { OP: ast.op }, ...inputsFor({ LEFT: ast.left, RIGHT: ast.right }) };
     case 'if':
       return { type: 'lambda_if', ...inputsFor({ COND: ast.cond, THEN: ast.thenTerm, ELSE: ast.elseTerm }) };
     case 'hole':

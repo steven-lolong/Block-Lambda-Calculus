@@ -91,6 +91,13 @@ export function lambdaTermText(block: Blockly.Block | null): string {
       return `(${left} ${operator} ${right})`;
     }
 
+    case 'lambda_number_comparison': {
+      const left = operand(block, 'LEFT');
+      const operator = fieldText(block, 'OP', '=');
+      const right = operand(block, 'RIGHT');
+      return `(${left} ${operator} ${right})`;
+    }
+
     case 'lambda_if': {
       const condition = lambdaTermText(childBlock(block, 'COND'));
       const thenBranch = lambdaTermText(childBlock(block, 'THEN'));

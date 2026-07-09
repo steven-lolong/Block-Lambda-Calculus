@@ -157,6 +157,30 @@ export function registerLambdaBlocks(): void {
     }
   };
 
+  Blockly.Blocks['lambda_number_comparison'] = {
+    init: function () {
+      this.appendValueInput('LEFT')
+        .setCheck('LambdaTerm')
+        .appendField('number');
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ['=', '='],
+          ['<', '<'],
+          ['≤', '<='],
+          ['>', '>'],
+          ['≥', '>=']
+        ]), 'OP');
+      this.appendValueInput('RIGHT')
+        .setCheck('LambdaTerm')
+        .appendField('number');
+      this.setInputsInline(true);
+      this.setOutput(true, 'LambdaTerm');
+      this.setStyle('lambda_operator');
+      this.setTooltip('Numeric comparison: left =/</≤/>/≥ right, yielding a boolean. Open the Blockly comment icon to see the inferred type and value.');
+      this.setHelpUrl('');
+    }
+  };
+
   Blockly.Blocks['lambda_boolean_operator'] = {
     init: function () {
       this.appendValueInput('LEFT')
@@ -166,7 +190,7 @@ export function registerLambdaBlocks(): void {
         .appendField(new Blockly.FieldDropdown([
           ['and', 'and'],
           ['or', 'or'],
-          ['=', '=']
+          ['equal', 'equal']
         ]), 'OP');
       this.appendValueInput('RIGHT')
         .setCheck('LambdaTerm')
@@ -174,7 +198,7 @@ export function registerLambdaBlocks(): void {
       this.setInputsInline(true);
       this.setOutput(true, 'LambdaTerm');
       this.setStyle('lambda_operator');
-      this.setTooltip('Boolean operator: left and/or/= right. Open the Blockly comment icon to see the inferred type and value.');
+      this.setTooltip('Boolean operator: left and/or/equal right (booleans only). Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
   };

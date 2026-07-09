@@ -42,7 +42,8 @@ const TOOLBOX: ToolboxCategory[] = [
     name: 'Operators',
     blocks: [
       { type: 'lambda_number_operator', label: 'number + number', description: '+ − × ÷' },
-      { type: 'lambda_boolean_operator', label: 'boolean and boolean', description: 'and / or / =' },
+      { type: 'lambda_number_comparison', label: 'number < number', description: '= < ≤ > ≥' },
+      { type: 'lambda_boolean_operator', label: 'boolean and boolean', description: 'and / or / equal' },
       { type: 'lambda_if', label: 'if then else', description: 'conditional' }
     ]
   },

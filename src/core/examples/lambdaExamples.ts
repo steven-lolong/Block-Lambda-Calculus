@@ -89,6 +89,17 @@ function booleanOperatorBlock(op: string, left: BlockState, right: BlockState): 
   };
 }
 
+function numberComparisonBlock(op: string, left: BlockState, right: BlockState): BlockState {
+  return {
+    type: 'lambda_number_comparison',
+    fields: { OP: op },
+    inputs: {
+      LEFT: { block: left },
+      RIGHT: { block: right }
+    }
+  };
+}
+
 function ifBlock(condition: BlockState, thenBranch: BlockState, elseBranch: BlockState): BlockState {
   return {
     type: 'lambda_if',
@@ -135,11 +146,11 @@ function letBindingExample(): BlockState {
 }
 
 function ifElseExample(): BlockState {
-  return ifBlock(booleanOperatorBlock('=', numberBlock(7), numberBlock(7)), numberBlock(1), numberBlock(0));
+  return ifBlock(numberComparisonBlock('=', numberBlock(7), numberBlock(7)), numberBlock(1), numberBlock(0));
 }
 
 function palindromeNumberExample(): BlockState {
-  const outerDigitsMatch = booleanOperatorBlock('=', variableBlock('hundreds'), variableBlock('ones'));
+  const outerDigitsMatch = numberComparisonBlock('=', variableBlock('hundreds'), variableBlock('ones'));
   const checkResult = ifBlock(outerDigitsMatch, booleanBlock(true), booleanBlock(false));
 
   return letBlock(
@@ -164,7 +175,7 @@ function factorialRecursiveCall(): BlockState {
 }
 
 function standardFactorialFunction(): BlockState {
-  const condition = booleanOperatorBlock('=', variableBlock('n'), numberBlock(0));
+  const condition = numberComparisonBlock('=', variableBlock('n'), numberBlock(0));
   const recursiveCase = numberOperatorBlock('*', variableBlock('n'), factorialRecursiveCall());
   return abstractionBlock('n', ifBlock(condition, numberBlock(1), recursiveCase));
 }

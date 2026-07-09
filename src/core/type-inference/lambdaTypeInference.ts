@@ -321,15 +321,20 @@ function inferTerm(block: Blockly.Block, env: TypeEnvironment, state: InferenceS
       }
 
       case 'lambda_boolean_operator': {
-        const operator = field(block, 'OP', 'and');
+        // and / or / equal all take two booleans and yield a boolean.
         const left = inferChild(block, 'LEFT', env, state);
         const right = inferChild(block, 'RIGHT', env, state);
-        if (operator === 'and' || operator === 'or') {
-          unify(left, BOOL_TYPE, state);
-          unify(right, BOOL_TYPE, state);
-        } else {
-          unify(left, right, state);
-        }
+        unify(left, BOOL_TYPE, state);
+        unify(right, BOOL_TYPE, state);
+        return rememberType(block, BOOL_TYPE, state);
+      }
+
+      case 'lambda_number_comparison': {
+        // = / < / <= / > / >= compare two numbers and yield a boolean.
+        const left = inferChild(block, 'LEFT', env, state);
+        const right = inferChild(block, 'RIGHT', env, state);
+        unify(left, INT_TYPE, state);
+        unify(right, INT_TYPE, state);
         return rememberType(block, BOOL_TYPE, state);
       }
 

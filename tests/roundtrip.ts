@@ -205,6 +205,33 @@ checkTextToBlockToText('comments and blank lines', '-- a comment\nλx. x\n\nλy.
 checkTextToBlockToText('holes', '(f □)');
 checkTextToBlockToText('hole-only source is dropped', '□\n\nx');
 
+// --- New: boolean `equal` and numeric comparison operators. ---
+checkTextToBlockToText('boolean equal', 'true equal false');
+checkTextToBlockToText('numeric equals', 'n = 0');
+checkTextToBlockToText('less than', 'a < b');
+checkTextToBlockToText('less or equal', 'a <= b');
+checkTextToBlockToText('greater than', 'a > b');
+checkTextToBlockToText('greater or equal', 'a >= b');
+checkTextToBlockToText('comparison feeds boolean equal', '(a < b) equal (c > d)');
+checkTextToBlockToText('comparison binds tighter than equal', 'x < y equal true');
+
+checkBlockToTextToBlock('number comparison block', state({
+  type: 'lambda_number_comparison',
+  fields: { OP: '<=' },
+  inputs: {
+    LEFT: { block: { type: 'lambda_variable', fields: { NAME: 'a' } } },
+    RIGHT: { block: { type: 'lambda_number', fields: { VALUE: 3 } } }
+  }
+}));
+checkBlockToTextToBlock('boolean equal block', state({
+  type: 'lambda_boolean_operator',
+  fields: { OP: 'equal' },
+  inputs: {
+    LEFT: { block: { type: 'lambda_boolean', fields: { VALUE: 'true' } } },
+    RIGHT: { block: { type: 'lambda_boolean', fields: { VALUE: 'false' } } }
+  }
+}));
+
 // --- Parser must reject unusable input. ---
 checkThrows('empty text', () => parseLambdaTextToWorkspaceState('   \n -- only a comment \n'));
 checkThrows('hole-only text', () => parseLambdaTextToWorkspaceState('□'));

@@ -303,7 +303,7 @@ function deriveBlock(block: Blockly.Block, report: LambdaInferenceReport): Deriv
       );
 
     case 'lambda_boolean_operator': {
-      const ruleName = field(block, 'OP', 'and') === '=' ? 'T-Eq' : 'T-BoolOp';
+      const ruleName = field(block, 'OP', 'and') === 'equal' ? 'T-Eq' : 'T-BoolOp';
       return renderRule(
         ruleName,
         blockTerm,
@@ -315,6 +315,18 @@ function deriveBlock(block: Blockly.Block, report: LambdaInferenceReport): Deriv
         errors
       );
     }
+
+    case 'lambda_number_comparison':
+      return renderRule(
+        'T-Cmp',
+        blockTerm,
+        blockType,
+        [
+          { label: 'left', derivation: childDerivation(block, 'LEFT', report) },
+          { label: 'right', derivation: childDerivation(block, 'RIGHT', report) }
+        ],
+        errors
+      );
 
     case 'lambda_if':
       return renderRule(

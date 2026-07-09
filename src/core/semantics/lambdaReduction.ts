@@ -20,6 +20,7 @@ type Term = TermBase & (
   | { kind: 'bool'; value: boolean }
   | { kind: 'numop'; op: string; left: Term; right: Term }
   | { kind: 'boolop'; op: string; left: Term; right: Term }
+  | { kind: 'cmpop'; op: string; left: Term; right: Term }
   | { kind: 'if'; cond: Term; thenTerm: Term; elseTerm: Term }
   | { kind: 'hole'; label: string }
 );
@@ -111,6 +112,8 @@ function blockToTerm(block: Blockly.Block | null): Term {
       return { kind: 'numop', op: field(block, 'OP', '+'), left: blockToTerm(child(block, 'LEFT')), right: blockToTerm(child(block, 'RIGHT')), sourceId };
     case 'lambda_boolean_operator':
       return { kind: 'boolop', op: field(block, 'OP', 'and'), left: blockToTerm(child(block, 'LEFT')), right: blockToTerm(child(block, 'RIGHT')), sourceId };
+    case 'lambda_number_comparison':
+      return { kind: 'cmpop', op: field(block, 'OP', '='), left: blockToTerm(child(block, 'LEFT')), right: blockToTerm(child(block, 'RIGHT')), sourceId };
     case 'lambda_if':
       return {
         kind: 'if',
@@ -195,6 +198,7 @@ function freeVars(term: Term): Set<string> {
       return freeVars(term.target);
     case 'numop':
     case 'boolop':
+    case 'cmpop':
       return union(freeVars(term.left), freeVars(term.right));
     case 'if':
       return union(freeVars(term.cond), freeVars(term.thenTerm), freeVars(term.elseTerm));
@@ -231,6 +235,8 @@ function rename(term: Term, from: string, to: string): Term {
       return { kind: 'numop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), ...sourcesFrom(term) };
     case 'boolop':
       return { kind: 'boolop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), ...sourcesFrom(term) };
+    case 'cmpop':
+      return { kind: 'cmpop', op: term.op, left: rename(term.left, from, to), right: rename(term.right, from, to), ...sourcesFrom(term) };
     case 'if':
       return { kind: 'if', cond: rename(term.cond, from, to), thenTerm: rename(term.thenTerm, from, to), elseTerm: rename(term.elseTerm, from, to), ...sourcesFrom(term) };
     default:
@@ -282,6 +288,8 @@ function substitute(term: Term, name: string, replacement: Term): Term {
       return { kind: 'numop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), ...sourcesFrom(term) };
     case 'boolop':
       return { kind: 'boolop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), ...sourcesFrom(term) };
+    case 'cmpop':
+      return { kind: 'cmpop', op: term.op, left: substitute(term.left, name, replacement), right: substitute(term.right, name, replacement), ...sourcesFrom(term) };
     case 'if':
       return { kind: 'if', cond: substitute(term.cond, name, replacement), thenTerm: substitute(term.thenTerm, name, replacement), elseTerm: substitute(term.elseTerm, name, replacement), ...sourcesFrom(term) };
     default:
@@ -313,15 +321,19 @@ function computePrimitive(term: Term): Term | null {
     if (term.op === '*') return { kind: 'num', value: term.left.value * term.right.value, ...sourcesFrom(term) };
     if (term.op === '/') return { kind: 'num', value: term.right.value === 0 ? 0 : term.left.value / term.right.value, ...sourcesFrom(term) };
   }
-  if (term.kind === 'boolop') {
-    if (term.op === '=' && term.left.kind === term.right.kind) {
-      if (term.left.kind === 'num' && term.right.kind === 'num') return { kind: 'bool', value: term.left.value === term.right.value, ...sourcesFrom(term) };
-      if (term.left.kind === 'bool' && term.right.kind === 'bool') return { kind: 'bool', value: term.left.value === term.right.value, ...sourcesFrom(term) };
-    }
-    if (term.left.kind === 'bool' && term.right.kind === 'bool') {
-      if (term.op === 'and') return { kind: 'bool', value: term.left.value && term.right.value, ...sourcesFrom(term) };
-      if (term.op === 'or') return { kind: 'bool', value: term.left.value || term.right.value, ...sourcesFrom(term) };
-    }
+  if (term.kind === 'boolop' && term.left.kind === 'bool' && term.right.kind === 'bool') {
+    if (term.op === 'and') return { kind: 'bool', value: term.left.value && term.right.value, ...sourcesFrom(term) };
+    if (term.op === 'or') return { kind: 'bool', value: term.left.value || term.right.value, ...sourcesFrom(term) };
+    if (term.op === 'equal') return { kind: 'bool', value: term.left.value === term.right.value, ...sourcesFrom(term) };
+  }
+  if (term.kind === 'cmpop' && term.left.kind === 'num' && term.right.kind === 'num') {
+    const l = term.left.value;
+    const r = term.right.value;
+    if (term.op === '=') return { kind: 'bool', value: l === r, ...sourcesFrom(term) };
+    if (term.op === '<') return { kind: 'bool', value: l < r, ...sourcesFrom(term) };
+    if (term.op === '<=') return { kind: 'bool', value: l <= r, ...sourcesFrom(term) };
+    if (term.op === '>') return { kind: 'bool', value: l > r, ...sourcesFrom(term) };
+    if (term.op === '>=') return { kind: 'bool', value: l >= r, ...sourcesFrom(term) };
   }
   return null;
 }
@@ -380,7 +392,8 @@ function reduceOnceDetailed(term: Term, kind: ReductionKind): { term: Term; chan
     }
 
     case 'numop':
-    case 'boolop': {
+    case 'boolop':
+    case 'cmpop': {
       const left = reduceOnceDetailed(term.left, kind);
       if (left.changed) return { term: { ...term, left: left.term }, changed: true, event: left.event };
       const right = reduceOnceDetailed(term.right, kind);
@@ -448,6 +461,7 @@ function recordRuntimeValues(term: Term, values: Map<string, string>): void {
       break;
     case 'numop':
     case 'boolop':
+    case 'cmpop':
       recordRuntimeValues(term.left, values);
       recordRuntimeValues(term.right, values);
       break;
@@ -548,7 +562,8 @@ function evaluateWithEnv(
     }
 
     case 'numop':
-    case 'boolop': {
+    case 'boolop':
+    case 'cmpop': {
       const left = evaluateWithEnv(term.left, kind, env, resolving, depth + 1);
       const right = evaluateWithEnv(term.right, kind, env, resolving, depth + 1);
       const primitive = computePrimitive({ ...term, left, right });
@@ -590,6 +605,8 @@ function termToState(term: Term): any {
       return { type: 'lambda_number_operator', fields: { OP: term.op }, inputs: { LEFT: { block: termToState(term.left) }, RIGHT: { block: termToState(term.right) } } };
     case 'boolop':
       return { type: 'lambda_boolean_operator', fields: { OP: term.op }, inputs: { LEFT: { block: termToState(term.left) }, RIGHT: { block: termToState(term.right) } } };
+    case 'cmpop':
+      return { type: 'lambda_number_comparison', fields: { OP: term.op }, inputs: { LEFT: { block: termToState(term.left) }, RIGHT: { block: termToState(term.right) } } };
     case 'if':
       return { type: 'lambda_if', inputs: { COND: { block: termToState(term.cond) }, THEN: { block: termToState(term.thenTerm) }, ELSE: { block: termToState(term.elseTerm) } } };
     case 'hole':
@@ -608,7 +625,8 @@ function pretty(term: Term): string {
     case 'num': return String(term.value);
     case 'bool': return String(term.value);
     case 'numop':
-    case 'boolop': return `(${pretty(term.left)} ${term.op} ${pretty(term.right)})`;
+    case 'boolop':
+    case 'cmpop': return `(${pretty(term.left)} ${term.op} ${pretty(term.right)})`;
     case 'if': return `if ${pretty(term.cond)} then ${pretty(term.thenTerm)} else ${pretty(term.elseTerm)}`;
     case 'hole': return term.label;
   }
