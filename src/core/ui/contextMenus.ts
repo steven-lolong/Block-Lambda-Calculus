@@ -1,9 +1,11 @@
 import * as Blockly from 'blockly';
 import { openVisualization } from './visualizationPanel';
 import { showTypeInfoForBlock } from './typeInfoPopup';
+import { downloadScreenshot } from './screenshot';
 
 type LambdaContextMenuAction = 'type-info' | 'structure' | 'value';
 type BlockScope = { block?: Blockly.BlockSvg };
+type WorkspaceScope = { workspace?: Blockly.WorkspaceSvg };
 type LambdaContextMenuEvent = CustomEvent<{
   action: LambdaContextMenuAction;
   block?: Blockly.BlockSvg;
@@ -217,6 +219,21 @@ export function registerLambdaContextMenus(): void {
       weight: 101,
       preconditionFn: (scope: BlockScope) => show(isLambdaApplicationBlock(scope.block)),
       callback: (scope: BlockScope) => runContextAction('value', scope.block)
+    },
+    {
+      // Download the workspace's blocks as a PNG. WORKSPACE scope, so it appears on the
+      // workspace background (the per-block fallback menu leaves background clicks to the
+      // native menu) and on any visualization workspace.
+      id: 'lambdaDownloadScreenshot',
+      scopeType: ScopeType.WORKSPACE,
+      displayText: 'Download Screenshot',
+      weight: 99,
+      preconditionFn: (scope: WorkspaceScope) =>
+        show(!!(scope.workspace && scope.workspace.getTopBlocks(false).length > 0)),
+      callback: (scope: WorkspaceScope) => {
+        const ws = scope.workspace ?? (Blockly.getMainWorkspace() as Blockly.WorkspaceSvg);
+        if (ws) downloadScreenshot(ws);
+      }
     }
   ];
 
