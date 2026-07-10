@@ -50,6 +50,42 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 - Logo, favicon, dark/light variants, and 512x512 PWA icon.
 - Webpack output bundle name: `block_lambda.js`.
 
+## Semantics & steppers
+
+Beyond the one-shot reduction views, the visualization dock gives the language a
+*small-step* operational semantics you can drive by hand:
+
+- **CSEK machine** (`src/core/machine/csekMachine.ts`,
+  `src/core/ui/csekPanel.ts`) — a pure `stepCsekMachine(state)` with control /
+  environment / continuation, for both call-by-value and call-by-name
+  strategies. Load / Back / Step / Play; `step` is pure, so Back is exact time
+  travel.
+- **Lockstep** (`src/core/ui/visualizationPanel.ts`, `buildLockstep`) — MNL-style
+  correspondence: every substitution reduction frame is paired with the CSEK
+  machine state that has "caught up" to it, with a `syncCount` of matched salient
+  rules and a `diverged` flag.
+
+### Why "step N" differs between the CSEK machine and the substitution trace
+
+The CSEK machine tab and the substitution/lockstep view report different "step"
+numbers on the same term. They measure different things, at different granularities.
+
+- The **CSEK machine**'s `state.stepCount` counts *every* transition
+  (`csekMachine.ts`: `stepCount: previous.stepCount + 1`), including the
+  *administrative* steps a human rarely names — environment lookups, pushing and
+  popping continuation frames, descending into a sub-term, returning a value.
+  **One button press = one machine transition.**
+- The **substitution reduction trace** counts only *salient* reductions — `beta`,
+  `if-true`/`if-false`, and primitive `prim …` steps (`isSalientRule` in
+  `csekMachine.ts`). These are the human-visible redexes. The lockstep pairing
+  advances the machine in bulk between salient rules, so the bookkeeping
+  transitions in between still increment `machine.stepCount` but do not add a
+  reduction frame.
+
+So for one visible reduction frame the machine takes several micro-steps, and the
+machine's step count is the larger number — even though both reach the same normal
+form. The `syncCount` counter confirms the two agree on the salient trace.
+
 ## Project structure
 
 ```text
