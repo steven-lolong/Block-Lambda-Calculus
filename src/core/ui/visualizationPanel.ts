@@ -6,13 +6,29 @@ import {
   renderLambdaReduction,
   type BlockOrder,
   type ReductionFrame,
-  type ReductionKind
+  type ReductionKind,
+  type ReductionRun
 } from '../semantics/lambdaReduction';
+import {
+  formatMachineValue,
+  injectCsekMachine,
+  isSalientRule,
+  stepCsekMachine,
+  type CsekState
+} from '../machine/csekMachine';
+import {
+  initCsekPanel,
+  machineStatusText,
+  renderEnvInto,
+  renderKontInto,
+  resetCsekFromDock,
+  setCsekTabVisible
+} from './csekPanel';
 import { TUDE_RENDERER_NAME } from '../renderer/tude';
 
 type VizKind = ReductionKind;
-/** The reduction-trace tabs plus the step-through tab. */
-type TabKind = VizKind | 'stepper';
+/** The reduction-trace tabs, the lockstep stepper, and the CSEK machine tab. */
+type TabKind = VizKind | 'stepper' | 'machine';
 
 type VisualizationOptions = {
   lightTheme: Blockly.Theme;
@@ -40,9 +56,21 @@ const views: Record<VizKind, View> = {
   value: { workspace: null, block: null, order: null, lastError: null }
 };
 
+/** The machine's catch-up state paired with substitution frame i (lockstep). */
+interface LockstepEntry {
+  machine: CsekState;
+  /** Salient rules matched so far, counted up to and including this frame. */
+  syncCount: number;
+  /** First disagreement between rewrite and machine, if any. */
+  diverged: string | null;
+}
+
 interface StepperState {
   workspace: Blockly.WorkspaceSvg | null;
   frames: ReductionFrame[];
+  /** pair[i] is the machine state after catching up to frames[i]; empty when
+      the machine could not inject (the term side still steps alone). */
+  pair: LockstepEntry[];
   index: number;
   kind: ReductionKind;
   truncated: boolean;
@@ -56,6 +84,7 @@ interface StepperState {
 const stepper: StepperState = {
   workspace: null,
   frames: [],
+  pair: [],
   index: 0,
   kind: 'structure',
   truncated: false,
@@ -138,9 +167,10 @@ function makeWorkspaceBlocksMovable(workspace: Blockly.WorkspaceSvg): void {
   }
 }
 
-const TABS: TabKind[] = ['structure', 'value', 'stepper'];
+const TABS: TabKind[] = ['structure', 'value', 'stepper', 'machine'];
 
 function setActive(kind: TabKind): void {
+  const wasMachine = active === 'machine';
   active = kind;
   for (const candidate of TABS) {
     const host = hostOf(candidate);
@@ -148,8 +178,12 @@ function setActive(kind: TabKind): void {
     if (host) host.dataset.active = String(candidate === kind);
     if (tab) tab.setAttribute('aria-selected', String(candidate === kind));
   }
+  if (wasMachine !== (kind === 'machine')) setCsekTabVisible(kind === 'machine');
   const empty = byId<HTMLDivElement>('vizEmpty');
-  if (empty) empty.hidden = kind === 'stepper' || (!!views[kind].block && !views[kind].lastError);
+  if (empty) {
+    if (kind === 'stepper' || kind === 'machine') empty.hidden = true;
+    else empty.hidden = !!views[kind].block && !views[kind].lastError;
+  }
   updateInfo();
   if (kind === 'stepper') resizeStepper(0);
   else resizeActive(0);
@@ -159,7 +193,11 @@ function updateInfo(): void {
   const info = byId<HTMLDivElement>('vizDockInfo');
   if (!info) return;
   if (active === 'stepper') {
-    info.textContent = stepper.frames.length ? `Stepper · ${STEPPER_TITLE[stepper.kind]}` : '';
+    info.textContent = stepper.frames.length ? `Stepper · ${STEPPER_TITLE[stepper.kind]} ⇄ CSEK` : '';
+    return;
+  }
+  if (active === 'machine') {
+    info.textContent = 'CSEK machine · walks the workspace blocks';
     return;
   }
   const view = views[active];
@@ -172,6 +210,7 @@ function updateInfo(): void {
 
 function resizeActive(delay = 0): void {
   if (active === 'stepper') { resizeStepper(delay); return; }
+  if (active === 'machine') return;
   const workspace = views[active].workspace;
   if (workspace) window.setTimeout(() => Blockly.svgResize(workspace), delay);
 }
@@ -246,7 +285,8 @@ export function openVisualization(kind: VizKind, block: Blockly.BlockSvg): void 
 }
 
 export function disposeVisualizationWorkspaces(): void {
-  const shouldRerenderView = isVisualizationOpen() && active !== 'stepper' && !!views[active].block;
+  const shouldRerenderView =
+    isVisualizationOpen() && active !== 'stepper' && active !== 'machine' && !!views[active].block;
   const shouldRerenderStepper = isVisualizationOpen() && stepper.frames.length > 0;
   for (const kind of KINDS) {
     views[kind].workspace?.dispose();
@@ -315,8 +355,55 @@ function attachStepperStaleListener(): void {
     stepper.stale = true;
     stopStepperPlay();
     renderStepperStatus();
+    renderStepperMachine();
+    renderStepperAgree();
     renderStepperButtons();
   });
+}
+
+/**
+ * Pair every substitution frame with a machine state, MNL lockstep style:
+ * whenever the rewrite fires a salient rule, the machine advances until it
+ * fires its next salient rule — the two must match, and the running counter
+ * is the operational-correspondence claim, executed. Non-salient frames keep
+ * the machine where it is; when rewriting finishes, the machine drains its
+ * trailing administrative steps so both sides finish together.
+ */
+function buildLockstep(main: Blockly.WorkspaceSvg, block: Blockly.BlockSvg, run: ReductionRun): LockstepEntry[] {
+  const injected = injectCsekMachine(block, stepper.kind);
+  if ('injectError' in injected) return [];
+  let machine = injected;
+  let syncCount = 0;
+  let diverged: string | null = null;
+  const entries: LockstepEntry[] = [{ machine, syncCount, diverged }];
+
+  for (let i = 1; i < run.frames.length; i++) {
+    const salient = run.frames[i].salient;
+    if (salient) {
+      let fired: string | null = null;
+      while (machine.status === 'running') {
+        machine = stepCsekMachine(main, machine);
+        if (isSalientRule(machine.lastRule)) {
+          fired = machine.lastRule;
+          break;
+        }
+      }
+      if (fired === salient) syncCount++;
+      else if (!diverged) diverged = `rewrite fired ${salient}, machine fired ${fired ?? machine.status}`;
+    }
+    entries.push({ machine, syncCount, diverged });
+  }
+
+  if (run.normalForm) {
+    while (machine.status === 'running') {
+      machine = stepCsekMachine(main, machine);
+      if (isSalientRule(machine.lastRule) && !diverged) {
+        diverged = `machine fired extra ${machine.lastRule} after rewriting finished`;
+      }
+    }
+    entries[entries.length - 1] = { machine, syncCount, diverged };
+  }
+  return entries;
 }
 
 function loadStepper(): void {
@@ -325,6 +412,7 @@ function loadStepper(): void {
   const block = pickProgramBlock();
   if (!block) {
     stepper.frames = [];
+    stepper.pair = [];
     stepper.index = 0;
     stepper.stale = false;
     renderStepperFrame();
@@ -338,9 +426,12 @@ function loadStepper(): void {
     stepper.finalValue = run.finalValue;
     stepper.index = 0;
     stepper.stale = false;
+    const main = options?.getMainWorkspace?.();
+    stepper.pair = main ? buildLockstep(main, block, run) : [];
   } catch (error) {
     console.error('[Block Lambda] stepper failed', error);
     stepper.frames = [];
+    stepper.pair = [];
     stepper.index = 0;
   }
   renderStepperFrame();
@@ -372,8 +463,53 @@ function renderStepperFrame(): void {
     }
   }
   renderStepperStatus();
+  renderStepperMachine();
+  renderStepperAgree();
   renderStepperButtons();
   updateInfo();
+}
+
+function renderStepperMachine(): void {
+  const statusEl = byId<HTMLDivElement>('stepperMachineStatus');
+  const envHost = byId<HTMLDivElement>('stepperMachineEnv');
+  const kontHost = byId<HTMLDivElement>('stepperMachineKont');
+  const entry = stepper.stale ? undefined : stepper.pair[stepper.index];
+  const main = options?.getMainWorkspace?.() ?? null;
+  if (statusEl) {
+    statusEl.textContent = entry
+      ? machineStatusText(entry.machine)
+      : stepper.frames.length > 0 && !stepper.stale
+        ? 'machine unavailable for this term'
+        : '';
+  }
+  if (envHost) renderEnvInto(envHost, main, entry?.machine ?? null);
+  if (kontHost) renderKontInto(kontHost, main, entry?.machine ?? null);
+}
+
+function renderStepperAgree(): void {
+  const agree = byId<HTMLDivElement>('stepperAgree');
+  if (!agree) return;
+  agree.textContent = '';
+  agree.removeAttribute('data-state');
+  const entry = stepper.stale ? undefined : stepper.pair[stepper.index];
+  if (!entry) return;
+  if (entry.diverged) {
+    agree.textContent = `⚠ diverged: ${entry.diverged}`;
+    agree.dataset.state = 'diverged';
+    return;
+  }
+  const atEnd = stepper.index >= stepper.frames.length - 1;
+  if (atEnd && stepper.normalForm && entry.machine.status === 'done') {
+    const machineValue = entry.machine.result ? formatMachineValue(entry.machine.result) : '—';
+    const same = machineValue === stepper.finalValue;
+    agree.textContent = same
+      ? `⇄ in sync — ${entry.syncCount} salient rules matched, same value`
+      : `⚠ same rules but DIFFERENT final values (machine: ${machineValue})`;
+    agree.dataset.state = same ? 'sync' : 'diverged';
+    return;
+  }
+  agree.textContent = `⇄ in sync — ${entry.syncCount} salient rules matched`;
+  agree.dataset.state = 'sync';
 }
 
 function renderStepperStatus(): void {
@@ -506,6 +642,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     if (stepper.frames.length === 0 && !stepper.stale && pickProgramBlock()) loadStepper();
     else renderStepperFrame();
   });
+  tabOf('machine')?.addEventListener('click', () => setActive('machine'));
 
   byId<HTMLButtonElement>('stepperLoad')?.addEventListener('click', loadStepper);
   byId<HTMLButtonElement>('stepperBack')?.addEventListener('click', stepperBack);
@@ -516,6 +653,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
 
   byId<HTMLButtonElement>('vizRerun')?.addEventListener('click', () => {
     if (active === 'stepper') loadStepper();
+    else if (active === 'machine') resetCsekFromDock();
     else renderView(active);
   });
   byId<HTMLButtonElement>('vizArrange')?.addEventListener('click', () => {
@@ -523,6 +661,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
       if (stepper.workspace) { arrangeTopBlocks(stepper.workspace); Blockly.svgResize(stepper.workspace); }
       return;
     }
+    if (active === 'machine') return;
     const view = views[active];
     if (!view.workspace) return;
     if (view.order) arrangeBlocksVertically(view.workspace, view.order, 36);
@@ -536,6 +675,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
   window.addEventListener('resize', () => {
     if (isVisualizationOpen()) resizeActive(80);
   });
+  initCsekPanel(() => options?.getMainWorkspace?.() ?? null);
   setActive('structure');
   renderStepperButtons();
 }

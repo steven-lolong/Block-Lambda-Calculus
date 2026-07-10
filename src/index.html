@@ -188,6 +188,9 @@
               <button class="viz-tab" data-kind="stepper" role="tab" type="button" aria-selected="false">
                 <span class="viz-tab-icon" aria-hidden="true">⏭</span><span class="viz-tab-label">Stepper</span>
               </button>
+              <button class="viz-tab" data-kind="machine" role="tab" type="button" aria-selected="false">
+                <span class="viz-tab-icon" aria-hidden="true">⚙</span><span class="viz-tab-label">CSEK machine</span>
+              </button>
             </div>
             <div id="vizDockInfo" class="viz-info" aria-live="polite"></div>
             <div class="viz-tools" aria-label="Visualization tools">
@@ -210,8 +213,46 @@
                 <button id="stepperStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next step" disabled>▶</button>
                 <button id="stepperPlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause" disabled>⏵</button>
                 <div id="stepperStatus" class="stepper-status" aria-live="polite">Press ⟲ Load to step a program's reduction.</div>
+                <div id="stepperAgree" class="stepper-agree" aria-live="polite"></div>
               </div>
-              <div id="stepperWorkspace" class="stepper-workspace"></div>
+              <div class="stepper-body">
+                <div id="stepperWorkspace" class="stepper-workspace"></div>
+                <aside class="stepper-machine" aria-label="CSEK machine in lockstep">
+                  <div class="machine-caption">CSEK machine</div>
+                  <div id="stepperMachineStatus" class="machine-line"></div>
+                  <div class="machine-section-title">Environment</div>
+                  <div id="stepperMachineEnv" class="machine-list"></div>
+                  <div class="machine-section-title">Continuation stack</div>
+                  <div id="stepperMachineKont" class="machine-list"></div>
+                </aside>
+              </div>
+            </div>
+            <div class="viz-host machine-host" data-kind="machine">
+              <div class="stepper-controls" aria-label="CSEK machine controls">
+                <div class="stepper-strategy" role="group" aria-label="Machine strategy">
+                  <button id="machineStrategyStructure" class="small-button stepper-strategy-button" type="button" title="Run with call-by-structure (arguments bind as thunks)">CbS</button>
+                  <button id="machineStrategyValue" class="small-button stepper-strategy-button is-active" type="button" title="Run with call-by-value (arguments evaluate first)">CbV</button>
+                </div>
+                <button id="machineLoad" class="small-button" type="button" title="Load the program into the machine">⟲ Load</button>
+                <button id="machineBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous machine step" disabled>◀</button>
+                <button id="machineStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next machine step" disabled>▶</button>
+                <button id="machinePlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause machine" disabled>⏵</button>
+                <div id="machineStatus" class="stepper-status" aria-live="polite">Press ⟲ Load to run the program on the CSEK machine.</div>
+              </div>
+              <div class="machine-body">
+                <section class="machine-panel" aria-label="Machine control">
+                  <div class="machine-section-title">Control</div>
+                  <div id="machineControl" class="machine-line"></div>
+                </section>
+                <section class="machine-panel" aria-label="Machine environment">
+                  <div class="machine-section-title">Environment</div>
+                  <div id="machineEnv" class="machine-list"></div>
+                </section>
+                <section class="machine-panel" aria-label="Machine continuation stack">
+                  <div class="machine-section-title">Continuation stack</div>
+                  <div id="machineKont" class="machine-list"></div>
+                </section>
+              </div>
             </div>
             <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value, or open the Stepper tab.</div>
           </div>

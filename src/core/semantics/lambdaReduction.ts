@@ -30,6 +30,9 @@ type ReductionEvent = {
   redex: Term;
   result: Term;
   label: string;
+  /** True when the step happened inside a lambda body (call-by-structure
+      normalization the machine, which stops at closures, never performs). */
+  underLambda?: boolean;
 };
 
 type RuntimeEnv = Map<string, Term>;
@@ -415,7 +418,13 @@ function reduceOnceDetailed(term: Term, kind: ReductionKind): { term: Term; chan
     case 'abs': {
       if (kind === 'value') return { term, changed: false };
       const body = reduceOnceDetailed(term.body, kind);
-      return body.changed ? { term: { kind: 'abs', param: term.param, body: body.term, ...sourcesFrom(term) }, changed: true, event: body.event } : { term, changed: false };
+      return body.changed
+        ? {
+            term: { kind: 'abs', param: term.param, body: body.term, ...sourcesFrom(term) },
+            changed: true,
+            event: body.event ? { ...body.event, underLambda: true } : undefined
+          }
+        : { term, changed: false };
     }
 
     default:
@@ -778,6 +787,9 @@ export interface ReductionFrame {
   label: string;
   /** The frame's value text when it is a value; '' otherwise. */
   value: string;
+  /** Salient rule id ('beta', 'if-true', 'prim +', …) when this step is one
+      the CSEK machine must also fire, in the same order; null otherwise. */
+  salient: string | null;
 }
 
 export interface ReductionRun {
@@ -797,28 +809,42 @@ function inlineEnv(term: Term, env: RuntimeEnv): Term {
   return resolved;
 }
 
+/** The salient rule id of a reduction event — the rules the machine mirrors. */
+function salientOf(ev: ReductionEvent | undefined): string | null {
+  if (!ev || ev.underLambda) return null;
+  if (ev.kind === 'beta') return 'beta';
+  if (ev.kind === 'if' && ev.redex.kind === 'if' && ev.redex.cond.kind === 'bool') {
+    return ev.redex.cond.value ? 'if-true' : 'if-false';
+  }
+  if (ev.kind === 'primitive' && (ev.redex.kind === 'numop' || ev.redex.kind === 'boolop' || ev.redex.kind === 'cmpop')) {
+    return `prim ${ev.redex.op}`;
+  }
+  return null;
+}
+
 /** Compute the full sequence of reduction states for a block, one per small step. */
 export function computeReductionRun(block: Blockly.Block, kind: ReductionKind): ReductionRun {
   let term = inlineEnv(blockToTerm(block), contextualEnvForBlock(block));
   const frames: ReductionFrame[] = [];
-  const push = (rule: string, label: string): void => {
+  const push = (rule: string, label: string, salient: string | null): void => {
     frames.push({
       index: frames.length,
       state: termToState(term),
       rule,
       label,
-      value: isValue(term) ? prettyRuntimeValue(term) : ''
+      value: isValue(term) ? prettyRuntimeValue(term) : '',
+      salient
     });
   };
 
-  push('initial', 'Initial term');
+  push('initial', 'Initial term', null);
 
   let steps = 0;
   for (; steps < MAX_REDUCTION_STEPS; steps++) {
     const next = reduceOnceDetailed(term, kind);
     if (!next.changed) break;
     term = next.term;
-    push(next.event?.kind ?? 'context', next.event?.label ?? 'reduction step');
+    push(next.event?.kind ?? 'context', next.event?.label ?? 'reduction step', salientOf(next.event));
   }
 
   const truncated = steps >= MAX_REDUCTION_STEPS;
