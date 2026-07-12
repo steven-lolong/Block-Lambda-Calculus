@@ -1474,7 +1474,7 @@ html[data-theme='light'] .status-logo-wrap { background: rgba(239, 241, 245, 0.7
   min-height: 0;
 }
 
-/* ---- CSEK machine panels (lockstep sidebar and machine tab) ------------ */
+/* ---- CEK machine panels (lockstep sidebar and machine tab) ------------- */
 .stepper-machine {
   flex: 1 1 0;
   min-width: 200px;
@@ -1561,7 +1561,7 @@ html[data-theme='light'] .status-logo-wrap { background: rgba(239, 241, 245, 0.7
   font-style: italic;
 }
 
-/* ---- CSEK machine tab --------------------------------------------------- */
+/* ---- CEK machine tab ---------------------------------------------------- */
 .machine-host {
   display: none;
   flex-direction: column;

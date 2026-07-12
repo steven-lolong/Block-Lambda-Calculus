@@ -12,8 +12,9 @@ import {
 } from '../machine/csekMachine';
 
 /*
- * The CSEK machine tab of the viz dock, modeled on Block-based-MNL's
- * cseskPanel: Load / Back / Step / Play over the pure machine in
+ * The CEK machine tab of the viz dock (the module keeps its historical `csek`
+ * name), modeled on Block-based-MNL's
+ * csekPanel: Load / Back / Step / Play over the pure machine in
  * machine/csekMachine.ts, with three live surfaces — the focus block is
  * highlighted in the MAIN workspace (the machine walks the real block tree),
  * and the environment chain and continuation stack render as panels.
@@ -151,7 +152,7 @@ function renderStatus(): void {
   if (!status) return;
   status.removeAttribute('data-state');
   if (!current) {
-    status.textContent = 'Press ⟲ Load to run the program on the CSEK machine.';
+    status.textContent = 'Press ⟲ Load to run the program on the CEK machine.';
     return;
   }
   if (stale) {

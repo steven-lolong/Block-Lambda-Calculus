@@ -189,7 +189,7 @@
                 <span class="viz-tab-icon" aria-hidden="true">⏭</span><span class="viz-tab-label">Stepper</span>
               </button>
               <button class="viz-tab" data-kind="machine" role="tab" type="button" aria-selected="false">
-                <span class="viz-tab-icon" aria-hidden="true">⚙</span><span class="viz-tab-label">CSEK machine</span>
+                <span class="viz-tab-icon" aria-hidden="true">⚙</span><span class="viz-tab-label">CEK machine</span>
               </button>
             </div>
             <div id="vizDockInfo" class="viz-info" aria-live="polite"></div>
@@ -217,8 +217,8 @@
               </div>
               <div class="stepper-body">
                 <div id="stepperWorkspace" class="stepper-workspace"></div>
-                <aside class="stepper-machine" aria-label="CSEK machine in lockstep">
-                  <div class="machine-caption">CSEK machine</div>
+                <aside class="stepper-machine" aria-label="CEK machine in lockstep">
+                  <div class="machine-caption">CEK machine</div>
                   <div id="stepperMachineStatus" class="machine-line"></div>
                   <div class="machine-section-title">Environment</div>
                   <div id="stepperMachineEnv" class="machine-list"></div>
@@ -228,7 +228,7 @@
               </div>
             </div>
             <div class="viz-host machine-host" data-kind="machine">
-              <div class="stepper-controls" aria-label="CSEK machine controls">
+              <div class="stepper-controls" aria-label="CEK machine controls">
                 <div class="stepper-strategy" role="group" aria-label="Machine strategy">
                   <button id="machineStrategyStructure" class="small-button stepper-strategy-button" type="button" title="Run with call-by-structure (arguments bind as thunks)">CbS</button>
                   <button id="machineStrategyValue" class="small-button stepper-strategy-button is-active" type="button" title="Run with call-by-value (arguments evaluate first)">CbV</button>
@@ -237,7 +237,7 @@
                 <button id="machineBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous machine step" disabled>◀</button>
                 <button id="machineStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next machine step" disabled>▶</button>
                 <button id="machinePlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause machine" disabled>⏵</button>
-                <div id="machineStatus" class="stepper-status" aria-live="polite">Press ⟲ Load to run the program on the CSEK machine.</div>
+                <div id="machineStatus" class="stepper-status" aria-live="polite">Press ⟲ Load to run the program on the CEK machine.</div>
               </div>
               <div class="machine-body">
                 <section class="machine-panel" aria-label="Machine control">

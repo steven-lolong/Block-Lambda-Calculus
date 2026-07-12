@@ -27,7 +27,7 @@ import {
 import { TUDE_RENDERER_NAME } from '../renderer/tude';
 
 type VizKind = ReductionKind;
-/** The reduction-trace tabs, the lockstep stepper, and the CSEK machine tab. */
+/** The reduction-trace tabs, the lockstep stepper, and the CEK machine tab. */
 type TabKind = VizKind | 'stepper' | 'machine';
 
 type VisualizationOptions = {
@@ -193,11 +193,11 @@ function updateInfo(): void {
   const info = byId<HTMLDivElement>('vizDockInfo');
   if (!info) return;
   if (active === 'stepper') {
-    info.textContent = stepper.frames.length ? `Stepper · ${STEPPER_TITLE[stepper.kind]} ⇄ CSEK` : '';
+    info.textContent = stepper.frames.length ? `Stepper · ${STEPPER_TITLE[stepper.kind]} ⇄ CEK` : '';
     return;
   }
   if (active === 'machine') {
-    info.textContent = 'CSEK machine · walks the workspace blocks';
+    info.textContent = 'CEK machine · walks the workspace blocks';
     return;
   }
   const view = views[active];

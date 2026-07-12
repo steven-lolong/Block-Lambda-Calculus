@@ -55,22 +55,23 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 Beyond the one-shot reduction views, the visualization dock gives the language a
 *small-step* operational semantics you can drive by hand:
 
-- **CSEK machine** (`src/core/machine/csekMachine.ts`,
+- **CEK machine** (`src/core/machine/csekMachine.ts`,
   `src/core/ui/csekPanel.ts`) — a pure `stepCsekMachine(state)` with control /
   environment / continuation, for both call-by-value and call-by-name
-  strategies. Load / Back / Step / Play; `step` is pure, so Back is exact time
-  travel.
+  strategies. The tab is labeled **CEK** (control, environment, kontinuation;
+  no store); the module keeps its historical `csek` name. Load / Back / Step /
+  Play; `step` is pure, so Back is exact time travel.
 - **Lockstep** (`src/core/ui/visualizationPanel.ts`, `buildLockstep`) — MNL-style
-  correspondence: every substitution reduction frame is paired with the CSEK
+  correspondence: every substitution reduction frame is paired with the CEK
   machine state that has "caught up" to it, with a `syncCount` of matched salient
   rules and a `diverged` flag.
 
-### Why "step N" differs between the CSEK machine and the substitution trace
+### Why "step N" differs between the CEK machine and the substitution trace
 
-The CSEK machine tab and the substitution/lockstep view report different "step"
+The CEK machine tab and the substitution/lockstep view report different "step"
 numbers on the same term. They measure different things, at different granularities.
 
-- The **CSEK machine**'s `state.stepCount` counts *every* transition
+- The **CEK machine**'s `state.stepCount` counts *every* transition
   (`csekMachine.ts`: `stepCount: previous.stepCount + 1`), including the
   *administrative* steps a human rarely names — environment lookups, pushing and
   popping continuation frames, descending into a sub-term, returning a value.

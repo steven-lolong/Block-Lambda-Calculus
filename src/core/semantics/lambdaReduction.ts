@@ -788,7 +788,7 @@ export interface ReductionFrame {
   /** The frame's value text when it is a value; '' otherwise. */
   value: string;
   /** Salient rule id ('beta', 'if-true', 'prim +', …) when this step is one
-      the CSEK machine must also fire, in the same order; null otherwise. */
+      the CEK machine must also fire, in the same order; null otherwise. */
   salient: string | null;
 }
 
