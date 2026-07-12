@@ -53,18 +53,34 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 ## Semantics & steppers
 
 Beyond the one-shot reduction views, the visualization dock gives the language a
-*small-step* operational semantics you can drive by hand:
+*small-step* operational semantics you can drive by hand. **Call-by-Structure
+(CbS) is the language's default evaluation strategy**, as in Block-based-MNL: the
+Call-by-Structure tab and stepper strategy are the defaults, runtime value
+comments evaluate under CbS, and the machine tab runs CbS. As in MNL, neither
+strategy reduces under a binder — a lambda is a value; its body is reduced only
+after an application substitutes the parameter.
 
+- **Call-by-Structure** — β substitutes the *unevaluated argument's block
+  structure* into every occurrence of the parameter as independent copies;
+  each use-site then reduces its own copy, so duplicated work is visible as
+  duplicated structure (`(λx. x + x) (3 * 7)` computes `3 * 7` twice).
+- **Call-by-Value** — the argument is reduced to a value first, then
+  substituted; the work is done once.
 - **CEK machine** (`src/core/machine/csekMachine.ts`,
   `src/core/ui/csekPanel.ts`) — a pure `stepCsekMachine(state)` with control /
-  environment / continuation, for both call-by-value and call-by-name
-  strategies. The tab is labeled **CEK** (control, environment, kontinuation;
-  no store); the module keeps its historical `csek` name. Load / Back / Step /
-  Play; `step` is pure, so Back is exact time travel.
+  environment / continuation. Under CbS the environment binds the argument as a
+  *thunk* (block + env) and every variable lookup re-enters it — environment
+  lookup is the lazy version of CbS's physical copying, so the machine fires
+  the same salient rules in the same order as the substitution trace. The tab
+  is labeled **CEK** (control, environment, kontinuation; no store); like
+  MNL's machine tab it has no per-tab strategy switch — it runs the language
+  default (CbS); the module keeps its historical `csek` name. Load / Back /
+  Step / Play; `step` is pure, so Back is exact time travel.
 - **Lockstep** (`src/core/ui/visualizationPanel.ts`, `buildLockstep`) — MNL-style
   correspondence: every substitution reduction frame is paired with the CEK
   machine state that has "caught up" to it, with a `syncCount` of matched salient
-  rules and a `diverged` flag.
+  rules and a `diverged` flag. Works under either strategy (the Stepper tab
+  keeps its CbS/CbV switch, defaulting to CbS).
 
 ### Why "step N" differs between the CEK machine and the substitution trace
 
@@ -86,6 +102,21 @@ numbers on the same term. They measure different things, at different granularit
 So for one visible reduction frame the machine takes several micro-steps, and the
 machine's step count is the larger number — even though both reach the same normal
 form. The `syncCount` counter confirms the two agree on the salient trace.
+
+## Tests
+
+`npm test` compiles the headless suites (`tsconfig.test.json`) and runs them
+under node, no browser required:
+
+- `tests/roundtrip.ts` — block → text → block round-trips for the
+  parser/generator pair (40 checks).
+- `tests/semantics.ts` — strategy/machine correspondence: for each program,
+  the substitution trace under CbS and CbV and the CEK machine under both
+  strategies must reach the same final value, and the substitution trace's
+  salient rules must match the machine's in order (the lockstep invariant).
+  Also pins CbS's duplicated-work signature (two `prim *` for
+  `(λx. x + x) (3 * 7)` vs one under CbV, in both presentations) and the
+  no-reduction-under-a-binder property shared with MNL.
 
 ## Project structure
 

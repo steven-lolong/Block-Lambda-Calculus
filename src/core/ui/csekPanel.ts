@@ -28,7 +28,11 @@ const MAX_HISTORY = 5000;
 type GetWorkspace = () => Blockly.WorkspaceSvg | null;
 
 let getWorkspace: GetWorkspace = () => null;
-let strategy: ReductionKind = 'value';
+// Call-by-structure is the language's default evaluation strategy (as in
+// Block-based-MNL); like MNL's machine tab, there is no per-tab strategy
+// switch — the machine runs the language's semantics. The CbV mode is still
+// exercised by the Stepper tab's lockstep when its strategy is CbV.
+const strategy: ReductionKind = 'structure';
 let current: CsekState | null = null;
 let history: CsekState[] = [];
 let stale = false;
@@ -279,14 +283,6 @@ function togglePlay(): void {
   renderButtons();
 }
 
-function setStrategy(kind: ReductionKind): void {
-  if (strategy === kind) return;
-  strategy = kind;
-  byId<HTMLButtonElement>('machineStrategyStructure')?.classList.toggle('is-active', kind === 'structure');
-  byId<HTMLButtonElement>('machineStrategyValue')?.classList.toggle('is-active', kind === 'value');
-  if (current) loadMachine();
-}
-
 /* -------------------------------------------------------------- exports */
 
 /** viz-dock ⟳ Re-run delegates here when the machine tab is active. */
@@ -310,7 +306,5 @@ export function initCsekPanel(workspaceGetter: GetWorkspace): void {
   byId<HTMLButtonElement>('machineStep')?.addEventListener('click', stepOnce);
   byId<HTMLButtonElement>('machineBack')?.addEventListener('click', stepBack);
   byId<HTMLButtonElement>('machinePlay')?.addEventListener('click', togglePlay);
-  byId<HTMLButtonElement>('machineStrategyStructure')?.addEventListener('click', () => setStrategy('structure'));
-  byId<HTMLButtonElement>('machineStrategyValue')?.addEventListener('click', () => setStrategy('value'));
   renderAll();
 }

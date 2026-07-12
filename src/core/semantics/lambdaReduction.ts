@@ -415,17 +415,13 @@ function reduceOnceDetailed(term: Term, kind: ReductionKind): { term: Term; chan
       return { term, changed: false };
     }
 
-    case 'abs': {
-      if (kind === 'value') return { term, changed: false };
-      const body = reduceOnceDetailed(term.body, kind);
-      return body.changed
-        ? {
-            term: { kind: 'abs', param: term.param, body: body.term, ...sourcesFrom(term) },
-            changed: true,
-            event: body.event ? { ...body.event, underLambda: true } : undefined
-          }
-        : { term, changed: false };
-    }
+    case 'abs':
+      // A lambda is a value under BOTH strategies — neither reduces under a
+      // binder, matching Block-based-MNL's CbS (its evaluator and Call-by-
+      // Structure windows never reduce inside an abstraction; the body is
+      // reduced only after an application substitutes the parameter). The
+      // CEK machine agrees: a closure's body is entered only at beta.
+      return { term, changed: false };
 
     default:
       return { term, changed: false };
@@ -1009,7 +1005,7 @@ export function generatedStateForBlock(block: Blockly.Block, kind: ReductionKind
   return termToState(evaluate(blockToTerm(block), kind));
 }
 
-export function runtimeValueTextsForWorkspace(workspace: Blockly.Workspace, kind: ReductionKind = 'value'): Map<string, string> {
+export function runtimeValueTextsForWorkspace(workspace: Blockly.Workspace, kind: ReductionKind = 'structure'): Map<string, string> {
   const values = new Map<string, string>();
   const topBlocks = workspace.getTopBlocks(true).filter((block) => !block.getParent() && isLambdaTermBlock(block));
 

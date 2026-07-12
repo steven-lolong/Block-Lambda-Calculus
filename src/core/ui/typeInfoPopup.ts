@@ -12,7 +12,9 @@ export function isCommentableLambdaBlock(block: Blockly.Block): boolean {
 
 function safeReducedValue(block: Blockly.Block): string {
   try {
-    return reducedTextForBlock(block, 'value');
+    // Call-by-structure is the language's default evaluation strategy (as in
+    // Block-based-MNL); in this pure calculus both strategies agree on values.
+    return reducedTextForBlock(block, 'structure');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return `Could not compute value: ${message}`;
@@ -37,7 +39,7 @@ export function contextualValueProvider(workspace: Blockly.Workspace): ValueProv
   const cached = runtimeValueCache.get(workspace);
   const values = cached && cached.signature === signature
     ? cached.values
-    : runtimeValueTextsForWorkspace(workspace, 'value');
+    : runtimeValueTextsForWorkspace(workspace, 'structure');
   runtimeValueCache.set(workspace, { signature, values });
   return (block) => values.get(block.id) ?? safeReducedValue(block);
 }
