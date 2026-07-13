@@ -900,7 +900,12 @@ function reductionOnTerm(term: Term, ctx: ReductionRenderContext, env: RuntimeEn
     }
 
     case 'numop':
-    case 'boolop': {
+    case 'boolop':
+    // cmpop was missing here: a comparison in an if-condition (n < 1) never
+    // reduced to a boolean, so the branch was never taken and recursive calls
+    // after the first beta were never rendered — factorial showed ONE call
+    // while MNL's windows render every recursive call.
+    case 'cmpop': {
       const left = reductionOnTerm(term.left, ctx, env);
       const right = reductionOnTerm(term.right, ctx, env);
       const primitive = computePrimitive({ ...term, left, right });

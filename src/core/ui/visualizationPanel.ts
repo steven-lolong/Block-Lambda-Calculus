@@ -193,7 +193,7 @@ function updateInfo(): void {
   const info = byId<HTMLDivElement>('vizDockInfo');
   if (!info) return;
   if (active === 'stepper') {
-    info.textContent = stepper.frames.length ? `Stepper · ${STEPPER_TITLE[stepper.kind]} ⇄ CEK` : '';
+    info.textContent = stepper.frames.length ? `Lockstep · ${STEPPER_TITLE[stepper.kind]} rewriting ⇄ CEK machine` : '';
     return;
   }
   if (active === 'machine') {

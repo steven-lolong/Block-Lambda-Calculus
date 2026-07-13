@@ -16,7 +16,7 @@
 import * as Blockly from 'blockly';
 import { registerLambdaBlocks } from '../src/core/blocks/lambdaBlocks';
 import { parseLambdaTextToWorkspaceState } from '../src/core/parser/lambdaTextParser';
-import { computeReductionRun, type ReductionKind } from '../src/core/semantics/lambdaReduction';
+import { computeReductionRun, renderLambdaReduction, type ReductionKind } from '../src/core/semantics/lambdaReduction';
 import {
   formatMachineValue,
   injectCsekMachine,
@@ -141,6 +141,53 @@ withProgram('\\y. 2 + 3 + y', (_workspace, block) => {
       `got ${run.frames.length} frame(s), normalForm=${run.normalForm}`);
   }
 });
+
+/* ------------------------------------------------------------------ */
+/* CbS / CbV visualization windows (renderLambdaReduction): the        */
+/* MNL-parity property that EVERY recursive call is rendered.           */
+/* ------------------------------------------------------------------ */
+
+// Headless stand-ins for the BlockSvg-only methods the renderer touches.
+const B = Blockly.Block.prototype as any;
+if (!B.initSvg) B.initSvg = function () {};
+if (!B.render) B.render = function () {};
+if (!B.getHeightWidth) B.getHeightWidth = function () { return { height: 40, width: 120 }; };
+if (!B.moveBy) B.moveBy = function () {};
+if (!B.moveTo) B.moveTo = function () {};
+
+/** Render the outermost application's reduction and count the beta pairs. */
+function renderedBetaCount(source: string, kind: ReductionKind): number {
+  return withProgram(source, (_main, block) => {
+    const viz = new Blockly.Workspace();
+    try {
+      renderLambdaReduction(block as any, viz as any, kind);
+      return viz.getAllBlocks(false)
+        .filter((b) => b.type === 'lambda_viz_description')
+        .map((b) => String(b.getFieldValue('TEXT') ?? ''))
+        .filter((text) => text.startsWith('Substituted block')).length;
+    } finally {
+      viz.dispose();
+    }
+  });
+}
+
+// pickProgramBlock returns the outermost application for these sources.
+const FACT = 'letrec fac = \\n. if n < 1 then 1 else n * (fac (n - 1)) in fac 3';
+for (const kind of ['structure', 'value'] as ReductionKind[]) {
+  // fac 3 → fac 2 → fac 1 → fac 0: four beta reductions must all render.
+  // (Regression: a missing cmpop case left the if-condition unreduced, so
+  // recursion stopped rendering after the FIRST beta.)
+  check(`viz · factorial renders every recursive call (${kind})`,
+    renderedBetaCount(FACT, kind) === 4,
+    `got ${renderedBetaCount(FACT, kind)} beta pairs, expected 4`);
+}
+// CbS renders the duplicated copies' work; CbV renders the shared value's.
+// Counts are anchored to rendering from the top-level let block (what
+// pickProgramBlock selects): 4 beta pairs under CbS vs 3 under CbV — the
+// strict inequality is the duplicated-work signature.
+const LET_FN = 'let f = \\y. y + 1 in f (f 5)';
+check('viz · CbS duplicates the argument reduction (4 betas)', renderedBetaCount(LET_FN, 'structure') === 4);
+check('viz · CbV evaluates the argument once (3 betas)', renderedBetaCount(LET_FN, 'value') === 3);
 
 console.log(failures === 0
   ? `All ${checks} semantics checks passed.`

@@ -79,8 +79,9 @@ after an application substitutes the parameter.
 - **Lockstep** (`src/core/ui/visualizationPanel.ts`, `buildLockstep`) — MNL-style
   correspondence: every substitution reduction frame is paired with the CEK
   machine state that has "caught up" to it, with a `syncCount` of matched salient
-  rules and a `diverged` flag. Works under either strategy (the Stepper tab
-  keeps its CbS/CbV switch, defaulting to CbS).
+  rules and a `diverged` flag. Works under either strategy (the Lockstep tab
+  keeps its CbS/CbV switch, defaulting to CbS). The tab sits after the CEK
+  machine tab, as in MNL.
 
 ### Why "step N" differs between the CEK machine and the substitution trace
 

@@ -856,7 +856,11 @@ html[data-theme='light'] .blockly-area {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.94rem;
   line-height: 1.65;
-  white-space: pre;
+  /* Generated lambda terms are long one-liners: wrap them (breaking anywhere
+     if needed) so the whole term is readable in the narrow code column
+     instead of vanishing behind a horizontal scroll. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .code-output[hidden],

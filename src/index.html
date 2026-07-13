@@ -185,11 +185,11 @@
               <button class="viz-tab" data-kind="value" role="tab" type="button" aria-selected="false">
                 <span class="viz-tab-icon" aria-hidden="true">V</span><span class="viz-tab-label">Call-by-Value</span>
               </button>
-              <button class="viz-tab" data-kind="stepper" role="tab" type="button" aria-selected="false">
-                <span class="viz-tab-icon" aria-hidden="true">⏭</span><span class="viz-tab-label">Stepper</span>
-              </button>
               <button class="viz-tab" data-kind="machine" role="tab" type="button" aria-selected="false">
                 <span class="viz-tab-icon" aria-hidden="true">⚙</span><span class="viz-tab-label">CEK machine</span>
+              </button>
+              <button class="viz-tab" data-kind="stepper" role="tab" type="button" aria-selected="false" title="Substitution rewriting and the CEK machine in lockstep">
+                <span class="viz-tab-icon" aria-hidden="true">⇄</span><span class="viz-tab-label">Lockstep</span>
               </button>
             </div>
             <div id="vizDockInfo" class="viz-info" aria-live="polite"></div>
@@ -203,7 +203,7 @@
             <div class="viz-host" data-kind="structure"></div>
             <div class="viz-host" data-kind="value"></div>
             <div class="viz-host stepper-host" data-kind="stepper">
-              <div class="stepper-controls" aria-label="Reduction stepper controls">
+              <div class="stepper-controls" aria-label="Lockstep controls">
                 <div class="stepper-strategy" role="group" aria-label="Stepper strategy">
                   <button id="stepperStrategyStructure" class="small-button stepper-strategy-button is-active" type="button" title="Step under Call-by-Structure">CbS</button>
                   <button id="stepperStrategyValue" class="small-button stepper-strategy-button" type="button" title="Step under Call-by-Value">CbV</button>
@@ -250,7 +250,7 @@
                 </section>
               </div>
             </div>
-            <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value, or open the Stepper tab.</div>
+            <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value, or open the Lockstep tab.</div>
           </div>
         </div>
       </section>

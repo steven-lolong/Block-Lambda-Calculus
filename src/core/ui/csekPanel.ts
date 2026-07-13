@@ -31,7 +31,7 @@ let getWorkspace: GetWorkspace = () => null;
 // Call-by-structure is the language's default evaluation strategy (as in
 // Block-based-MNL); like MNL's machine tab, there is no per-tab strategy
 // switch — the machine runs the language's semantics. The CbV mode is still
-// exercised by the Stepper tab's lockstep when its strategy is CbV.
+// exercised by the Lockstep tab when its strategy is CbV.
 const strategy: ReductionKind = 'structure';
 let current: CsekState | null = null;
 let history: CsekState[] = [];
