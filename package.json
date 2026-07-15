@@ -9,9 +9,10 @@
     "serve": "webpack serve --mode development --open",
     "dev": "webpack serve --mode development --open",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js && node .test-build/tests/semantics.js",
+    "test": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js && node .test-build/tests/semantics.js && node .test-build/tests/layoutState.js",
     "test:roundtrip": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js",
-    "test:semantics": "tsc -p tsconfig.test.json && node .test-build/tests/semantics.js"
+    "test:semantics": "tsc -p tsconfig.test.json && node .test-build/tests/semantics.js",
+    "test:layout": "tsc -p tsconfig.test.json && node .test-build/tests/layoutState.js"
   },
   "keywords": [
     "blockly",

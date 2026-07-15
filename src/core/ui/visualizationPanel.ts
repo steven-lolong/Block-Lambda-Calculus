@@ -644,6 +644,7 @@ function initResizer(): void {
   const applyHeight = (height: number): void => {
     const clamped = Math.max(180, Math.min(height, Math.round(window.innerHeight * 0.72)));
     document.documentElement.style.setProperty('--ide-bottom-panel-height', `${clamped}px`);
+    resizer.setAttribute('aria-valuenow', String(clamped));
     updateIdeLayoutState({ bottomHeight: clamped, bottomMaximized: false });
     dock()?.setAttribute('data-maximized', 'false');
     const maximizeButton = byId<HTMLButtonElement>('vizMaximize');
@@ -677,6 +678,10 @@ function initResizer(): void {
     event.preventDefault();
     applyHeight((dock()?.getBoundingClientRect().height ?? 320) + step);
   });
+
+  resizer.setAttribute('aria-valuemin', '180');
+  resizer.setAttribute('aria-valuemax', String(Math.round(window.innerHeight * 0.72)));
+  resizer.setAttribute('aria-valuenow', String(readIdeLayoutState().bottomHeight));
 }
 
 export function initVisualizationPanel(initOptions: VisualizationOptions): void {

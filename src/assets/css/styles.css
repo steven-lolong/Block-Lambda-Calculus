@@ -33,6 +33,11 @@
   --ide-focus-ring: 0 0 0 2px rgba(91, 141, 239, 0.45);
   --overlay-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
 
+  --block-label-text: #ffffff;
+  --block-field-bg: #ffffff;
+  --block-field-text: #111318;
+  --block-field-border: #c5cad1;
+
   --font-ui: Inter, Geist, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius-panel: 0;
@@ -378,7 +383,7 @@ kbd {
 .command-trigger span { overflow: hidden; flex: 1; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .command-trigger svg { width: 15px; height: 15px; }
 
-svg {
+svg:not(.blocklySvg) {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -454,10 +459,16 @@ svg {
 
 .theme-switch input {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
+  cursor: pointer;
 }
+
+.theme-switch:has(input:focus-visible) { border-color: var(--ide-accent); box-shadow: var(--ide-focus-ring); }
 
 .theme-slider {
   width: 100%;
@@ -520,7 +531,7 @@ svg {
 .code-hidden .code-panel,
 .code-hidden .resize-handle { display: none; }
 
-.presentation-mode .ide-grid {
+#app.presentation-mode .ide-grid {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: 'workspace';
 }
@@ -619,7 +630,7 @@ svg {
 .resize-handle {
   position: absolute;
   z-index: 20;
-  width: 6px;
+  width: 10px;
   cursor: col-resize;
   touch-action: none;
   background: transparent;
@@ -628,13 +639,13 @@ svg {
 .sidebar-resize-handle {
   top: 0;
   bottom: 0;
-  left: calc(var(--ide-activity-bar-width) + var(--ide-primary-sidebar-width) - 3px);
+  left: calc(var(--ide-activity-bar-width) + var(--ide-primary-sidebar-width) - 5px);
 }
 
 .resize-handle {
   top: 0;
   bottom: 0;
-  left: var(--resize-handle-left, calc(100% - var(--ide-code-panel-width) - 3px));
+  left: var(--resize-handle-left, calc(100% - var(--ide-code-panel-width) - 5px));
 }
 
 .sidebar-resize-handle::after,
@@ -643,7 +654,7 @@ svg {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 2px;
+  left: 4px;
   width: 1px;
   background: transparent;
 }
@@ -850,6 +861,35 @@ html[data-theme='light'] .blockly-area {
 
 .blockly-canvas { position: absolute; inset: 0; outline: 0; }
 .blocklyMainBackground { stroke: none; }
+.blocklySvg .blocklyText {
+  opacity: 1;
+  stroke: none;
+  stroke-width: 0;
+  font-synthesis: none;
+  text-rendering: auto;
+  text-shadow: none;
+}
+
+.blocklySvg .blocklyLabelField > .blocklyFieldText {
+  fill: var(--block-label-text) !important;
+}
+
+.blocklySvg .blocklyInputField > .blocklyFieldRect {
+  fill: var(--block-field-bg);
+  fill-opacity: 1;
+  stroke: var(--block-field-border);
+  stroke-width: 1px;
+}
+
+.blocklySvg .blocklyInputField > .blocklyFieldText {
+  fill: var(--block-field-text) !important;
+}
+
+.blocklyHtmlInput {
+  color: var(--block-field-text);
+  background: var(--block-field-bg);
+  font-weight: 600;
+}
 .blocklyZoom > image,
 .blocklyTrash > image { opacity: 0.78; }
 .blocklyHtmlInput,
@@ -1001,18 +1041,17 @@ html[data-theme='light'] .blockly-area {
   min-width: 0;
   min-height: 0;
   display: none;
-  margin-left: calc(var(--ide-activity-bar-width) + var(--ide-primary-sidebar-width));
+  margin-left: var(--ide-activity-bar-width);
   border-top: 1px solid var(--ide-border);
   background: var(--ide-panel-bg);
 }
 
-.toolbox-hidden .viz-dock { margin-left: var(--ide-activity-bar-width); }
 .presentation-mode .viz-dock { margin-left: 0; }
-.viz-dock[data-open='true'] { display: grid; grid-template-rows: 5px minmax(0, 1fr); height: var(--ide-bottom-panel-height); }
+.viz-dock[data-open='true'] { display: grid; grid-template-rows: 8px minmax(0, 1fr); height: var(--ide-bottom-panel-height); }
 .viz-dock[data-maximized='true'] { height: min(70vh, calc(var(--viewport-height) - var(--ide-header-height) - var(--ide-status-bar-height))); }
 
 .viz-resizer { position: relative; cursor: row-resize; touch-action: none; }
-.viz-resizer::before { content: ''; position: absolute; top: -2px; left: 0; right: 0; height: 5px; background: transparent; }
+.viz-resizer::before { content: ''; position: absolute; inset: 0; background: transparent; }
 .viz-resizer:hover::before,
 .viz-resizer:focus-visible::before { background: var(--ide-accent); }
 
@@ -1179,7 +1218,7 @@ html[data-theme='light'] .about-logo-dark { display: none; }
   .command-trigger { max-width: 220px; }
 }
 
-@media (max-width: 1160px) {
+@media (max-width: 1240px) {
   .ide-grid,
   .toolbox-hidden .ide-grid,
   .code-hidden .ide-grid,

@@ -1,7 +1,7 @@
 import * as Blockly from 'blockly';
 import { lambdaTermText } from '../generator/lambdaTermText';
 import type { LambdaInferenceReport } from '../type-inference/lambdaTypeInference';
-import { requestIdeLayoutResize, type PanelController } from './layout';
+import { isCompactIdeLayout, requestIdeLayoutResize, type PanelController } from './layout';
 import {
   readIdeLayoutState,
   updateIdeLayoutState,
@@ -211,7 +211,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   const setActivity = (activity: ActivitySection, ensureVisible = true): void => {
     activeActivity = activity;
     if (ensureVisible) options.panels.setToolboxVisible(true, false);
-    if (window.matchMedia('(max-width: 1160px)').matches && ensureVisible) {
+    if (isCompactIdeLayout() && ensureVisible) {
       options.panels.setCodeVisible(false, false);
     }
     for (const button of document.querySelectorAll<HTMLButtonElement>('.activity-button[data-activity]')) {
@@ -223,7 +223,13 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       view.hidden = view.dataset.sidebarView !== activity;
     }
     if (sidebarTitle) sidebarTitle.textContent = ACTIVITY_TITLES[activity];
-    updateIdeLayoutState({ activity, sidebarVisible: options.panels.isToolboxVisible() });
+    updateIdeLayoutState(ensureVisible
+      ? {
+          activity,
+          sidebarVisible: options.panels.isToolboxVisible(),
+          codeVisible: options.panels.isCodeVisible()
+        }
+      : { activity });
     requestIdeLayoutResize();
   };
 
@@ -270,8 +276,8 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     renderPerspective(perspective);
     updateIdeLayoutState({
       activity: preset.activity,
-      sidebarVisible: preset.sidebar,
-      codeVisible: preset.code,
+      sidebarVisible: options.panels.isToolboxVisible(),
+      codeVisible: options.panels.isCodeVisible(),
       bottomVisible: preset.bottom,
       bottomTab: preset.tab,
       perspective
@@ -403,7 +409,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
 
   const syncThemeControls = (): void => {
     const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-theme-mode]')) {
+    for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-theme-mode]')) {
       const selected = button.dataset.themeMode === current;
       button.classList.toggle('is-active', selected);
       button.setAttribute('aria-pressed', String(selected));
@@ -493,7 +499,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     const perspective = target.closest<HTMLElement>('[data-perspective]')?.dataset.perspective as IdePerspective | undefined;
     if (perspective) applyPerspective(perspective);
 
-    const themeMode = target.closest<HTMLElement>('[data-theme-mode]')?.dataset.themeMode;
+    const themeMode = target.closest<HTMLButtonElement>('button[data-theme-mode]')?.dataset.themeMode;
     if (themeMode && themeToggle) {
       const wantsDark = themeMode === 'dark';
       if (themeToggle.checked !== wantsDark) {

@@ -30,9 +30,10 @@ const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
 const CODE_PANEL_MIN_WIDTH = 320;
 const CODE_PANEL_MAX_WIDTH = 760;
 const WORKSPACE_PANEL_MIN_WIDTH = 340;
-const RESIZE_HANDLE_WIDTH = 14;
+const RESIZE_HANDLE_WIDTH = 10;
 const SIDEBAR_MIN_WIDTH = 240;
 const SIDEBAR_MAX_WIDTH = 380;
+const COMPACT_LAYOUT_QUERY = '(max-width: 1240px)';
 const layoutResizeListeners = new Set<LayoutResizeListener>();
 let layoutResizeFrame = 0;
 let layoutResizeObserver: ResizeObserver | null = null;
@@ -59,7 +60,6 @@ function applyTheme(
   themeToggle?: HTMLInputElement | null
 ): void {
   document.documentElement.dataset.theme = mode;
-  document.documentElement.dataset.themeMode = mode;
   if (themeToggle) themeToggle.checked = mode === 'dark';
   workspace.setTheme(mode === 'dark' ? darkTheme : lightTheme);
   updateBrowserThemeColor(mode);
@@ -127,6 +127,10 @@ function isPhoneLayout(): boolean {
   return window.matchMedia('(max-width: 780px)').matches;
 }
 
+export function isCompactIdeLayout(): boolean {
+  return window.matchMedia(COMPACT_LAYOUT_QUERY).matches;
+}
+
 export function setupWorkspaceAutoResize(
   workspaceProvider: WorkspaceProvider,
   resizeRoot: HTMLElement
@@ -168,12 +172,20 @@ export function setupPanelControls(
   const toolboxPanel = document.getElementById('toolboxPanel');
   const activityBar = document.querySelector<HTMLElement>('.activity-bar');
   const ideGrid = codePanel?.closest<HTMLElement>('.ide-grid') ?? null;
+  const compactLayout = window.matchMedia(COMPACT_LAYOUT_QUERY);
   const storedLayout = readIdeLayoutState();
 
   document.documentElement.style.setProperty('--ide-primary-sidebar-width', `${storedLayout.sidebarWidth}px`);
   document.documentElement.style.setProperty('--ide-code-panel-width', `${storedLayout.codeWidth}px`);
-  app?.classList.toggle('toolbox-hidden', !storedLayout.sidebarVisible);
-  app?.classList.toggle('code-hidden', !storedLayout.codeVisible);
+
+  const applyStoredPanelVisibility = () => {
+    const saved = readIdeLayoutState();
+    const suppressCompetingOverlays = compactLayout.matches && saved.sidebarVisible && saved.codeVisible;
+    app?.classList.toggle('toolbox-hidden', suppressCompetingOverlays || !saved.sidebarVisible);
+    app?.classList.toggle('code-hidden', suppressCompetingOverlays || !saved.codeVisible);
+  };
+
+  applyStoredPanelVisibility();
 
   const parsePixelValue = (value: string): number => {
     const parsed = Number.parseFloat(value);
@@ -187,7 +199,7 @@ export function setupPanelControls(
     const gridRect = ideGrid.getBoundingClientRect();
     const codeRect = codePanel.getBoundingClientRect();
     const handleWidth = resizeHandle.getBoundingClientRect().width || RESIZE_HANDLE_WIDTH;
-    ideGrid.style.setProperty('--resize-handle-left', `${Math.max(0, codeRect.left - gridRect.left - handleWidth)}px`);
+    ideGrid.style.setProperty('--resize-handle-left', `${Math.max(0, codeRect.left - gridRect.left - handleWidth / 2)}px`);
   };
 
   const getMaxCodePanelWidth = (): number => {
@@ -244,10 +256,17 @@ export function setupPanelControls(
   };
 
   const setToolboxVisibility = (visible: boolean, persist = true) => {
+    const hideCodeOverlay = visible && compactLayout.matches;
     app?.classList.toggle('toolbox-hidden', !visible);
+    if (hideCodeOverlay) app?.classList.add('code-hidden');
     renderToolboxToggleState();
+    if (hideCodeOverlay) renderCodeToggleState();
     if (persist) {
-      updateIdeLayoutState({ sidebarVisible: visible, perspective: 'custom' });
+      updateIdeLayoutState({
+        sidebarVisible: visible,
+        ...(hideCodeOverlay ? { codeVisible: false } : {}),
+        perspective: 'custom'
+      });
       window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
     }
     updateLayout();
@@ -267,10 +286,17 @@ export function setupPanelControls(
   showToolboxFromWorkspace?.addEventListener('click', toggleToolboxVisibility);
 
   const setCodeVisibility = (visible: boolean, persist = true, scrollToPanel = false) => {
+    const hideSidebarOverlay = visible && compactLayout.matches;
     app?.classList.toggle('code-hidden', !visible);
+    if (hideSidebarOverlay) app?.classList.add('toolbox-hidden');
     renderCodeToggleState();
+    if (hideSidebarOverlay) renderToolboxToggleState();
     if (persist) {
-      updateIdeLayoutState({ codeVisible: visible, perspective: 'custom' });
+      updateIdeLayoutState({
+        codeVisible: visible,
+        ...(hideSidebarOverlay ? { sidebarVisible: false } : {}),
+        perspective: 'custom'
+      });
       window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
     }
     updateLayout();
@@ -373,6 +399,13 @@ export function setupPanelControls(
   renderToolboxToggleState();
   renderCodeToggleState();
 
+  compactLayout.addEventListener('change', () => {
+    applyStoredPanelVisibility();
+    renderToolboxToggleState();
+    renderCodeToggleState();
+    updateLayout();
+  });
+
   if (codePanel instanceof HTMLElement) {
     codePanel.tabIndex = -1;
   }
@@ -392,7 +425,11 @@ export function setupPanelControls(
     dragging = false;
     document.body.classList.remove('resizing-code-panel');
     const width = codePanel?.getBoundingClientRect().width;
-    if (width) updateIdeLayoutState({ codeWidth: Math.round(width) });
+    if (width) {
+      const roundedWidth = Math.round(width);
+      updateIdeLayoutState({ codeWidth: roundedWidth });
+      resizeHandle?.setAttribute('aria-valuenow', String(roundedWidth));
+    }
     updateLayout();
   };
 
@@ -413,6 +450,7 @@ export function setupPanelControls(
     const width = Math.min(Math.max(codePanel.getBoundingClientRect().width + direction * 16, CODE_PANEL_MIN_WIDTH), getMaxCodePanelWidth());
     document.documentElement.style.setProperty('--ide-code-panel-width', `${width}px`);
     updateIdeLayoutState({ codeWidth: Math.round(width) });
+    resizeHandle.setAttribute('aria-valuenow', String(Math.round(width)));
     updateLayout();
   });
 
@@ -430,7 +468,11 @@ export function setupPanelControls(
     draggingSidebar = false;
     document.body.classList.remove('resizing-sidebar');
     const width = toolboxPanel?.getBoundingClientRect().width;
-    if (width) updateIdeLayoutState({ sidebarWidth: Math.round(width) });
+    if (width) {
+      const roundedWidth = Math.round(width);
+      updateIdeLayoutState({ sidebarWidth: roundedWidth });
+      sidebarResizeHandle?.setAttribute('aria-valuenow', String(roundedWidth));
+    }
     updateLayout();
   };
 
@@ -451,8 +493,16 @@ export function setupPanelControls(
     const width = Math.min(Math.max(toolboxPanel.getBoundingClientRect().width + direction * 16, SIDEBAR_MIN_WIDTH), SIDEBAR_MAX_WIDTH);
     document.documentElement.style.setProperty('--ide-primary-sidebar-width', `${width}px`);
     updateIdeLayoutState({ sidebarWidth: Math.round(width) });
+    sidebarResizeHandle.setAttribute('aria-valuenow', String(Math.round(width)));
     updateLayout();
   });
+
+  resizeHandle?.setAttribute('aria-valuemin', String(CODE_PANEL_MIN_WIDTH));
+  resizeHandle?.setAttribute('aria-valuemax', String(CODE_PANEL_MAX_WIDTH));
+  resizeHandle?.setAttribute('aria-valuenow', String(storedLayout.codeWidth));
+  sidebarResizeHandle?.setAttribute('aria-valuemin', String(SIDEBAR_MIN_WIDTH));
+  sidebarResizeHandle?.setAttribute('aria-valuemax', String(SIDEBAR_MAX_WIDTH));
+  sidebarResizeHandle?.setAttribute('aria-valuenow', String(storedLayout.sidebarWidth));
 
   updateLayout();
 

@@ -121,41 +121,46 @@ applyBlocklyRendererStyle(activeBlocklyRenderer);
 const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
   base: Blockly.Themes.Classic,
+  fontStyle: {
+    family: 'Inter, Geist, system-ui, sans-serif',
+    weight: '600',
+    size: 9.75
+  },
   blockStyles: {
     lambda_term: {
-      colourPrimary: '#8839ef',
-      colourSecondary: '#7287fd',
-      colourTertiary: '#c6a0f6'
+      colourPrimary: '#6341a1',
+      colourSecondary: '#4f3481',
+      colourTertiary: '#7c5ab5'
     },
     lambda_binding: {
-      colourPrimary: '#1e66f5',
-      colourSecondary: '#209fb5',
-      colourTertiary: '#8aadf4'
+      colourPrimary: '#245ca8',
+      colourSecondary: '#1d4986',
+      colourTertiary: '#4277bb'
     },
     lambda_grouping: {
-      colourPrimary: '#179299',
-      colourSecondary: '#40a02b',
-      colourTertiary: '#8bd5ca'
+      colourPrimary: '#116b64',
+      colourSecondary: '#0e5650',
+      colourTertiary: '#33847c'
     },
     lambda_literal: {
-      colourPrimary: '#df8e1d',
-      colourSecondary: '#fe640b',
-      colourTertiary: '#eed49f'
+      colourPrimary: '#7a510d',
+      colourSecondary: '#62410a',
+      colourTertiary: '#976b25'
     },
     lambda_operator: {
-      colourPrimary: '#179299',
-      colourSecondary: '#04a5e5',
-      colourTertiary: '#40a02b'
+      colourPrimary: '#146b68',
+      colourSecondary: '#105653',
+      colourTertiary: '#368481'
     },
     lambda_control: {
-      colourPrimary: '#ea76cb',
-      colourSecondary: '#8839ef',
-      colourTertiary: '#7287fd'
+      colourPrimary: '#87336f',
+      colourSecondary: '#6c2959',
+      colourTertiary: '#a34f8c'
     },
     lambda_meta: {
-      colourPrimary: '#6c6f85',
-      colourSecondary: '#8c8fa1',
-      colourTertiary: '#bcc0cc'
+      colourPrimary: '#46505f',
+      colourSecondary: '#38404c',
+      colourTertiary: '#606b7a'
     }
   },
   componentStyles: {
@@ -177,41 +182,46 @@ const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
 const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
   name: 'blockLambdaDarkTheme',
   base: Blockly.Themes.Classic,
+  fontStyle: {
+    family: 'Inter, Geist, system-ui, sans-serif',
+    weight: '600',
+    size: 9.75
+  },
   blockStyles: {
     lambda_term: {
-      colourPrimary: '#c6a0f6',
-      colourSecondary: '#b7bdf8',
-      colourTertiary: '#f5bde6'
+      colourPrimary: '#7650b5',
+      colourSecondary: '#5e4091',
+      colourTertiary: '#906fc6'
     },
     lambda_binding: {
-      colourPrimary: '#8aadf4',
-      colourSecondary: '#7dc4e4',
-      colourTertiary: '#91d7e3'
+      colourPrimary: '#2e68b7',
+      colourSecondary: '#255392',
+      colourTertiary: '#4b82c8'
     },
     lambda_grouping: {
-      colourPrimary: '#8bd5ca',
-      colourSecondary: '#a6da95',
-      colourTertiary: '#91d7e3'
+      colourPrimary: '#17776e',
+      colourSecondary: '#125f58',
+      colourTertiary: '#399087'
     },
     lambda_literal: {
-      colourPrimary: '#eed49f',
-      colourSecondary: '#f5a97f',
-      colourTertiary: '#f4dbd6'
+      colourPrimary: '#8b5d16',
+      colourSecondary: '#6f4a12',
+      colourTertiary: '#a57631'
     },
     lambda_operator: {
-      colourPrimary: '#8bd5ca',
-      colourSecondary: '#91d7e3',
-      colourTertiary: '#a6da95'
+      colourPrimary: '#18746e',
+      colourSecondary: '#135d58',
+      colourTertiary: '#3a8d88'
     },
     lambda_control: {
-      colourPrimary: '#f5bde6',
-      colourSecondary: '#c6a0f6',
-      colourTertiary: '#b7bdf8'
+      colourPrimary: '#963f82',
+      colourSecondary: '#783268',
+      colourTertiary: '#ae5c9b'
     },
     lambda_meta: {
-      colourPrimary: '#6e738d',
-      colourSecondary: '#939ab7',
-      colourTertiary: '#a5adcb'
+      colourPrimary: '#505a69',
+      colourSecondary: '#404854',
+      colourTertiary: '#6b7686'
     }
   },
   componentStyles: {
@@ -430,11 +440,17 @@ function syncLambdaEditorFromWorkspace(): void {
   setLambdaEditorStatus(lambdaEditor.value.trim() ? 'Synchronized from workspace.' : '', 'idle');
 }
 
-function synchronizeCodeFromWorkspace(): void {
+function resetLambdaEditorSyncGuard(): void {
   if (lambdaImportTimer !== undefined) {
     window.clearTimeout(lambdaImportTimer);
     lambdaImportTimer = undefined;
   }
+  applyingCodeEditorText = false;
+  suppressCodeEditorSyncUntil = 0;
+}
+
+function synchronizeCodeFromWorkspace(): void {
+  resetLambdaEditorSyncGuard();
   activeCodeTarget = 'code';
   syncLambdaEditorFromWorkspace();
   renderCodeTargetTabs();
@@ -539,6 +555,7 @@ function renderCurrentToolbox(): void {
 }
 
 function clearWorkspace(): void {
+  resetLambdaEditorSyncGuard();
   setVisualizationOpen(false);
   workspace.clear();
   currentWorkspaceFileName = 'block-lambda-workspace.blc';
@@ -651,6 +668,7 @@ async function loadWorkspace(): Promise<void> {
   try {
     const serialized = await file.text();
     const workspaceState = JSON.parse(serialized) as Record<string, unknown>;
+    resetLambdaEditorSyncGuard();
     setVisualizationOpen(false);
     workspace.clear();
     Blockly.serialization.workspaces.load(workspaceState, workspace);
@@ -678,6 +696,7 @@ function loadAutosave(): void {
 
   try {
     const workspaceState = JSON.parse(serialized) as Record<string, unknown>;
+    resetLambdaEditorSyncGuard();
     setVisualizationOpen(false);
     workspace.clear();
     Blockly.serialization.workspaces.load(workspaceState, workspace);
@@ -696,6 +715,7 @@ function loadAutosave(): void {
 
 function loadExampleWorkspace(exampleId: LambdaExampleId): void {
   try {
+    resetLambdaEditorSyncGuard();
     setVisualizationOpen(false);
     const example = loadLambdaExample(workspace, exampleId);
     currentWorkspaceFileName = example.fileName;
