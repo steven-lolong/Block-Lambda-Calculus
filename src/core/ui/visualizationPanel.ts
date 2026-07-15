@@ -1,4 +1,6 @@
 import * as Blockly from 'blockly';
+import { registerIdeLayoutResizeListener } from './layout';
+import { readIdeLayoutState, updateIdeLayoutState, type BottomTab } from './layoutState';
 import {
   arrangeBlocksVertically,
   arrangeTopBlocks,
@@ -28,7 +30,8 @@ import { TUDE_RENDERER_NAME } from '../renderer/tude';
 
 type VizKind = ReductionKind;
 /** The reduction-trace tabs, the lockstep stepper, and the CEK machine tab. */
-type TabKind = VizKind | 'stepper' | 'machine';
+type UtilityKind = 'problems' | 'output' | 'types';
+type TabKind = BottomTab;
 
 type VisualizationOptions = {
   lightTheme: Blockly.Theme;
@@ -46,6 +49,10 @@ interface View {
 }
 
 const KINDS: VizKind[] = ['structure', 'value'];
+const UTILITY_KINDS = new Set<TabKind>(['problems', 'output', 'types']);
+function isUtilityKind(kind: TabKind): kind is UtilityKind {
+  return kind === 'problems' || kind === 'output' || kind === 'types';
+}
 const TITLE: Record<VizKind, string> = {
   structure: 'Call-by-Structure',
   value: 'Call-by-Value'
@@ -101,7 +108,7 @@ const STEPPER_TITLE: Record<ReductionKind, string> = {
   value: 'Call-by-Value'
 };
 
-let active: TabKind = 'structure';
+let active: TabKind = 'problems';
 let options: VisualizationOptions | null = null;
 
 function byId<T extends HTMLElement>(id: string): T | null {
@@ -167,7 +174,7 @@ function makeWorkspaceBlocksMovable(workspace: Blockly.WorkspaceSvg): void {
   }
 }
 
-const TABS: TabKind[] = ['structure', 'value', 'stepper', 'machine'];
+const TABS: TabKind[] = ['problems', 'output', 'types', 'structure', 'value', 'machine', 'stepper'];
 
 function setActive(kind: TabKind): void {
   const wasMachine = active === 'machine';
@@ -176,14 +183,23 @@ function setActive(kind: TabKind): void {
     const host = hostOf(candidate);
     const tab = tabOf(candidate);
     if (host) host.dataset.active = String(candidate === kind);
-    if (tab) tab.setAttribute('aria-selected', String(candidate === kind));
+    if (tab) {
+      tab.setAttribute('aria-selected', String(candidate === kind));
+      tab.tabIndex = candidate === kind ? 0 : -1;
+    }
   }
   if (wasMachine !== (kind === 'machine')) setCsekTabVisible(kind === 'machine');
   const empty = byId<HTMLDivElement>('vizEmpty');
   if (empty) {
-    if (kind === 'stepper' || kind === 'machine') empty.hidden = true;
+    if (isUtilityKind(kind) || kind === 'stepper' || kind === 'machine') empty.hidden = true;
     else empty.hidden = !!views[kind].block && !views[kind].lastError;
   }
+  const utility = isUtilityKind(kind);
+  const rerun = byId<HTMLButtonElement>('vizRerun');
+  const arrange = byId<HTMLButtonElement>('vizArrange');
+  if (rerun) rerun.hidden = utility;
+  if (arrange) arrange.hidden = utility || kind === 'machine';
+  updateIdeLayoutState({ bottomTab: kind });
   updateInfo();
   if (kind === 'stepper') resizeStepper(0);
   else resizeActive(0);
@@ -192,6 +208,18 @@ function setActive(kind: TabKind): void {
 function updateInfo(): void {
   const info = byId<HTMLDivElement>('vizDockInfo');
   if (!info) return;
+  if (active === 'problems') {
+    info.textContent = 'Type inference diagnostics';
+    return;
+  }
+  if (active === 'output') {
+    info.textContent = 'Workbench and generator messages';
+    return;
+  }
+  if (active === 'types') {
+    info.textContent = 'Inferred top-level types';
+    return;
+  }
   if (active === 'stepper') {
     info.textContent = stepper.frames.length ? `Lockstep · ${STEPPER_TITLE[stepper.kind]} rewriting ⇄ CEK machine` : '';
     return;
@@ -209,6 +237,7 @@ function updateInfo(): void {
 }
 
 function resizeActive(delay = 0): void {
+  if (isUtilityKind(active)) return;
   if (active === 'stepper') { resizeStepper(delay); return; }
   if (active === 'machine') return;
   const workspace = views[active].workspace;
@@ -229,13 +258,25 @@ export function isVisualizationOpen(): boolean {
   return dock()?.dataset.open === 'true';
 }
 
-export function setVisualizationOpen(open: boolean): void {
+export function setVisualizationOpen(open: boolean, persist = true): void {
   const panel = dock();
   if (!panel) return;
+  const visibilityChanged = panel.dataset.open !== String(open);
   panel.dataset.open = String(open);
   byId<HTMLButtonElement>('toggleVizDock')?.setAttribute('aria-pressed', String(open));
+  if (persist && visibilityChanged) {
+    updateIdeLayoutState({ bottomVisible: open, perspective: 'custom' });
+    window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
+  }
   options?.onResize();
   if (open) resizeActive(40);
+}
+
+export function activateBottomTab(kind: BottomTab, open = true): void {
+  setActive(kind);
+  if (open) setVisualizationOpen(true);
+  if (kind === 'stepper' && stepper.frames.length === 0 && !stepper.stale && pickProgramBlock()) loadStepper();
+  if (kind === 'machine') setCsekTabVisible(true);
 }
 
 function renderView(kind: VizKind): void {
@@ -286,7 +327,7 @@ export function openVisualization(kind: VizKind, block: Blockly.BlockSvg): void 
 
 export function disposeVisualizationWorkspaces(): void {
   const shouldRerenderView =
-    isVisualizationOpen() && active !== 'stepper' && active !== 'machine' && !!views[active].block;
+    isVisualizationOpen() && (active === 'structure' || active === 'value') && !!views[active].block;
   const shouldRerenderStepper = isVisualizationOpen() && stepper.frames.length > 0;
   for (const kind of KINDS) {
     views[kind].workspace?.dispose();
@@ -299,7 +340,7 @@ export function disposeVisualizationWorkspaces(): void {
   stepper.workspace = null;
   const stepperMount = byId<HTMLElement>('stepperWorkspace');
   if (stepperMount) stepperMount.innerHTML = '';
-  if (shouldRerenderView) renderView(active as VizKind);
+  if (shouldRerenderView && (active === 'structure' || active === 'value')) renderView(active);
   if (shouldRerenderStepper) renderStepperFrame();
 }
 
@@ -601,8 +642,16 @@ function initResizer(): void {
   if (!resizer) return;
 
   const applyHeight = (height: number): void => {
-    const clamped = Math.max(170, Math.min(height, Math.round(window.innerHeight * 0.72)));
-    document.documentElement.style.setProperty('--viz-height', `${clamped}px`);
+    const clamped = Math.max(180, Math.min(height, Math.round(window.innerHeight * 0.72)));
+    document.documentElement.style.setProperty('--ide-bottom-panel-height', `${clamped}px`);
+    updateIdeLayoutState({ bottomHeight: clamped, bottomMaximized: false });
+    dock()?.setAttribute('data-maximized', 'false');
+    const maximizeButton = byId<HTMLButtonElement>('vizMaximize');
+    maximizeButton?.setAttribute('aria-pressed', 'false');
+    if (maximizeButton) {
+      maximizeButton.title = 'Maximize bottom panel';
+      maximizeButton.setAttribute('aria-label', 'Maximize bottom panel');
+    }
     options?.onResize();
     resizeActive(0);
   };
@@ -632,6 +681,30 @@ function initResizer(): void {
 
 export function initVisualizationPanel(initOptions: VisualizationOptions): void {
   options = initOptions;
+  const storedLayout = readIdeLayoutState();
+  document.documentElement.style.setProperty('--ide-bottom-panel-height', `${storedLayout.bottomHeight}px`);
+  dock()?.setAttribute('data-maximized', String(storedLayout.bottomMaximized));
+  const maximizeButton = byId<HTMLButtonElement>('vizMaximize');
+  maximizeButton?.setAttribute('aria-pressed', String(storedLayout.bottomMaximized));
+  if (maximizeButton) {
+    const label = storedLayout.bottomMaximized ? 'Restore bottom panel' : 'Maximize bottom panel';
+    maximizeButton.title = label;
+    maximizeButton.setAttribute('aria-label', label);
+  }
+  for (const kind of TABS) {
+    const tab = tabOf(kind);
+    const host = hostOf(kind);
+    if (tab) {
+      tab.id = `bottomTab-${kind}`;
+      tab.setAttribute('aria-controls', `bottomPanel-${kind}`);
+    }
+    if (host) {
+      host.id = `bottomPanel-${kind}`;
+      host.setAttribute('role', 'tabpanel');
+      host.setAttribute('aria-labelledby', `bottomTab-${kind}`);
+    }
+  }
+  for (const kind of UTILITY_KINDS) tabOf(kind)?.addEventListener('click', () => setActive(kind));
   for (const kind of KINDS) tabOf(kind)?.addEventListener('click', () => {
     setActive(kind);
     if (views[kind].block) renderView(kind);
@@ -643,6 +716,20 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     else renderStepperFrame();
   });
   tabOf('machine')?.addEventListener('click', () => setActive('machine'));
+  document.querySelector<HTMLElement>('.viz-tabs')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+    const tabs = TABS.map(tabOf).filter((tab): tab is HTMLElement => !!tab);
+    const currentIndex = tabs.indexOf(document.activeElement as HTMLElement);
+    if (currentIndex < 0) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tabs.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[nextIndex].focus();
+    tabs[nextIndex].click();
+  });
 
   byId<HTMLButtonElement>('stepperLoad')?.addEventListener('click', loadStepper);
   byId<HTMLButtonElement>('stepperBack')?.addEventListener('click', stepperBack);
@@ -654,6 +741,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
   byId<HTMLButtonElement>('vizRerun')?.addEventListener('click', () => {
     if (active === 'stepper') loadStepper();
     else if (active === 'machine') resetCsekFromDock();
+    else if (isUtilityKind(active)) return;
     else renderView(active);
   });
   byId<HTMLButtonElement>('vizArrange')?.addEventListener('click', () => {
@@ -661,7 +749,7 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
       if (stepper.workspace) { arrangeTopBlocks(stepper.workspace); Blockly.svgResize(stepper.workspace); }
       return;
     }
-    if (active === 'machine') return;
+    if (active === 'machine' || isUtilityKind(active)) return;
     const view = views[active];
     if (!view.workspace) return;
     if (view.order) arrangeBlocksVertically(view.workspace, view.order, 36);
@@ -671,11 +759,25 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
   });
   byId<HTMLButtonElement>('vizCollapse')?.addEventListener('click', () => setVisualizationOpen(false));
   byId<HTMLButtonElement>('toggleVizDock')?.addEventListener('click', () => setVisualizationOpen(!isVisualizationOpen()));
+  byId<HTMLButtonElement>('vizMaximize')?.addEventListener('click', () => {
+    const panel = dock();
+    if (!panel) return;
+    const maximized = panel.dataset.maximized !== 'true';
+    panel.dataset.maximized = String(maximized);
+    byId<HTMLButtonElement>('vizMaximize')?.setAttribute('aria-pressed', String(maximized));
+    const label = maximized ? 'Restore bottom panel' : 'Maximize bottom panel';
+    byId<HTMLButtonElement>('vizMaximize')!.title = label;
+    byId<HTMLButtonElement>('vizMaximize')!.setAttribute('aria-label', label);
+    updateIdeLayoutState({ bottomMaximized: maximized });
+    options?.onResize();
+    resizeActive(40);
+  });
   initResizer();
-  window.addEventListener('resize', () => {
+  registerIdeLayoutResizeListener(() => {
     if (isVisualizationOpen()) resizeActive(80);
   });
   initCsekPanel(() => options?.getMainWorkspace?.() ?? null);
-  setActive('structure');
+  setActive(storedLayout.bottomTab);
+  setVisualizationOpen(storedLayout.bottomVisible, false);
   renderStepperButtons();
 }

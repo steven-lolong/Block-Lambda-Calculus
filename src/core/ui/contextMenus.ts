@@ -73,12 +73,12 @@ function ensureFallbackContextMenu(): HTMLDivElement {
     top: '0px',
     zIndex: '100000',
     minWidth: '230px',
-    padding: '7px',
-    border: '1px solid rgba(183, 189, 248, 0.38)',
-    borderRadius: '14px',
-    background: 'rgba(30, 32, 48, 0.98)',
-    boxShadow: '0 20px 52px rgba(0, 0, 0, 0.38)',
-    backdropFilter: 'blur(14px)'
+    padding: '4px',
+    border: '1px solid var(--ide-border-strong)',
+    borderRadius: 'var(--radius-overlay)',
+    background: 'var(--ide-surface-raised)',
+    boxShadow: 'var(--overlay-shadow)',
+    backdropFilter: 'none'
   });
   document.body.appendChild(fallbackMenu);
 
@@ -112,18 +112,18 @@ function appendFallbackMenuButton(
   Object.assign(item.style, {
     display: 'block',
     width: '100%',
-    padding: '9px 11px',
-    color: '#cad3f5',
+    padding: '7px 8px',
+    color: 'var(--ide-text)',
     border: '0',
-    borderRadius: '10px',
+    borderRadius: 'var(--radius-control)',
     background: 'transparent',
     cursor: 'pointer',
-    font: '600 13px Inter, ui-sans-serif, system-ui, sans-serif',
+    font: '500 12px var(--font-ui)',
     textAlign: 'left',
     whiteSpace: 'nowrap'
   });
   item.addEventListener('pointerenter', () => {
-    item.style.background = 'rgba(198, 160, 246, 0.18)';
+    item.style.background = 'var(--ide-active-bg)';
   });
   item.addEventListener('pointerleave', () => {
     item.style.background = 'transparent';

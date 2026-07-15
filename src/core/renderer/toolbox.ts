@@ -93,10 +93,38 @@ function workspaceCoordinatesFromPointer(
   );
 }
 
-function defaultInsertionCoordinates(workspace: Blockly.WorkspaceSvg): Blockly.utils.Coordinate {
+function defaultInsertionCoordinates(
+  workspace: Blockly.WorkspaceSvg,
+  block: Blockly.BlockSvg
+): Blockly.utils.Coordinate {
   const metrics = workspace.getMetrics();
   if (!metrics) return new Blockly.utils.Coordinate(48, 48);
-  return new Blockly.utils.Coordinate(metrics.viewLeft + 48, metrics.viewTop + 48);
+
+  const baseX = metrics.viewLeft + 48;
+  const baseY = metrics.viewTop + 48;
+  const blockSize = block.getHeightWidth();
+  const horizontalStep = Math.max(120, blockSize.width + 28);
+  const verticalStep = Math.max(72, blockSize.height + 28);
+  const maxX = metrics.viewLeft + metrics.viewWidth - blockSize.width - 36;
+  const maxY = metrics.viewTop + metrics.viewHeight - blockSize.height - 36;
+  const occupied = workspace
+    .getTopBlocks(false)
+    .filter((candidate) => candidate.id !== block.id)
+    .map((candidate) => (candidate as Blockly.BlockSvg).getBoundingRectangle());
+
+  for (let x = baseX; x <= Math.max(baseX, maxX); x += horizontalStep) {
+    for (let y = baseY; y <= Math.max(baseY, maxY); y += verticalStep) {
+      const overlaps = occupied.some((bounds) => (
+        x < bounds.right + 18
+        && x + blockSize.width > bounds.left - 18
+        && y < bounds.bottom + 18
+        && y + blockSize.height > bounds.top - 18
+      ));
+      if (!overlaps) return new Blockly.utils.Coordinate(x, y);
+    }
+  }
+
+  return new Blockly.utils.Coordinate(baseX, baseY);
 }
 
 function addBlockToWorkspace(
@@ -106,13 +134,19 @@ function addBlockToWorkspace(
 ): void {
   if (!isKnownBlockType(blockType)) return;
 
-  const block = workspace.newBlock(blockType);
-  block.initSvg();
-  block.render();
+  const existingEventGroup = Blockly.Events.getGroup();
+  if (!existingEventGroup) Blockly.Events.setGroup(true);
+  try {
+    const block = workspace.newBlock(blockType);
+    block.initSvg();
+    block.render();
 
-  const point = insertionPoint ?? defaultInsertionCoordinates(workspace);
-  block.moveBy(point.x, point.y);
-  block.select();
+    const point = insertionPoint ?? defaultInsertionCoordinates(workspace, block);
+    block.moveBy(point.x, point.y);
+    block.select();
+  } finally {
+    if (!existingEventGroup) Blockly.Events.setGroup(false);
+  }
   Blockly.svgResize(workspace);
 }
 
@@ -164,6 +198,7 @@ function startPointerDrag(
   event: PointerEvent,
   source: HTMLButtonElement,
   blockType: string,
+  workspace: Blockly.WorkspaceSvg,
   dropTarget: HTMLElement
 ): void {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -181,6 +216,24 @@ function startPointerDrag(
   source.setPointerCapture(event.pointerId);
   source.classList.add('is-pointer-ready');
   setDropHighlight(dropTarget, false);
+
+  const cleanup = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', cancel);
+  };
+  const move = (moveEvent: PointerEvent) => updatePointerDrag(moveEvent, dropTarget);
+  const up = (upEvent: PointerEvent) => {
+    finishPointerDrag(upEvent, workspace, dropTarget);
+    cleanup();
+  };
+  const cancel = () => {
+    cancelPointerDrag(dropTarget);
+    cleanup();
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', cancel);
 }
 
 function updatePointerDrag(event: PointerEvent, dropTarget: HTMLElement): void {
@@ -249,6 +302,10 @@ export function renderToolbox(
   const fragment = document.createDocumentFragment();
   const list = document.createElement('div');
   list.className = 'custom-toolbox-list';
+  const empty = document.createElement('p');
+  empty.className = 'toolbox-empty';
+  empty.textContent = 'No blocks match this search.';
+  empty.hidden = true;
 
   TOOLBOX.forEach((category, index) => {
     const details = document.createElement('details');
@@ -274,10 +331,7 @@ export function renderToolbox(
         <span class="toolbox-block-description">${block.description}</span>
       `;
 
-      button.addEventListener('pointerdown', (event) => startPointerDrag(event, button, block.type, dropTarget));
-      button.addEventListener('pointermove', (event) => updatePointerDrag(event, dropTarget));
-      button.addEventListener('pointerup', (event) => finishPointerDrag(event, workspace, dropTarget));
-      button.addEventListener('pointercancel', () => cancelPointerDrag(dropTarget));
+      button.addEventListener('pointerdown', (event) => startPointerDrag(event, button, block.type, workspace, dropTarget));
       button.addEventListener('click', () => {
         if (suppressNextClick) return;
         addBlockToWorkspace(workspace, block.type);
@@ -292,5 +346,33 @@ export function renderToolbox(
   });
 
   fragment.appendChild(list);
+  fragment.appendChild(empty);
   container.appendChild(fragment);
+
+  const search = container.closest('#toolboxPanel')?.querySelector<HTMLInputElement>('#toolboxSearch');
+  if (search) {
+    search.oninput = () => {
+      const query = search.value.trim().toLocaleLowerCase();
+      let visibleCount = 0;
+
+      for (const category of Array.from(list.querySelectorAll<HTMLDetailsElement>('.toolbox-category'))) {
+        const cards = Array.from(category.querySelectorAll<HTMLButtonElement>('.toolbox-block-card'));
+        let categoryMatches = 0;
+
+        for (const card of cards) {
+          const haystack = `${card.dataset.blockType ?? ''} ${card.textContent ?? ''}`.toLocaleLowerCase();
+          const matches = query.length === 0 || haystack.includes(query);
+          card.hidden = !matches;
+          if (matches) categoryMatches += 1;
+        }
+
+        category.hidden = categoryMatches === 0;
+        visibleCount += categoryMatches;
+        if (query && categoryMatches > 0) category.open = true;
+      }
+
+      empty.hidden = visibleCount > 0;
+    };
+    search.dispatchEvent(new Event('input'));
+  }
 }

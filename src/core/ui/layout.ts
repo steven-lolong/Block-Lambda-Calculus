@@ -1,4 +1,5 @@
 import * as Blockly from 'blockly';
+import { readIdeLayoutState, updateIdeLayoutState } from './layoutState';
 
 export type IdeThemeMode = 'light' | 'dark';
 
@@ -14,12 +15,28 @@ type PanelControlOptions = {
 };
 
 type WorkspaceProvider = Blockly.WorkspaceSvg | (() => Blockly.WorkspaceSvg);
+type LayoutResizeListener = () => void;
+
+export type PanelController = {
+  isToolboxVisible: () => boolean;
+  isCodeVisible: () => boolean;
+  setToolboxVisible: (visible: boolean, persist?: boolean) => void;
+  setCodeVisible: (visible: boolean, persist?: boolean) => void;
+  toggleToolbox: () => void;
+  toggleCode: () => void;
+};
 
 const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
-const CODE_PANEL_MIN_WIDTH = 280;
+const CODE_PANEL_MIN_WIDTH = 320;
 const CODE_PANEL_MAX_WIDTH = 760;
 const WORKSPACE_PANEL_MIN_WIDTH = 340;
 const RESIZE_HANDLE_WIDTH = 14;
+const SIDEBAR_MIN_WIDTH = 240;
+const SIDEBAR_MAX_WIDTH = 380;
+const layoutResizeListeners = new Set<LayoutResizeListener>();
+let layoutResizeFrame = 0;
+let layoutResizeObserver: ResizeObserver | null = null;
+let layoutCoordinatorInitialized = false;
 
 function readThemeMode(): IdeThemeMode {
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -29,7 +46,7 @@ function readThemeMode(): IdeThemeMode {
 function updateBrowserThemeColor(resolvedTheme: IdeThemeMode): void {
   const metaThemeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (metaThemeColor) {
-    metaThemeColor.content = resolvedTheme === 'dark' ? '#24273a' : '#eff1f5';
+    metaThemeColor.content = resolvedTheme === 'dark' ? '#20242c' : '#e9edf2';
   }
 }
 
@@ -55,6 +72,57 @@ function updateViewportHeightVariable(): void {
   document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
 }
 
+export function registerIdeLayoutResizeListener(listener: LayoutResizeListener): () => void {
+  layoutResizeListeners.add(listener);
+  return () => layoutResizeListeners.delete(listener);
+}
+
+export function requestIdeLayoutResize(): void {
+  updateViewportHeightVariable();
+  if (layoutResizeFrame) window.cancelAnimationFrame(layoutResizeFrame);
+  layoutResizeFrame = window.requestAnimationFrame(() => {
+    layoutResizeFrame = 0;
+    for (const listener of layoutResizeListeners) listener();
+    window.dispatchEvent(new CustomEvent('block-lambda:layout-resized'));
+  });
+}
+
+function initializeLayoutResizeCoordinator(resizeRoot: HTMLElement): void {
+  if (!layoutResizeObserver && 'ResizeObserver' in window) {
+    layoutResizeObserver = new ResizeObserver(requestIdeLayoutResize);
+  }
+
+  const observedElements = [
+    resizeRoot,
+    resizeRoot.parentElement,
+    resizeRoot.closest('.workspace-panel'),
+    resizeRoot.closest('.ide-grid'),
+    document.getElementById('app'),
+    document.querySelector('.topbar'),
+    document.querySelector('.app-shell'),
+    document.getElementById('vizDock'),
+    document.querySelector('.statusbar')
+  ];
+
+  observedElements.forEach((element) => {
+    if (element instanceof HTMLElement) layoutResizeObserver?.observe(element);
+  });
+
+  if (layoutCoordinatorInitialized) return;
+  layoutCoordinatorInitialized = true;
+  window.addEventListener('resize', requestIdeLayoutResize);
+  window.addEventListener('orientationchange', requestIdeLayoutResize);
+  window.visualViewport?.addEventListener('resize', requestIdeLayoutResize);
+  window.visualViewport?.addEventListener('scroll', requestIdeLayoutResize);
+
+  document.addEventListener('transitionend', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.ide-grid, .workspace-panel, .toolbox-panel, .code-panel, .topbar-actions, .viz-dock')) {
+      requestIdeLayoutResize();
+    }
+  });
+}
+
 function isPhoneLayout(): boolean {
   return window.matchMedia('(max-width: 780px)').matches;
 }
@@ -63,58 +131,19 @@ export function setupWorkspaceAutoResize(
   workspaceProvider: WorkspaceProvider,
   resizeRoot: HTMLElement
 ): () => void {
-  let frame = 0;
-
   const getWorkspace = () => typeof workspaceProvider === 'function' ? workspaceProvider() : workspaceProvider;
+  registerIdeLayoutResizeListener(() => Blockly.svgResize(getWorkspace()));
+  initializeLayoutResizeCoordinator(resizeRoot);
+  requestIdeLayoutResize();
+  [80, 180, 320].forEach((delay) => window.setTimeout(requestIdeLayoutResize, delay));
 
-  const requestResize = () => {
-    updateViewportHeightVariable();
-    if (frame) window.cancelAnimationFrame(frame);
-    frame = window.requestAnimationFrame(() => {
-      Blockly.svgResize(getWorkspace());
-      frame = 0;
-    });
-  };
-
-  if ('ResizeObserver' in window) {
-    const observer = new ResizeObserver(requestResize);
-    const observedElements = [
-      resizeRoot,
-      resizeRoot.parentElement,
-      resizeRoot.closest('.workspace-panel'),
-      resizeRoot.closest('.ide-grid'),
-      document.getElementById('app'),
-      document.querySelector('.topbar'),
-      document.querySelector('.app-shell')
-    ];
-
-    observedElements.forEach((element) => {
-      if (element instanceof HTMLElement) observer.observe(element);
-    });
-  }
-
-  window.addEventListener('resize', requestResize);
-  window.addEventListener('orientationchange', requestResize);
-  window.visualViewport?.addEventListener('resize', requestResize);
-  window.visualViewport?.addEventListener('scroll', requestResize);
-
-  document.addEventListener('transitionend', (event) => {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('.ide-grid, .workspace-panel, .toolbox-panel, .code-panel, .topbar-actions')) {
-      requestResize();
-    }
-  });
-
-  requestResize();
-  [0, 80, 180, 320].forEach((delay) => window.setTimeout(requestResize, delay));
-
-  return requestResize;
+  return requestIdeLayoutResize;
 }
 
 export function setupPanelControls(
   workspaceProvider: WorkspaceProvider,
   options: PanelControlOptions
-): void {
+): PanelController {
   const getWorkspace = () => typeof workspaceProvider === 'function' ? workspaceProvider() : workspaceProvider;
   const app = document.getElementById('app');
   const menuToggle = document.getElementById('menuToggle') as HTMLButtonElement | null;
@@ -135,8 +164,16 @@ export function setupPanelControls(
   const codeOutput = document.getElementById('codeOutput');
   const codePanel = document.getElementById('codePanel');
   const resizeHandle = document.getElementById('resizeHandle');
+  const sidebarResizeHandle = document.getElementById('sidebarResizeHandle');
   const toolboxPanel = document.getElementById('toolboxPanel');
+  const activityBar = document.querySelector<HTMLElement>('.activity-bar');
   const ideGrid = codePanel?.closest<HTMLElement>('.ide-grid') ?? null;
+  const storedLayout = readIdeLayoutState();
+
+  document.documentElement.style.setProperty('--ide-primary-sidebar-width', `${storedLayout.sidebarWidth}px`);
+  document.documentElement.style.setProperty('--ide-code-panel-width', `${storedLayout.codeWidth}px`);
+  app?.classList.toggle('toolbox-hidden', !storedLayout.sidebarVisible);
+  app?.classList.toggle('code-hidden', !storedLayout.codeVisible);
 
   const parsePixelValue = (value: string): number => {
     const parsed = Number.parseFloat(value);
@@ -163,76 +200,79 @@ export function setupPanelControls(
     const toolboxVisible = toolboxPanel instanceof HTMLElement && getComputedStyle(toolboxPanel).display !== 'none';
     const toolboxWidth = toolboxVisible && toolboxPanel instanceof HTMLElement ? toolboxPanel.getBoundingClientRect().width : 0;
     const toolboxGap = toolboxVisible ? columnGap : 0;
-    const maxPanelWidth = contentWidth - toolboxWidth - toolboxGap - WORKSPACE_PANEL_MIN_WIDTH - columnGap;
+    const activityWidth = activityBar?.getBoundingClientRect().width ?? 0;
+    const maxPanelWidth = contentWidth - activityWidth - toolboxWidth - toolboxGap - WORKSPACE_PANEL_MIN_WIDTH - columnGap;
 
     return Math.max(CODE_PANEL_MIN_WIDTH, Math.min(CODE_PANEL_MAX_WIDTH, maxPanelWidth));
   };
 
   const updateLayout = () => {
-    updateViewportHeightVariable();
-    syncResizeHandlePosition();
     options.onResize();
-    [0, 80, 180, 320].forEach((delay) => {
-      window.setTimeout(() => {
-        syncResizeHandlePosition();
-        options.onResize();
-      }, delay);
-    });
   };
+
+  registerIdeLayoutResizeListener(syncResizeHandlePosition);
 
   const renderToolboxToggleState = () => {
     const hidden = app?.classList.contains('toolbox-hidden') ?? false;
     if (toggleToolboxPanel) {
-      toggleToolboxPanel.textContent = '◀';
       toggleToolboxPanel.setAttribute('aria-expanded', String(!hidden));
-      toggleToolboxPanel.setAttribute('aria-label', 'Hide toolbox');
-      toggleToolboxPanel.title = 'Hide toolbox';
+      toggleToolboxPanel.setAttribute('aria-label', 'Close primary sidebar');
+      toggleToolboxPanel.title = 'Close Sidebar';
     }
     if (showToolboxFromWorkspace) {
       showToolboxFromWorkspace.hidden = !hidden;
       showToolboxFromWorkspace.setAttribute('aria-expanded', String(!hidden));
-      showToolboxFromWorkspace.setAttribute('aria-label', 'Show toolbox');
-      showToolboxFromWorkspace.title = 'Show toolbox';
+      showToolboxFromWorkspace.setAttribute('aria-label', 'Show primary sidebar');
+      showToolboxFromWorkspace.title = 'Show Sidebar';
     }
   };
 
   const renderCodeToggleState = () => {
     const hidden = app?.classList.contains('code-hidden') ?? false;
     if (toggleCodePanel) {
-      toggleCodePanel.textContent = '▶';
       toggleCodePanel.setAttribute('aria-expanded', String(!hidden));
-      toggleCodePanel.setAttribute('aria-label', 'Hide generated output');
-      toggleCodePanel.title = 'Hide generated output';
+      toggleCodePanel.setAttribute('aria-label', 'Hide code and inspector');
+      toggleCodePanel.title = 'Hide Code / Inspector';
     }
     if (showCodeFromWorkspace) {
       showCodeFromWorkspace.hidden = !hidden;
       showCodeFromWorkspace.setAttribute('aria-expanded', String(!hidden));
-      showCodeFromWorkspace.setAttribute('aria-label', 'Show generated output');
-      showCodeFromWorkspace.title = 'Show generated output';
+      showCodeFromWorkspace.setAttribute('aria-label', 'Show code and inspector');
+      showCodeFromWorkspace.title = 'Show Code / Inspector';
       showCodeFromWorkspace.disabled = !hidden;
     }
   };
 
-  const toggleToolboxVisibility = () => {
-    app?.classList.toggle('toolbox-hidden');
+  const setToolboxVisibility = (visible: boolean, persist = true) => {
+    app?.classList.toggle('toolbox-hidden', !visible);
     renderToolboxToggleState();
+    if (persist) {
+      updateIdeLayoutState({ sidebarVisible: visible, perspective: 'custom' });
+      window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
+    }
     updateLayout();
   };
+
+  const toggleToolboxVisibility = () => setToolboxVisibility(app?.classList.contains('toolbox-hidden') ?? false);
 
   menuToggle?.addEventListener('click', () => {
     app?.classList.toggle('menu-open');
     const isOpen = app?.classList.contains('menu-open') ?? false;
     menuToggle.setAttribute('aria-expanded', String(isOpen));
-    menuToggle.innerHTML = isOpen ? '<span class="button-icon" aria-hidden="true">✕</span> Close' : '<span class="button-icon" aria-hidden="true">☰</span> Menu';
+    menuToggle.setAttribute('aria-label', isOpen ? 'Close application menu' : 'Open application menu');
     updateLayout();
   });
 
   toggleToolboxPanel?.addEventListener('click', toggleToolboxVisibility);
   showToolboxFromWorkspace?.addEventListener('click', toggleToolboxVisibility);
 
-  const setCodeVisibility = (visible: boolean, scrollToPanel = false) => {
+  const setCodeVisibility = (visible: boolean, persist = true, scrollToPanel = false) => {
     app?.classList.toggle('code-hidden', !visible);
     renderCodeToggleState();
+    if (persist) {
+      updateIdeLayoutState({ codeVisible: visible, perspective: 'custom' });
+      window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
+    }
     updateLayout();
 
     if (visible && scrollToPanel && codePanel instanceof HTMLElement) {
@@ -245,20 +285,20 @@ export function setupPanelControls(
 
   const toggleCodeVisibility = () => {
     const hidden = app?.classList.contains('code-hidden') ?? false;
-    setCodeVisibility(hidden, hidden && isPhoneLayout());
+    setCodeVisibility(hidden, true, hidden && isPhoneLayout());
   };
 
   toggleCodePanel?.addEventListener('click', toggleCodeVisibility);
   showCodeFromWorkspace?.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    setCodeVisibility(true, true);
+    setCodeVisibility(true, true, true);
   });
   showCodeFromWorkspace?.addEventListener('pointerup', (event) => {
     if (!isPhoneLayout()) return;
     event.preventDefault();
     event.stopPropagation();
-    setCodeVisibility(true, true);
+    setCodeVisibility(true, true, true);
   });
 
   refreshCode?.addEventListener('click', () => {
@@ -337,15 +377,13 @@ export function setupPanelControls(
     codePanel.tabIndex = -1;
   }
 
-  if (!codePanel || !resizeHandle) return;
-
   let dragging = false;
 
   const onPointerMove = (event: PointerEvent) => {
-    if (!dragging) return;
+    if (!dragging || !codePanel) return;
     const codePanelRight = codePanel.getBoundingClientRect().right;
     const nextWidth = Math.min(Math.max(codePanelRight - event.clientX, CODE_PANEL_MIN_WIDTH), getMaxCodePanelWidth());
-    document.documentElement.style.setProperty('--code-panel-width', `${nextWidth}px`);
+    document.documentElement.style.setProperty('--ide-code-panel-width', `${nextWidth}px`);
     updateLayout();
   };
 
@@ -353,19 +391,77 @@ export function setupPanelControls(
     if (!dragging) return;
     dragging = false;
     document.body.classList.remove('resizing-code-panel');
+    const width = codePanel?.getBoundingClientRect().width;
+    if (width) updateIdeLayoutState({ codeWidth: Math.round(width) });
     updateLayout();
   };
 
-  resizeHandle.addEventListener('pointerdown', (event) => {
+  resizeHandle?.addEventListener('pointerdown', (event) => {
     dragging = true;
-    resizeHandle.setPointerCapture(event.pointerId);
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     document.body.classList.add('resizing-code-panel');
     event.preventDefault();
   });
 
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', stopDragging);
-  window.addEventListener('resize', updateLayout);
-  window.visualViewport?.addEventListener('resize', updateLayout);
+
+  resizeHandle?.addEventListener('keydown', (event) => {
+    const direction = event.key === 'ArrowLeft' ? 1 : event.key === 'ArrowRight' ? -1 : 0;
+    if (!direction || !codePanel) return;
+    event.preventDefault();
+    const width = Math.min(Math.max(codePanel.getBoundingClientRect().width + direction * 16, CODE_PANEL_MIN_WIDTH), getMaxCodePanelWidth());
+    document.documentElement.style.setProperty('--ide-code-panel-width', `${width}px`);
+    updateIdeLayoutState({ codeWidth: Math.round(width) });
+    updateLayout();
+  });
+
+  let draggingSidebar = false;
+  const updateSidebarWidth = (clientX: number) => {
+    if (!ideGrid) return;
+    const gridLeft = ideGrid.getBoundingClientRect().left;
+    const activityWidth = activityBar?.getBoundingClientRect().width ?? 0;
+    const width = Math.min(Math.max(clientX - gridLeft - activityWidth, SIDEBAR_MIN_WIDTH), SIDEBAR_MAX_WIDTH);
+    document.documentElement.style.setProperty('--ide-primary-sidebar-width', `${width}px`);
+    updateLayout();
+  };
+  const stopSidebarDragging = () => {
+    if (!draggingSidebar) return;
+    draggingSidebar = false;
+    document.body.classList.remove('resizing-sidebar');
+    const width = toolboxPanel?.getBoundingClientRect().width;
+    if (width) updateIdeLayoutState({ sidebarWidth: Math.round(width) });
+    updateLayout();
+  };
+
+  sidebarResizeHandle?.addEventListener('pointerdown', (event) => {
+    draggingSidebar = true;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    document.body.classList.add('resizing-sidebar');
+    event.preventDefault();
+  });
+  window.addEventListener('pointermove', (event) => {
+    if (draggingSidebar) updateSidebarWidth(event.clientX);
+  });
+  window.addEventListener('pointerup', stopSidebarDragging);
+  sidebarResizeHandle?.addEventListener('keydown', (event) => {
+    const direction = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
+    if (!direction || !toolboxPanel) return;
+    event.preventDefault();
+    const width = Math.min(Math.max(toolboxPanel.getBoundingClientRect().width + direction * 16, SIDEBAR_MIN_WIDTH), SIDEBAR_MAX_WIDTH);
+    document.documentElement.style.setProperty('--ide-primary-sidebar-width', `${width}px`);
+    updateIdeLayoutState({ sidebarWidth: Math.round(width) });
+    updateLayout();
+  });
+
   updateLayout();
+
+  return {
+    isToolboxVisible: () => !(app?.classList.contains('toolbox-hidden') ?? false),
+    isCodeVisible: () => !(app?.classList.contains('code-hidden') ?? false),
+    setToolboxVisible: setToolboxVisibility,
+    setCodeVisible: (visible, persist = true) => setCodeVisibility(visible, persist, visible && isPhoneLayout()),
+    toggleToolbox: toggleToolboxVisibility,
+    toggleCode: toggleCodeVisibility
+  };
 }
