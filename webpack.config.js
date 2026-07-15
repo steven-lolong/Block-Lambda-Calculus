@@ -39,7 +39,7 @@ module.exports = {
   ],
   devServer: {
     static: './docs',
-    hot: true,
-    port: 8080
+    hot: true
+    // port: 8080
   }
 };

@@ -69,14 +69,14 @@ export function prettyTypeValueComment(
   const status = issues.length > 0 ? 'Type issues found' : 'Well typed';
 
   const sections = [
-    'Block Lambda Type Info',
-    '======================',
+    'Block Info',
+    '==========',
     '',
     'Block',
     '-----',
-    indent(`${prettyBlockName(block)}\n${block.type}`),
+    indent(`${prettyBlockName(block)}`),
     '',
-    'Polymorphic Type',
+    'Type',
     '----------------',
     indent(inferredType),
     '',
