@@ -240,6 +240,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
         setActivity(restore.activity, false);
         options.panels.setToolboxVisible(restore.sidebarVisible, false);
         options.panels.setCodeVisible(restore.codeVisible, false);
+        options.panels.setCodeMaximized(restore.codeVisible && restore.codeMaximized, false);
         activateBottomTab(restore.bottomTab, false);
         setVisualizationOpen(restore.bottomVisible, false);
         updateIdeLayoutState({ ...restore, perspective: 'custom' });
@@ -269,6 +270,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
           : { activity: activeActivity, sidebar: false, code: false, bottom: false, tab: readIdeLayoutState().bottomTab };
 
     setActivity(preset.activity, false);
+    options.panels.setCodeMaximized(false, false);
     options.panels.setToolboxVisible(preset.sidebar, false);
     options.panels.setCodeVisible(preset.code, false);
     activateBottomTab(preset.tab, false);
@@ -278,6 +280,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       activity: preset.activity,
       sidebarVisible: options.panels.isToolboxVisible(),
       codeVisible: options.panels.isCodeVisible(),
+      codeMaximized: false,
       bottomVisible: preset.bottom,
       bottomTab: preset.tab,
       perspective
@@ -599,7 +602,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   window.addEventListener('block-lambda:theme-changed', syncThemeControls);
   window.addEventListener('block-lambda:layout-state-changed', () => renderPerspective(readIdeLayoutState().perspective));
 
-  for (const id of ['toggleToolboxPanel', 'showToolboxFromWorkspace', 'toggleCodePanel', 'showCodeFromWorkspace', 'toggleVizDock', 'vizCollapse']) {
+  for (const id of ['toggleToolboxPanel', 'showToolboxFromWorkspace', 'toggleCodePanel', 'showCodeFromWorkspace', 'maximizeCodePanel', 'toggleVizDock', 'vizCollapse']) {
     byId<HTMLElement>(id)?.addEventListener('click', () => window.setTimeout(() => renderPerspective(readIdeLayoutState().perspective), 0));
   }
 

@@ -34,6 +34,7 @@ values.set(STORAGE_KEY, JSON.stringify({
   sidebarWidth: -20,
   codeVisible: false,
   codeWidth: 5000,
+  codeMaximized: true,
   bottomVisible: true,
   bottomHeight: 10,
   bottomTab: 'missing',
@@ -46,6 +47,7 @@ assert.deepEqual(readIdeLayoutState(), {
   sidebarWidth: 240,
   codeVisible: false,
   codeWidth: 760,
+  codeMaximized: true,
   bottomVisible: true,
   bottomHeight: 180,
   bottomMaximized: true
@@ -59,11 +61,13 @@ const updated = updateIdeLayoutState({
   activity: 'settings',
   sidebarWidth: 301,
   codeVisible: false,
+  codeMaximized: true,
   bottomTab: 'types'
 });
 assert.equal(updated.activity, 'settings');
 assert.equal(updated.sidebarWidth, 301);
 assert.equal(updated.codeVisible, false);
+assert.equal(updated.codeMaximized, true);
 assert.equal(updated.bottomTab, 'types');
 assert.deepEqual(readIdeLayoutState(), updated);
 

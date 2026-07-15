@@ -8,6 +8,7 @@ export type IdeLayoutState = {
   sidebarWidth: number;
   codeVisible: boolean;
   codeWidth: number;
+  codeMaximized: boolean;
   bottomVisible: boolean;
   bottomHeight: number;
   bottomTab: BottomTab;
@@ -23,6 +24,7 @@ export const DEFAULT_IDE_LAYOUT: IdeLayoutState = {
   sidebarWidth: 276,
   codeVisible: true,
   codeWidth: 430,
+  codeMaximized: false,
   bottomVisible: false,
   bottomHeight: 272,
   bottomTab: 'problems',
@@ -60,6 +62,7 @@ export function readIdeLayoutState(): IdeLayoutState {
       sidebarWidth: boundedNumber(parsed.sidebarWidth, DEFAULT_IDE_LAYOUT.sidebarWidth, 240, 380),
       codeVisible: booleanValue(parsed.codeVisible, DEFAULT_IDE_LAYOUT.codeVisible),
       codeWidth: boundedNumber(parsed.codeWidth, DEFAULT_IDE_LAYOUT.codeWidth, 320, 760),
+      codeMaximized: booleanValue(parsed.codeMaximized, DEFAULT_IDE_LAYOUT.codeMaximized),
       bottomVisible: booleanValue(parsed.bottomVisible, DEFAULT_IDE_LAYOUT.bottomVisible),
       bottomHeight: boundedNumber(parsed.bottomHeight, DEFAULT_IDE_LAYOUT.bottomHeight, 180, 640),
       bottomTab: typeof parsed.bottomTab === 'string' && BOTTOM_TABS.has(parsed.bottomTab as BottomTab)

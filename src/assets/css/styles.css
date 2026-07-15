@@ -542,6 +542,27 @@ svg:not(.blocklySvg) {
 .presentation-mode .code-panel,
 .presentation-mode .resize-handle { display: none; }
 
+#app.code-maximized .ide-grid {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'inspector';
+}
+
+#app.code-maximized .activity-bar,
+#app.code-maximized .toolbox-panel,
+#app.code-maximized .sidebar-resize-handle,
+#app.code-maximized .workspace-panel,
+#app.code-maximized .resize-handle,
+#app.code-maximized .viz-dock { display: none; }
+
+#app.code-maximized .code-panel {
+  position: relative;
+  inset: auto;
+  width: auto;
+  display: grid;
+  border-left: 0;
+  box-shadow: none;
+}
+
 .activity-bar {
   min-width: 0;
   min-height: 0;
@@ -861,13 +882,29 @@ html[data-theme='light'] .blockly-area {
 
 .blockly-canvas { position: absolute; inset: 0; outline: 0; }
 .blocklyMainBackground { stroke: none; }
+
+.blocklySvg text,
+.blocklyFlyoutLabelText {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  paint-order: normal !important;
+  filter: none;
+  text-shadow: none;
+  -webkit-text-stroke: 0 transparent;
+}
+
+.blocklyHtmlInput,
+.blocklyWidgetDiv input,
+.blocklyDropDownDiv,
+.blocklyTooltipDiv {
+  text-shadow: none;
+  -webkit-text-stroke: 0 transparent;
+}
+
 .blocklySvg .blocklyText {
   opacity: 1;
-  stroke: none;
-  stroke-width: 0;
   font-synthesis: none;
   text-rendering: auto;
-  text-shadow: none;
 }
 
 .blocklySvg .blocklyLabelField > .blocklyFieldText {
@@ -926,6 +963,9 @@ html[data-theme='light'] .blockly-area {
 /* Code and inspector ---------------------------------------------------- */
 .code-panel { display: grid; grid-template-rows: var(--ide-panel-header-height) 33px minmax(0, 1fr); background: var(--code-panel-bg); }
 .code-header-actions { display: inline-flex; align-items: center; gap: 1px; }
+.code-restore-icon { display: none; }
+.code-maximized .code-maximize-icon { display: none; }
+.code-maximized .code-restore-icon { display: block; }
 .code-tabs { min-width: 0; display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--ide-border); background: var(--ide-toolbar-bg); }
 .code-tab { min-width: 0; height: 32px; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; color: var(--ide-text-muted); border: 0; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; font-size: 11px; }
 .code-tab:hover { color: var(--ide-text); background: var(--ide-hover-bg); }

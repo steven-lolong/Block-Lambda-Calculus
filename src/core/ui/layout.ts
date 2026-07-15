@@ -20,10 +20,13 @@ type LayoutResizeListener = () => void;
 export type PanelController = {
   isToolboxVisible: () => boolean;
   isCodeVisible: () => boolean;
+  isCodeMaximized: () => boolean;
   setToolboxVisible: (visible: boolean, persist?: boolean) => void;
   setCodeVisible: (visible: boolean, persist?: boolean) => void;
+  setCodeMaximized: (maximized: boolean, persist?: boolean) => void;
   toggleToolbox: () => void;
   toggleCode: () => void;
+  toggleCodeMaximized: () => void;
 };
 
 const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
@@ -154,6 +157,7 @@ export function setupPanelControls(
   const toggleToolboxPanel = document.getElementById('toggleToolboxPanel') as HTMLButtonElement | null;
   const showToolboxFromWorkspace = document.getElementById('showToolboxFromWorkspace') as HTMLButtonElement | null;
   const toggleCodePanel = document.getElementById('toggleCodePanel') as HTMLButtonElement | null;
+  const maximizeCodePanel = document.getElementById('maximizeCodePanel') as HTMLButtonElement | null;
   const showCodeFromWorkspace = document.getElementById('showCodeFromWorkspace') as HTMLButtonElement | null;
   const refreshCode = document.getElementById('refreshCode') as HTMLButtonElement | null;
   const clearWorkspace = document.getElementById('clearWorkspace') as HTMLButtonElement | null;
@@ -180,9 +184,11 @@ export function setupPanelControls(
 
   const applyStoredPanelVisibility = () => {
     const saved = readIdeLayoutState();
-    const suppressCompetingOverlays = compactLayout.matches && saved.sidebarVisible && saved.codeVisible;
+    const codeMaximized = saved.codeVisible && saved.codeMaximized;
+    const suppressCompetingOverlays = compactLayout.matches && saved.sidebarVisible && saved.codeVisible && !codeMaximized;
     app?.classList.toggle('toolbox-hidden', suppressCompetingOverlays || !saved.sidebarVisible);
     app?.classList.toggle('code-hidden', suppressCompetingOverlays || !saved.codeVisible);
+    app?.classList.toggle('code-maximized', codeMaximized);
   };
 
   applyStoredPanelVisibility();
@@ -255,6 +261,14 @@ export function setupPanelControls(
     }
   };
 
+  const renderCodeMaximizeState = () => {
+    if (!maximizeCodePanel) return;
+    const maximized = app?.classList.contains('code-maximized') ?? false;
+    maximizeCodePanel.setAttribute('aria-pressed', String(maximized));
+    maximizeCodePanel.setAttribute('aria-label', maximized ? 'Restore code and inspector' : 'Maximize code and inspector');
+    maximizeCodePanel.title = maximized ? 'Restore Code & Inspector' : 'Maximize Code & Inspector';
+  };
+
   const setToolboxVisibility = (visible: boolean, persist = true) => {
     const hideCodeOverlay = visible && compactLayout.matches;
     app?.classList.toggle('toolbox-hidden', !visible);
@@ -287,13 +301,17 @@ export function setupPanelControls(
 
   const setCodeVisibility = (visible: boolean, persist = true, scrollToPanel = false) => {
     const hideSidebarOverlay = visible && compactLayout.matches;
+    const wasMaximized = app?.classList.contains('code-maximized') ?? false;
+    if (!visible && wasMaximized) app?.classList.remove('code-maximized');
     app?.classList.toggle('code-hidden', !visible);
     if (hideSidebarOverlay) app?.classList.add('toolbox-hidden');
     renderCodeToggleState();
+    renderCodeMaximizeState();
     if (hideSidebarOverlay) renderToolboxToggleState();
     if (persist) {
       updateIdeLayoutState({
         codeVisible: visible,
+        ...(!visible && wasMaximized ? { codeMaximized: false } : {}),
         ...(hideSidebarOverlay ? { sidebarVisible: false } : {}),
         perspective: 'custom'
       });
@@ -314,7 +332,23 @@ export function setupPanelControls(
     setCodeVisibility(hidden, true, hidden && isPhoneLayout());
   };
 
+  const setCodeMaximized = (maximized: boolean, persist = true) => {
+    if (maximized) app?.classList.remove('code-hidden');
+    app?.classList.toggle('code-maximized', maximized);
+    renderCodeToggleState();
+    renderCodeMaximizeState();
+    if (persist) {
+      updateIdeLayoutState({ codeVisible: true, codeMaximized: maximized, perspective: 'custom' });
+      window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
+    }
+    updateLayout();
+    window.setTimeout(updateLayout, 100);
+  };
+
+  const toggleCodeMaximized = () => setCodeMaximized(!(app?.classList.contains('code-maximized') ?? false));
+
   toggleCodePanel?.addEventListener('click', toggleCodeVisibility);
+  maximizeCodePanel?.addEventListener('click', toggleCodeMaximized);
   showCodeFromWorkspace?.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -398,11 +432,13 @@ export function setupPanelControls(
 
   renderToolboxToggleState();
   renderCodeToggleState();
+  renderCodeMaximizeState();
 
   compactLayout.addEventListener('change', () => {
     applyStoredPanelVisibility();
     renderToolboxToggleState();
     renderCodeToggleState();
+    renderCodeMaximizeState();
     updateLayout();
   });
 
@@ -509,9 +545,12 @@ export function setupPanelControls(
   return {
     isToolboxVisible: () => !(app?.classList.contains('toolbox-hidden') ?? false),
     isCodeVisible: () => !(app?.classList.contains('code-hidden') ?? false),
+    isCodeMaximized: () => app?.classList.contains('code-maximized') ?? false,
     setToolboxVisible: setToolboxVisibility,
     setCodeVisible: (visible, persist = true) => setCodeVisibility(visible, persist, visible && isPhoneLayout()),
+    setCodeMaximized,
     toggleToolbox: toggleToolboxVisibility,
-    toggleCode: toggleCodeVisibility
+    toggleCode: toggleCodeVisibility,
+    toggleCodeMaximized
   };
 }
