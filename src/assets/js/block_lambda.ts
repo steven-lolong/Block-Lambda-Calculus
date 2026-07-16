@@ -16,7 +16,7 @@ import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 import { initWorkbench, type WorkbenchController } from '../../core/ui/workbench';
 import { syncTypeInfoComments } from '../../core/ui/typeInfoPopup';
-import { installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
+import { getLambdaExample, installExampleMenu, loadLambdaExample, type LambdaExampleId } from '../../core/examples/lambdaExamples';
 
 registerLambdaBlocks();
 registerLambdaContextMenus();
@@ -507,11 +507,24 @@ function normalizeBlcFilename(value: string): string {
   return /\.blc$/i.test(baseName) ? baseName : `${baseName}.blc`;
 }
 
-function askForSaveFileName(): string | null {
-  const suggestedName = currentWorkspaceFileName || 'block-lambda-workspace.blc';
-  const answer = window.prompt('Save workspace as .blc file:', suggestedName);
-  if (answer === null) return null;
-  return normalizeBlcFilename(answer);
+function askForSaveFileName(): Promise<string | null> {
+  const dialog = document.getElementById('saveNameDialog') as HTMLDialogElement | null;
+  const input = document.getElementById('saveNameInput') as HTMLInputElement | null;
+  const suggestedName = (currentWorkspaceFileName || 'block-lambda-workspace.blc').replace(/\.blc$/i, '');
+  if (!dialog || typeof dialog.showModal !== 'function' || !input) {
+    return Promise.resolve(normalizeBlcFilename(suggestedName));
+  }
+  input.value = suggestedName;
+  return new Promise<string | null>((resolve) => {
+    const onClose = (): void => {
+      dialog.removeEventListener('close', onClose);
+      resolve(dialog.returnValue === 'save' ? normalizeBlcFilename(input.value) : null);
+    };
+    dialog.addEventListener('close', onClose);
+    dialog.returnValue = 'cancel';
+    dialog.showModal();
+    input.select();
+  });
 }
 
 function updateAutosaveIntervalUi(): void {
@@ -579,12 +592,16 @@ function downloadTextFile(filename: string, content: string, mimeType = 'applica
 }
 
 function saveWorkspace(): void {
-  const fileName = askForSaveFileName();
-  if (!fileName) {
-    setStatus('Save cancelled.');
-    return;
-  }
+  askForSaveFileName().then((fileName) => {
+    if (!fileName) {
+      setStatus('Save cancelled.');
+      return;
+    }
+    writeWorkspaceFile(fileName);
+  });
+}
 
+function writeWorkspaceFile(fileName: string): void {
   const workspaceState = Blockly.serialization.workspaces.save(workspace);
   const serialized = JSON.stringify(workspaceState, null, 2);
   downloadTextFile(fileName, serialized, 'application/x-block-lambda');
@@ -713,11 +730,41 @@ function loadAutosave(): void {
   }
 }
 
-function loadExampleWorkspace(exampleId: LambdaExampleId): void {
+type ExampleLoadChoice = 'replace' | 'merge' | 'cancel';
+
+function askExampleLoadChoice(exampleId: LambdaExampleId): Promise<ExampleLoadChoice> {
+  const dialog = document.getElementById('exampleLoadDialog') as HTMLDialogElement | null;
+  if (!dialog || typeof dialog.showModal !== 'function') return Promise.resolve('replace');
+  const example = getLambdaExample(exampleId);
+  const name = document.getElementById('exampleLoadName');
+  if (name) name.textContent = example.title;
+  return new Promise<ExampleLoadChoice>((resolve) => {
+    const onClose = (): void => {
+      dialog.removeEventListener('close', onClose);
+      const value = dialog.returnValue;
+      resolve(value === 'replace' || value === 'merge' ? value : 'cancel');
+    };
+    dialog.addEventListener('close', onClose);
+    dialog.returnValue = 'cancel';
+    dialog.showModal();
+  });
+}
+
+function appendLambdaExample(exampleId: LambdaExampleId): void {
+  const example = getLambdaExample(exampleId);
+  for (const block of example.workspace.blocks.blocks) {
+    Blockly.serialization.blocks.append(block as Blockly.serialization.blocks.State, workspace);
+  }
+}
+
+function applyExampleLoad(exampleId: LambdaExampleId, choice: ExampleLoadChoice): void {
+  if (choice === 'cancel') return;
   try {
     resetLambdaEditorSyncGuard();
     setVisualizationOpen(false);
-    const example = loadLambdaExample(workspace, exampleId);
+    const example = getLambdaExample(exampleId);
+    if (choice === 'merge') appendLambdaExample(exampleId);
+    else loadLambdaExample(workspace, exampleId);
     currentWorkspaceFileName = example.fileName;
     setWorkspaceTitle(currentWorkspaceFileName);
     saveWorkspaceToAutosave(false);
@@ -729,6 +776,14 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
     console.error(error);
     setStatus('Could not load the selected example.');
   }
+}
+
+function loadExampleWorkspace(exampleId: LambdaExampleId): void {
+  if (workspace.getAllBlocks(false).length === 0) {
+    applyExampleLoad(exampleId, 'replace');
+    return;
+  }
+  askExampleLoadChoice(exampleId).then((choice) => applyExampleLoad(exampleId, choice));
 }
 
 function blocklyRendererLabel(rendererName: BlocklyRendererName): string {

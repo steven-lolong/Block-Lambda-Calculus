@@ -158,7 +158,7 @@
   font-size: 10px;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .example-submenu {
     position: fixed;
     top: 82px;

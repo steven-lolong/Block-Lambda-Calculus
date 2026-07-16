@@ -192,7 +192,7 @@
               <h2>Execution</h2>
               <button class="run-command" type="button" data-bottom-tab="structure"><span class="run-command-icon">S</span><span><strong>Call-by-Structure</strong><small>Substitution trace</small></span></button>
               <button class="run-command" type="button" data-bottom-tab="value"><span class="run-command-icon">V</span><span><strong>Call-by-Value</strong><small>Value-first trace</small></span></button>
-              <button class="run-command" type="button" data-bottom-tab="machine"><span class="run-command-icon">C</span><span><strong>CEK Machine</strong><small>Control · environment · continuation</small></span></button>
+              <button class="run-command" type="button" data-bottom-tab="machine"><span class="run-command-icon">C</span><span><strong>CEK Machine</strong><small>Control · environment · Kontinuation</small></span></button>
               <button class="run-command" type="button" data-bottom-tab="stepper"><span class="run-command-icon">⇄</span><span><strong>Lockstep Debugger</strong><small>Rewriting and CEK correspondence</small></span></button>
             </div>
             <div class="sidebar-note"><span>Execution uses the selected top-level term. Application block context menus can open a specific trace.</span></div>
@@ -360,7 +360,7 @@
                   <div id="stepperMachineStatus" class="machine-line"></div>
                   <div class="machine-section-title">Environment</div>
                   <div id="stepperMachineEnv" class="machine-list"></div>
-                  <div class="machine-section-title">Continuation stack</div>
+                  <div class="machine-section-title">Kontinuation stack</div>
                   <div id="stepperMachineKont" class="machine-list"></div>
                 </aside>
               </div>
@@ -382,8 +382,8 @@
                   <div class="machine-section-title">Environment</div>
                   <div id="machineEnv" class="machine-list"></div>
                 </section>
-                <section class="machine-panel" aria-label="Machine continuation stack">
-                  <div class="machine-section-title">Continuation stack</div>
+                <section class="machine-panel" aria-label="Machine Kontinuation stack">
+                  <div class="machine-section-title">Kontinuation stack</div>
                   <div id="machineKont" class="machine-list"></div>
                 </section>
               </div>
@@ -416,6 +416,49 @@
           <kbd>Esc</kbd>
         </div>
         <div id="commandPaletteList" class="command-palette-list" role="listbox"></div>
+      </dialog>
+
+      <dialog id="saveNameDialog" class="about-dialog action-dialog" aria-labelledby="saveNameDialogTitle">
+        <form method="dialog" class="about-card">
+          <div class="about-header">
+            <div>
+              <h2 id="saveNameDialogTitle">Save workspace</h2>
+              <p>Choose a file name</p>
+            </div>
+            <button class="icon-button" type="submit" value="cancel" aria-label="Cancel" title="Cancel">✕</button>
+          </div>
+          <div class="about-body">
+            <label class="dialog-file-field">
+              <span>File name</span>
+              <input id="saveNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="block-lambda-workspace" />
+              <span class="dialog-file-extension">.blc</span>
+            </label>
+          </div>
+          <menu class="dialog-actions">
+            <button class="secondary-button" type="submit" value="cancel">Cancel</button>
+            <button class="primary-button" type="submit" value="save">Save</button>
+          </menu>
+        </form>
+      </dialog>
+
+      <dialog id="exampleLoadDialog" class="about-dialog action-dialog" aria-labelledby="exampleLoadDialogTitle">
+        <form method="dialog" class="about-card">
+          <div class="about-header">
+            <div>
+              <h2 id="exampleLoadDialogTitle">Load example</h2>
+              <p id="exampleLoadName">This example</p>
+            </div>
+            <button class="icon-button" type="submit" value="cancel" aria-label="Cancel" title="Cancel">✕</button>
+          </div>
+          <div class="about-body">
+            <p>Your workspace already has blocks. Replace them with this example, or merge the example alongside them?</p>
+          </div>
+          <menu class="dialog-actions">
+            <button class="secondary-button" type="submit" value="cancel">Cancel</button>
+            <button class="secondary-button" type="submit" value="merge">Merge</button>
+            <button class="primary-button" type="submit" value="replace">Replace</button>
+          </menu>
+        </form>
       </dialog>
 
       <dialog id="aboutDialog" class="about-dialog" aria-labelledby="aboutDialogTitle">

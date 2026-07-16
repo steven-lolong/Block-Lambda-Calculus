@@ -42,6 +42,38 @@ let highlightedId: string | null = null;
 
 const byId = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null;
 
+/* ------------------------------------------------------------ provenance */
+
+function locateProvenance(blockId: string | null): void {
+  if (!blockId) return;
+  const ws = getWorkspace();
+  const block = ws?.getBlockById(blockId) as Blockly.BlockSvg | null;
+  if (!ws || !block) return;
+  ws.centerOnBlock(blockId);
+  Blockly.common.setSelected(block);
+}
+
+function linkProvenance(element: HTMLElement, blockId: string | null, title: string): void {
+  if (!blockId) return;
+  element.classList.add('machine-provenance');
+  element.dataset.provenanceId = blockId;
+  element.tabIndex = 0;
+  element.setAttribute('role', 'button');
+  element.title = title;
+  element.addEventListener('click', () => locateProvenance(blockId));
+  element.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    locateProvenance(blockId);
+  });
+}
+
+function entryProvenanceId(entry: EnvEntry): string | null {
+  if (entry.tag === 'Thunk') return entry.blockId;
+  if (entry.tag === 'Closure') return entry.bodyId;
+  return null;
+}
+
 /* ------------------------------------------------------------- highlight */
 
 function setHighlight(blockId: string | null): void {
@@ -128,6 +160,7 @@ export function renderEnvInto(host: HTMLElement, workspace: Blockly.Workspace | 
     value.className = 'machine-env-value';
     value.textContent = entryText(workspace, cursor.value);
     row.append(name, value);
+    linkProvenance(row, entryProvenanceId(cursor.value), 'Show the block that produced this binding');
     host.appendChild(row);
     seen.add(cursor.name);
     cursor = cursor.parent;
@@ -144,6 +177,7 @@ export function renderKontInto(host: HTMLElement, workspace: Blockly.Workspace |
     const row = document.createElement('div');
     row.className = 'machine-kont-row' + (i === 0 ? ' is-top' : '');
     row.textContent = frameLabel(workspace, frame);
+    linkProvenance(row, frame.blockId, 'Show the block that created this Kontinuation frame');
     host.appendChild(row);
   });
   if (frames.length === 0) emptyNote(host, '(empty — top level)');
@@ -185,15 +219,21 @@ function renderButtons(): void {
 function renderControl(): void {
   const el = byId<HTMLDivElement>('machineControl');
   if (!el) return;
+  el.replaceChildren();
   if (!current || stale) {
-    el.textContent = '';
     return;
   }
   const c = current.control;
-  el.textContent =
-    c.kind === 'eval'
-      ? `eval  ${blockText(getWorkspace(), c.blockId)}`
-      : `value  ${formatMachineValue(c.value)}`;
+  const line = document.createElement('span');
+  line.textContent = c.kind === 'eval'
+    ? `eval  ${blockText(getWorkspace(), c.blockId)}`
+    : `value  ${formatMachineValue(c.value)}`;
+  linkProvenance(
+    line,
+    c.kind === 'eval' ? c.blockId : current.focusBlockId,
+    c.kind === 'eval' ? 'Show this control block in the program' : 'Show the block that produced this value'
+  );
+  el.appendChild(line);
 }
 
 function renderAll(): void {
