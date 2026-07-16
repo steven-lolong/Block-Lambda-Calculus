@@ -4,10 +4,10 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 
 ## Features
 
-- Web-based block IDE with three columns:
-  - left collapsible Blockly toolbox,
-  - middle Blockly workspace,
-  - right generated text-code panel.
+- Web-based block IDE with a **workbench shell** (see *Workbench* below):
+  an activity bar, a primary sidebar (Blocks / Project / Problems / Run and
+  Debug / Settings), the middle Blockly workspace, a right generated
+  text-code + inspector panel, a bottom tool panel, and a status bar.
 - Uses Blockly 12.
 - Custom **Tude** Blockly renderer:
   - based on the same renderer family as Zelos,
@@ -41,14 +41,45 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - generated-code type comments for top-level terms,
   - native Blockly comment icons on Lambda blocks with pretty-printed type and value information.
 - Generated Lambda Calculus text code with syntax highlighting.
-- Stable three-column IDE design with polished neon-glass colors.
+- Workbench IDE shell with polished neon-glass colors.
 - Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
-- Responsive top menu with grouped file, example, workspace, and theme actions.
+- Responsive application menu (icon-labelled) with grouped file, example,
+  workspace, and theme actions; when the menu text is hidden the donut menu
+  carries a **Menu** label.
 - Searchable custom toolbox.
 - Theme-aware Blockly colors with the Tude square-corner block shape style.
 - Manual `.blc` workspace save/load plus local autosave recovery.
 - Logo, favicon, dark/light variants, and 512x512 PWA icon.
 - Webpack output bundle name: `block_lambda.js`.
+
+## Workbench
+
+The IDE shell is a workbench (`src/core/ui/workbench.ts`) layered over the
+existing panel controls — it adds entry points and layout presets, not new
+language behavior.
+
+- **Activity bar + primary sidebar**: `Blocks`, `Project`, `Problems`,
+  `Run and Debug`, `Settings`. The Problems badge shows the live inference
+  issue count.
+- **Bottom panel tabs**: `problems`, `output`, `types`, `structure`, `value`,
+  `machine`, `stepper`.
+- **Perspectives**: `Edit`, `Debug`, `Type Analysis`, `Presentation`, and
+  `Custom` — presets over the sidebar/code/bottom toggles. Touching a panel by
+  hand marks the perspective `Custom` rather than lying about the preset.
+  Presentation is **F11**; leaving it restores the prior perspective.
+- **Command palette** (**Ctrl+Shift+P** or **F1**): a native `<dialog>` over the
+  command list (File / Edit / Build / View / Run / Perspective), with keyword
+  matching and arrow-key navigation.
+- **Persisted layout** (`src/core/ui/layoutState.ts`): the
+  `block-lambda-ide-layout-v2` key holds the activity, sidebar/code/bottom
+  visibility and sizes, bottom tab, and perspective. Every field is validated
+  against its allowed set on read, so a stale or malformed payload falls back to
+  `DEFAULT_IDE_LAYOUT` instead of breaking boot.
+- **Status bar**: autosave indicator and interval, block count, active file
+  name, perspective, tip text, version, theme-aware logo.
+- **Keyboard**: `Ctrl+N` new, `Ctrl+O` open, `Ctrl+S` save, `Ctrl+B` sidebar,
+  `Ctrl+Alt+C` code/inspector, `Ctrl+J` bottom panel, `Ctrl+Shift+B` refresh
+  generated output, `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo, `F11` presentation.
 
 ## Semantics & steppers
 
@@ -118,6 +149,13 @@ under node, no browser required:
   Also pins CbS's duplicated-work signature (two `prim *` for
   `(λx. x + x) (3 * 7)` vs one under CbV, in both presentations) and the
   no-reduction-under-a-binder property shared with MNL.
+- `tests/layoutState.ts` — the persisted workbench layout: defaults, round-trip
+  through the `block-lambda-ide-layout-v2` key, and that malformed or
+  out-of-range payloads (unknown activity, bad bottom tab, non-finite sizes)
+  degrade to `DEFAULT_IDE_LAYOUT` instead of propagating.
+
+Individual suites: `npm run test:roundtrip`, `npm run test:semantics`,
+`npm run test:layout`.
 
 ## Project structure
 
@@ -226,6 +264,12 @@ The recursive evaluator reduces the application to `120`.
 - `src/core/renderer/tude.ts` — custom Zelos-based square-corner Blockly renderer.
 - `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
 - `src/core/ui/layout.ts` — hide/show and resize UI behavior.
+- `src/core/ui/workbench.ts` — workbench shell: activity bar, perspectives,
+  command palette, bottom tabs, diagnostics rendering, status bar.
+- `src/core/ui/layoutState.ts` — validated, persisted workbench layout state.
+- `src/core/ui/visualizationPanel.ts` — bottom visualization dock and its tabs.
+- `src/core/ui/csekPanel.ts` — CEK machine tab (columns labelled **C** control,
+  **E** environment, **K** kontinuation).
 
 ## Logo assets
 
@@ -249,12 +293,15 @@ The toolbox is implemented as a custom collapsible left panel. Clicking or dragg
 
 ## UI Design Update
 
-The IDE keeps the stable three-column application shell and applies a more polished color and menu system:
+The IDE moved from the earlier fixed three-column shell to the **workbench**
+described above, and applies a more polished color and menu system:
 
 - Catppuccin Macchiato-inspired palette with soft violet, blue, teal, green, amber, and rose accents.
-- Cleaner icon-based top menu grouped by File, Examples, Workspace, and Theme actions.
+- Cleaner icon-based application menu grouped by File, Examples, Workspace, and Theme actions.
+- Activity bar + primary sidebar (Blocks / Project / Problems / Run and Debug / Settings), replacing the always-on left column.
 - Left toolbox with search, color-coded categories, and drag/click block insertion.
-- Middle Workspace panel with a persistent file-aware title.
+- Middle Workspace panel; the active file name now lives in the status bar rather than on the main logo.
 - Right generated-code panel with line numbers and theme-aware syntax highlighting.
-- Bottom status bar with autosave indicator, user-configurable autosave interval, block count, tip text, version, and theme-aware logo.
+- Bottom tool panel with problems, output, types, and the reduction/machine tabs.
+- Bottom status bar with autosave indicator, user-configurable autosave interval, block count, active file name, perspective, tip text, version, and theme-aware logo.
 - Blockly now uses the custom `tude` renderer for square-corner, text-like blocks while preserving the existing Block Lambda theme colors.
