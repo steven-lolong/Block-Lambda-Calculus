@@ -15,6 +15,8 @@
  */
 import * as Blockly from 'blockly';
 import { registerLambdaBlocks } from '../src/core/blocks/lambdaBlocks';
+import { LAMBDA_EXAMPLES } from '../src/core/examples/lambdaExamples';
+import { generateLambdaCode } from '../src/core/generator/lambdaGenerator';
 import { parseLambdaTextToWorkspaceState } from '../src/core/parser/lambdaTextParser';
 import { computeReductionRun, renderLambdaReduction, type ReductionKind } from '../src/core/semantics/lambdaReduction';
 import {
@@ -87,6 +89,31 @@ const CASES: Case[] = [
   { name: 'if_true', source: 'if 2 < 3 then 10 else 20', expected: '10' },
   { name: 'ho_twice', source: '(\\f. \\x. f (f x)) (\\y. y + 3) 5', expected: '11' },
   { name: 'bool_ops', source: 'if (1 < 2) and (3 < 2) then 1 else 0', expected: '0' },
+  // `/` is typed int -> int -> int, so it must TRUNCATE: plain JS division
+  // would make these well-typed `int` terms evaluate to 1.21 / 3.5 / -3.5.
+  { name: 'div_exact', source: '6 / 3', expected: '2' },
+  { name: 'div_truncates', source: '7 / 2', expected: '3' },
+  { name: 'div_truncates_toward_zero', source: '(0 - 7) / 2', expected: '-3' },
+  { name: 'div_hundreds_digit', source: '121 / 100', expected: '1' },
+  { name: 'div_tens_digit', source: '121 / 10', expected: '12' },
+  // The guard: x / 0 yields 0 rather than Infinity/NaN, keeping the value an int.
+  { name: 'div_by_zero_guard', source: '121 / 0', expected: '0' },
+  // Digit extraction, the whole point of a truncating `/`: 121 -> 1, 2, 1.
+  { name: 'digit_ones', source: 'let n = 121 in n - ((n / 10) * 10)', expected: '1' },
+  { name: 'digit_tens', source: 'let n = 121 in (n / 10) - ((n / 100) * 10)', expected: '2' },
+  // The Palindrome example's term. The property the example exists to show is
+  // that the answer DEPENDS on `number` — it derives the digits rather than
+  // being handed them — so both of these must hold, not just the first.
+  {
+    name: 'palindrome_121_is_true',
+    source: 'let number = 121 in let hundreds = number / 100 in let ones = number - ((number / 10) * 10) in if hundreds = ones then true else false',
+    expected: 'true'
+  },
+  {
+    name: 'palindrome_123_is_false',
+    source: 'let number = 123 in let hundreds = number / 100 in let ones = number - ((number / 10) * 10) in if hundreds = ones then true else false',
+    expected: 'false'
+  },
   {
     name: 'letrec_factorial',
     source: 'letrec fac = \\n. if n < 1 then 1 else n * (fac (n - 1)) in fac 5',
@@ -188,6 +215,45 @@ for (const kind of ['structure', 'value'] as ReductionKind[]) {
 const LET_FN = 'let f = \\y. y + 1 in f (f 5)';
 check('viz · CbS duplicates the argument reduction (4 betas)', renderedBetaCount(LET_FN, 'structure') === 4);
 check('viz · CbV evaluates the argument once (3 betas)', renderedBetaCount(LET_FN, 'value') === 3);
+
+/* ------------------------------------------------------------------ */
+/* The shipped Palindrome example must be the real check, not just the  */
+/* hand-written term above: load the EXAMPLE, evaluate it, then swap    */
+/* its number and require the answer to follow. The example previously  */
+/* hardcoded its digits and never read `number`, so 123 also said true. */
+{
+  const workspace = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(
+    LAMBDA_EXAMPLES['palindrome-number'].workspace as never,
+    workspace
+  );
+  const source = generateLambdaCode(workspace as never).trim();
+  const shipped = computeReductionRun(workspace.getTopBlocks(true)[0], 'structure');
+  workspace.dispose();
+
+  check('example · palindrome 121 evaluates to true', shipped.finalValue === 'true',
+    `got ${JSON.stringify(shipped.finalValue)}`);
+  check('example · palindrome reads `number` (it is not hardcoded)',
+    source.includes('number / 100') && source.includes('number / 10'),
+    `generated: ${source}`);
+
+  // The property that makes the example mean anything: change the number and
+  // the verdict must change with it.
+  const evalWith = (n: number): string => {
+    const ws = new Blockly.Workspace();
+    Blockly.serialization.workspaces.load(
+      parseLambdaTextToWorkspaceState(source.replace('121', String(n))) as never,
+      ws
+    );
+    const value = computeReductionRun(ws.getTopBlocks(true)[0], 'structure').finalValue;
+    ws.dispose();
+    return value;
+  };
+  for (const [n, expected] of [[121, 'true'], [131, 'true'], [222, 'true'], [123, 'false'], [100, 'false']] as const) {
+    check(`example · palindrome of ${n} is ${expected}`, evalWith(n) === expected,
+      `got ${JSON.stringify(evalWith(n))}`);
+  }
+}
 
 console.log(failures === 0
   ? `All ${checks} semantics checks passed.`

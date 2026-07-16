@@ -366,7 +366,14 @@ function foldBinary(state: CsekState, frame: Extract<Kont, { tag: 'KBinFold' }>,
     if (left.tag !== 'Num' || right.tag !== 'Num') return stuck(state, 'arithmetic expects numbers');
     const l = left.n;
     const r = right.n;
-    const n = op === '+' ? l + r : op === '-' ? l - r : op === '*' ? l * r : op === '/' ? (r === 0 ? 0 : l / r) : null;
+    // `/` is typed int -> int -> int, so it must TRUNCATE toward zero: plain
+    // JS division would make a well-typed `int` term evaluate to 1.21.
+    const n =
+      op === '+' ? l + r
+        : op === '-' ? l - r
+          : op === '*' ? l * r
+            : op === '/' ? (r === 0 ? 0 : Math.trunc(l / r))
+              : null;
     if (n === null) return stuck(state, `unknown arithmetic operator ${op}`);
     return value(state, { tag: 'Num', n }, rule, blockId);
   }

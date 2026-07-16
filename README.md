@@ -25,7 +25,9 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - recursive let binding,
   - number,
   - boolean,
-  - numeric operator,
+  - numeric operator (`+ − × ÷`; `÷` is **integer** division, truncating
+    toward zero, since the only numeric type is `int` — `121 / 100` is `1`.
+    Division by zero yields `0` rather than a non-integer),
   - boolean operator,
   - if/then/else conditional.
 - Examples menu with a submenu for loading built-in workspaces:
@@ -229,6 +231,11 @@ lambda x. x
 ```
 
 The type vocabulary is intentionally small: `int`, `bool`, type variables such as `'a`, and function types. Recursive `letrec` bindings are inferred monomorphically, which is enough for examples such as standard factorial.
+
+Because `int` is the only numeric type, `÷` is **integer division**: it truncates
+toward zero (`7 / 2` is `3`, `(0 - 7) / 2` is `-3`), so a well-typed `int` term
+always evaluates to an integer. Division by zero yields `0`, which keeps the
+result an `int` rather than producing `Infinity`/`NaN`.
 
 Every Lambda term block receives a native Blockly comment icon. Opening that comment shows a pretty-printed report with the block kind, inferred type, reduced value, status, and local type issues when they exist. The **Add Type Comments** button can be used to force-refresh those comment reports.
 

@@ -322,7 +322,15 @@ function computePrimitive(term: Term): Term | null {
     if (term.op === '+') return { kind: 'num', value: term.left.value + term.right.value, ...sourcesFrom(term) };
     if (term.op === '-') return { kind: 'num', value: term.left.value - term.right.value, ...sourcesFrom(term) };
     if (term.op === '*') return { kind: 'num', value: term.left.value * term.right.value, ...sourcesFrom(term) };
-    if (term.op === '/') return { kind: 'num', value: term.right.value === 0 ? 0 : term.left.value / term.right.value, ...sourcesFrom(term) };
+    // `/` is typed int -> int -> int, so it must TRUNCATE toward zero: plain
+    // JS division would make a well-typed `int` term evaluate to 1.21.
+    if (term.op === '/') {
+      return {
+        kind: 'num',
+        value: term.right.value === 0 ? 0 : Math.trunc(term.left.value / term.right.value),
+        ...sourcesFrom(term)
+      };
+    }
   }
   if (term.kind === 'boolop' && term.left.kind === 'bool' && term.right.kind === 'bool') {
     if (term.op === 'and') return { kind: 'bool', value: term.left.value && term.right.value, ...sourcesFrom(term) };

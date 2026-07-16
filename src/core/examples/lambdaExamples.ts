@@ -149,18 +149,36 @@ function ifElseExample(): BlockState {
   return ifBlock(numberComparisonBlock('=', numberBlock(7), numberBlock(7)), numberBlock(1), numberBlock(0));
 }
 
+/**
+ * A three-digit palindrome check that actually reads `number`.
+ *
+ * The digits are DERIVED, which is what makes the check mean anything: edit
+ * `number` to 123 and the result flips to false. `/` is integer division
+ * (truncating), so `number / 100` is the hundreds digit and
+ * `number - (number / 10) * 10` is the ones digit; a three-digit number is a
+ * palindrome exactly when those two agree, so the tens digit is not needed.
+ */
 function palindromeNumberExample(): BlockState {
-  const outerDigitsMatch = numberComparisonBlock('=', variableBlock('hundreds'), variableBlock('ones'));
-  const checkResult = ifBlock(outerDigitsMatch, booleanBlock(true), booleanBlock(false));
+  const hundredsDigit = numberOperatorBlock('/', variableBlock('number'), numberBlock(100));
+  const onesDigit = numberOperatorBlock(
+    '-',
+    variableBlock('number'),
+    numberOperatorBlock(
+      '*',
+      numberOperatorBlock('/', variableBlock('number'), numberBlock(10)),
+      numberBlock(10)
+    )
+  );
+  const checkResult = ifBlock(
+    numberComparisonBlock('=', variableBlock('hundreds'), variableBlock('ones')),
+    booleanBlock(true),
+    booleanBlock(false)
+  );
 
   return letBlock(
     'number',
     numberBlock(121),
-    letBlock(
-      'hundreds',
-      numberBlock(1),
-      letBlock('tens', numberBlock(2), letBlock('ones', numberBlock(1), checkResult))
-    ),
+    letBlock('hundreds', hundredsDigit, letBlock('ones', onesDigit, checkResult)),
     72,
     72
   );
@@ -224,7 +242,7 @@ export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> =
   'palindrome-number': {
     id: 'palindrome-number',
     title: 'Palindrome Number 121',
-    description: 'Loads a digit-based palindrome check for 121.',
+    description: 'Loads a digit-based palindrome check for 121; the digits are derived from the number, so editing it to 123 gives false.',
     fileName: 'example-palindrome-number.blc',
     workspace: {
       blocks: {
