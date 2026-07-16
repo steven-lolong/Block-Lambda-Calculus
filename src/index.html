@@ -21,18 +21,18 @@
           <img class="brand-mark brand-mark-dark" src="assets/images/logo-dark.svg" alt="" />
           <span class="brand-copy">
             <strong>Block Lambda</strong>
-            <span id="topbarFileName">Untitled workspace</span>
           </span>
         </a>
 
         <button id="menuToggle" class="menu-toggle icon-button" type="button" aria-controls="topbarActions" aria-expanded="false" aria-label="Open application menu" title="Menu">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          <span class="menu-toggle-label">Menu</span>
         </button>
 
         <div id="topbarActions" class="topbar-actions command-toolbar">
           <nav class="menu-bar" aria-label="Application menu">
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">File</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5zM14 3v5h5" /></svg><span>File</span></button>
               <div class="app-menu-popup" role="menu" hidden>
                 <button class="menu-command" type="button" role="menuitem" data-command-target="clearWorkspace"><span>New Workspace</span><kbd>Ctrl+N</kbd></button>
                 <button id="loadWorkspace" class="menu-command" type="button" role="menuitem"><span>Open…</span><kbd>Ctrl+O</kbd></button>
@@ -42,14 +42,14 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">Edit</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.4-10.4-3.2-3.2L5 15.8zM13.8 7l3.2 3.2" /></svg><span>Edit</span></button>
               <div class="app-menu-popup" role="menu" hidden>
                 <button id="undoWorkspace" class="menu-command" type="button" role="menuitem"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
                 <button id="redoWorkspace" class="menu-command" type="button" role="menuitem"><span>Redo</span><kbd>Ctrl+Shift+Z</kbd></button>
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">View</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" /><circle cx="12" cy="12" r="2.5" /></svg><span>View</span></button>
               <div class="app-menu-popup" role="menu" hidden>
                 <button class="menu-command" type="button" role="menuitem" data-panel-command="sidebar"><span>Toggle Primary Sidebar</span><kbd>Ctrl+B</kbd></button>
                 <button class="menu-command" type="button" role="menuitem" data-panel-command="code"><span>Toggle Code / Inspector</span><kbd>Ctrl+Alt+C</kbd></button>
@@ -62,7 +62,7 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">Run</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" /></svg><span>Run</span></button>
               <div class="app-menu-popup" role="menu" hidden>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="structure"><span>Call-by-Structure Trace</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="value"><span>Call-by-Value Trace</span></button>
@@ -71,7 +71,7 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">Build</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5 4-2-2 4-7.8 7.8-3-3zM4 14l6 6M3 21l4-4" /></svg><span>Build</span></button>
               <div class="app-menu-popup" role="menu" hidden>
                 <button id="refreshCode" class="menu-command" type="button" role="menuitem"><span>Refresh Generated Output</span><kbd>Ctrl+Shift+B</kbd></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="types"><span>Run Type Analysis</span></button>
@@ -79,7 +79,7 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">Tools</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5 5L4 17l3 3 5.5-5.5a4 4 0 0 0 5-5l-2.7 2.7-3-3z" /></svg><span>Tools</span></button>
               <div class="app-menu-popup tools-menu" role="menu" hidden>
                 <div class="example-menu-wrapper">
                   <button id="examplesMenuButton" class="menu-command" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="examplesSubMenu"><span>Open Example</span><span aria-hidden="true">›</span></button>
@@ -101,7 +101,7 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">Help</button>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.8 9a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.2 1-1.2 1.8M12 17h.01" /></svg><span>Help</span></button>
               <div class="app-menu-popup app-menu-popup-right" role="menu" hidden>
                 <button id="aboutApp" class="menu-command" type="button" role="menuitem"><span>About Block Lambda</span></button>
               </div>
@@ -375,15 +375,15 @@
               </div>
               <div class="machine-body">
                 <section class="machine-panel" aria-label="Machine control">
-                  <div class="machine-section-title">Control</div>
+                  <div class="machine-section-title"><span class="cek-letter">C</span> Control</div>
                   <div id="machineControl" class="machine-line"></div>
                 </section>
                 <section class="machine-panel" aria-label="Machine environment">
-                  <div class="machine-section-title">Environment</div>
+                  <div class="machine-section-title"><span class="cek-letter">E</span> Environment</div>
                   <div id="machineEnv" class="machine-list"></div>
                 </section>
                 <section class="machine-panel" aria-label="Machine Kontinuation stack">
-                  <div class="machine-section-title">Kontinuation stack</div>
+                  <div class="machine-section-title"><span class="cek-letter">K</span> Kontinuation</div>
                   <div id="machineKont" class="machine-list"></div>
                 </section>
               </div>
@@ -395,7 +395,8 @@
 
       <footer class="statusbar ide-status-bar" aria-label="IDE status">
         <span class="status-brand" title="Block Lambda workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" /></svg></span>
-        <span class="status-item"><span class="status-dot"></span> Autosaved <span id="autosaveTime">just now</span></span>
+        <span id="topbarFileName" class="status-item status-file-name" title="Untitled workspace" aria-live="polite">Untitled workspace</span>
+        <span class="status-item autosave-status-item"><span class="status-dot"></span> Autosaved <span id="autosaveTime">just now</span></span>
         <label class="status-item autosave-interval-control" for="autosaveInterval" title="Autosave interval">
           <span>Autosave</span>
           <input id="autosaveInterval" class="autosave-slider" type="range" min="2" max="20" step="1" value="2" aria-label="Autosave interval in minutes" />
