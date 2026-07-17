@@ -28,8 +28,9 @@ const AUTOSAVE_INTERVAL_STORAGE_KEY = 'block-lambda-autosave-interval-minutes';
 const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
 const BLOCKLY_RENDERER_STORAGE_KEY = 'block-lambda-blockly-renderer';
 const ZELOS_RENDERER_NAME = 'zelos';
+const THRASOS_RENDERER_NAME = 'thrasos';
 
-type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME;
+type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME | typeof THRASOS_RENDERER_NAME;
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -50,7 +51,7 @@ function readAutosaveIntervalMinutes(): number {
 }
 
 function isBlocklyRendererName(value: string | null): value is BlocklyRendererName {
-  return value === TUDE_RENDERER_NAME || value === ZELOS_RENDERER_NAME;
+  return value === TUDE_RENDERER_NAME || value === ZELOS_RENDERER_NAME || value === THRASOS_RENDERER_NAME;
 }
 
 function readBlocklyRendererName(): BlocklyRendererName {
@@ -787,7 +788,9 @@ function loadExampleWorkspace(exampleId: LambdaExampleId): void {
 }
 
 function blocklyRendererLabel(rendererName: BlocklyRendererName): string {
-  return rendererName === ZELOS_RENDERER_NAME ? 'Zelos' : 'Tude';
+  if (rendererName === ZELOS_RENDERER_NAME) return 'Zelos';
+  if (rendererName === THRASOS_RENDERER_NAME) return 'Thrasos';
+  return 'Tude';
 }
 
 function renderBlocklyRendererMenu(): void {
