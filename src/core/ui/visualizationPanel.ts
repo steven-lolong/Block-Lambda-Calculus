@@ -149,8 +149,10 @@ function injectInto(host: HTMLElement): Blockly.WorkspaceSvg {
     trashcan: false,
     comments: true,
     grid: { spacing: 20, length: 3, snap: true },
+    // Same wheel behavior as the main workspace: with BOTH wheels enabled,
+    // Blockly scrolls on plain wheel and zooms on ctrl+wheel.
     move: { scrollbars: { horizontal: true, vertical: true }, drag: true, wheel: true },
-    zoom: { controls: true, wheel: false, startScale: 0.92, maxScale: 3, minScale: 0.35, scaleSpeed: 1.15, pinch: true }
+    zoom: { controls: true, wheel: true, startScale: 0.92, maxScale: 3, minScale: 0.35, scaleSpeed: 1.15, pinch: true }
   } as Blockly.BlocklyOptions);
 }
 

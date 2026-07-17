@@ -2,10 +2,17 @@ import * as Blockly from 'blockly';
 
 export type LambdaExampleId =
   | 'identity-function'
-  | 'let-binding'
-  | 'if-else'
-  | 'palindrome-number'
-  | 'simple-factorial';
+  | 'currying-closures'
+  | 'function-composition'
+  | 'apply-twice'
+  | 'twice-twice'
+  | 'let-polymorphism'
+  | 'copy-vs-lookup'
+  | 'shadowing'
+  | 'normal-form-binder'
+  | 'simple-factorial'
+  | 'fibonacci'
+  | 'gcd-euclid';
 
 type BlockState = {
   type: string;
@@ -141,47 +148,179 @@ function identityFunction(): BlockState {
   return abstractionBlock('x', variableBlock('x'), 72, 72);
 }
 
-function letBindingExample(): BlockState {
-  return letBlock('x', numberBlock(10), numberOperatorBlock('+', variableBlock('x'), numberBlock(5)), 72, 72);
-}
-
-function ifElseExample(): BlockState {
-  return ifBlock(numberComparisonBlock('=', numberBlock(7), numberBlock(7)), numberBlock(1), numberBlock(0));
-}
-
 /**
- * A three-digit palindrome check that actually reads `number`.
+ * `let add = \x. \y. x + y in let inc = add 1 in inc 41`  =>  42
  *
- * The digits are DERIVED, which is what makes the check mean anything: edit
- * `number` to 123 and the result flips to false. `/` is integer division
- * (truncating), so `number / 100` is the hundreds digit and
- * `number - (number / 10) * 10` is the ones digit; a three-digit number is a
- * palindrome exactly when those two agree, so the tens digit is not needed.
+ * Partial application: `add 1` returns a FUNCTION that has captured x = 1.
+ * The CEK machine's Environment column is where that capture is visible.
  */
-function palindromeNumberExample(): BlockState {
-  const hundredsDigit = numberOperatorBlock('/', variableBlock('number'), numberBlock(100));
-  const onesDigit = numberOperatorBlock(
-    '-',
-    variableBlock('number'),
-    numberOperatorBlock(
-      '*',
-      numberOperatorBlock('/', variableBlock('number'), numberBlock(10)),
-      numberBlock(10)
-    )
-  );
-  const checkResult = ifBlock(
-    numberComparisonBlock('=', variableBlock('hundreds'), variableBlock('ones')),
-    booleanBlock(true),
-    booleanBlock(false)
-  );
-
+function curryingClosuresExample(): BlockState {
+  const add = abstractionBlock('x', abstractionBlock('y', numberOperatorBlock('+', variableBlock('x'), variableBlock('y'))));
   return letBlock(
-    'number',
-    numberBlock(121),
-    letBlock('hundreds', hundredsDigit, letBlock('ones', onesDigit, checkResult)),
+    'add',
+    add,
+    letBlock('inc', applicationBlock(variableBlock('add'), numberBlock(1)),
+      applicationBlock(variableBlock('inc'), numberBlock(41))),
     72,
     72
   );
+}
+
+/**
+ * `let compose = \f. \g. \x. f (g x) in compose (\n. n * 2) (\n. n + 3) 5`  =>  16
+ *
+ * Functions as arguments AND as results: compose takes two functions and
+ * returns a third. (5 + 3) * 2 = 16 — g runs first.
+ */
+function functionCompositionExample(): BlockState {
+  const compose = abstractionBlock('f', abstractionBlock('g', abstractionBlock('x',
+    applicationBlock(variableBlock('f'), applicationBlock(variableBlock('g'), variableBlock('x'))))));
+  const double = abstractionBlock('n', numberOperatorBlock('*', variableBlock('n'), numberBlock(2)));
+  const addThree = abstractionBlock('n', numberOperatorBlock('+', variableBlock('n'), numberBlock(3)));
+  return letBlock(
+    'compose',
+    compose,
+    applicationBlock(applicationBlock(applicationBlock(variableBlock('compose'), double), addThree), numberBlock(5)),
+    72,
+    72
+  );
+}
+
+/**
+ * `(\f. \x. f (f x)) (\y. y + 3) 5`  =>  11
+ *
+ * A function parameter applied to its own output: 5 + 3 + 3.
+ */
+function applyTwiceExample(): BlockState {
+  const twice = abstractionBlock('f', abstractionBlock('x',
+    applicationBlock(variableBlock('f'), applicationBlock(variableBlock('f'), variableBlock('x')))), 72, 72);
+  const addThree = abstractionBlock('y', numberOperatorBlock('+', variableBlock('y'), numberBlock(3)));
+  return applicationBlock(applicationBlock(twice, addThree), numberBlock(5));
+}
+
+/**
+ * `let twice = \f. \x. f (f x) in twice twice (\n. n + 1) 0`  =>  4
+ *
+ * `twice` applied to ITSELF: doing-twice done twice is doing-it 2x2 = 4 times.
+ * Legal and well-typed, unlike the self-application `\x. x x`, which the
+ * occurs check rejects.
+ */
+function twiceTwiceExample(): BlockState {
+  const twice = abstractionBlock('f', abstractionBlock('x',
+    applicationBlock(variableBlock('f'), applicationBlock(variableBlock('f'), variableBlock('x')))));
+  const inc = abstractionBlock('n', numberOperatorBlock('+', variableBlock('n'), numberBlock(1)));
+  return letBlock(
+    'twice',
+    twice,
+    applicationBlock(applicationBlock(applicationBlock(variableBlock('twice'), variableBlock('twice')), inc), numberBlock(0)),
+    72,
+    72
+  );
+}
+
+/**
+ * `let id = \x. x in if id true then id 42 else 0`  =>  42
+ *
+ * The let-polymorphism example: `id` is used at BOTH bool and int in one
+ * program. Hindley-Milner generalizes a let-bound type into a scheme
+ * (forall 'a. 'a -> 'a) and instantiates it fresh per use. A lambda-bound
+ * parameter is monomorphic, so the same trick inside \id. ... is a type error.
+ */
+function letPolymorphismExample(): BlockState {
+  return letBlock(
+    'id',
+    abstractionBlock('x', variableBlock('x')),
+    ifBlock(
+      applicationBlock(variableBlock('id'), booleanBlock(true)),
+      applicationBlock(variableBlock('id'), numberBlock(42)),
+      numberBlock(0)
+    ),
+    72,
+    72
+  );
+}
+
+/**
+ * `(\x. x + x) (3 * 7)`  =>  42
+ *
+ * The copy-vs-lookup exemplar the two strategies exist to contrast.
+ * Call-by-Structure substitutes the UNEVALUATED (3 * 7) into both holes and
+ * multiplies twice; Call-by-Value reduces the argument once and copies 21.
+ * Same answer, different work — watch the `prim *` count.
+ */
+function copyVsLookupExample(): BlockState {
+  const body = numberOperatorBlock('+', variableBlock('x'), variableBlock('x'));
+  return applicationBlock(
+    abstractionBlock('x', body, 72, 72),
+    numberOperatorBlock('*', numberBlock(3), numberBlock(7))
+  );
+}
+
+/**
+ * `(\x. (\x. x + 1) (x * 2)) 5`  =>  11
+ *
+ * The inner binder shadows the outer one: the `x` in `x + 1` is the inner
+ * parameter (bound to 5 * 2 = 10), not the outer 5.
+ */
+function shadowingExample(): BlockState {
+  const inner = abstractionBlock('x', numberOperatorBlock('+', variableBlock('x'), numberBlock(1)));
+  const outerBody = applicationBlock(inner, numberOperatorBlock('*', variableBlock('x'), numberBlock(2)));
+  return applicationBlock(abstractionBlock('x', outerBody, 72, 72), numberBlock(5));
+}
+
+/**
+ * `\y. 2 + 3 + y`  =>  itself (a function, typed int -> int)
+ *
+ * An abstraction IS a value: neither strategy reduces under a binder, so the
+ * `2 + 3` inside is left alone and the term is already a normal form (zero
+ * steps). This is the property Block-Lambda-Calculus shares with MNL.
+ */
+function normalFormBinderExample(): BlockState {
+  return abstractionBlock(
+    'y',
+    numberOperatorBlock('+', numberOperatorBlock('+', numberBlock(2), numberBlock(3)), variableBlock('y')),
+    72,
+    72
+  );
+}
+
+/**
+ * `letrec fib = \n. if n < 2 then n else fib (n-1) + fib (n-2) in fib 6`  =>  8
+ *
+ * TREE recursion — two recursive calls per level — where factorial's is
+ * linear. Kept at 6 deliberately: the reduction budget is ~480 frames, and
+ * fib 8 exceeds it under Call-by-Structure.
+ */
+function fibonacciExample(): BlockState {
+  const recurse = (offset: number): BlockState =>
+    applicationBlock(variableBlock('fib'), numberOperatorBlock('-', variableBlock('n'), numberBlock(offset)));
+  const body = abstractionBlock('n', ifBlock(
+    numberComparisonBlock('<', variableBlock('n'), numberBlock(2)),
+    variableBlock('n'),
+    numberOperatorBlock('+', recurse(1), recurse(2))
+  ));
+  return letrecBlock('fib', body, applicationBlock(variableBlock('fib'), numberBlock(6)));
+}
+
+/**
+ * `letrec gcd = \a. \b. if b = 0 then a else gcd b (a - ((a / b) * b)) in gcd 48 18`  =>  6
+ *
+ * Euclid's algorithm. The language has no modulo, so it is BUILT from integer
+ * division: `a - (a / b) * b` is `a mod b` exactly because `/` truncates.
+ */
+function gcdEuclidExample(): BlockState {
+  const modulo = numberOperatorBlock(
+    '-',
+    variableBlock('a'),
+    numberOperatorBlock('*', numberOperatorBlock('/', variableBlock('a'), variableBlock('b')), variableBlock('b'))
+  );
+  const body = abstractionBlock('a', abstractionBlock('b', ifBlock(
+    numberComparisonBlock('=', variableBlock('b'), numberBlock(0)),
+    variableBlock('a'),
+    applicationBlock(applicationBlock(variableBlock('gcd'), variableBlock('b')), modulo)
+  )));
+  return letrecBlock('gcd', body,
+    applicationBlock(applicationBlock(variableBlock('gcd'), numberBlock(48)), numberBlock(18)));
 }
 
 function decrementN(): BlockState {
@@ -215,41 +354,61 @@ export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> =
       }
     }
   },
-  'let-binding': {
-    id: 'let-binding',
-    title: 'Let Binding',
-    description: 'Loads let x = 10 in x + 5.',
-    fileName: 'example-let-binding.blc',
-    workspace: {
-      blocks: {
-        languageVersion: 0,
-        blocks: [letBindingExample()]
-      }
-    }
+  'currying-closures': {
+    id: 'currying-closures',
+    title: 'Currying & Closures',
+    description: 'let add = λx. λy. x + y in let inc = add 1 in inc 41 ⇒ 42. Partial application captures x = 1 in a closure — watch the CEK Environment column.',
+    fileName: 'example-currying-closures.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [curryingClosuresExample()] } }
   },
-  'if-else': {
-    id: 'if-else',
-    title: 'If Else',
-    description: 'Loads if 7 = 7 then 1 else 0.',
-    fileName: 'example-if-else.blc',
-    workspace: {
-      blocks: {
-        languageVersion: 0,
-        blocks: [ifElseExample()]
-      }
-    }
+  'function-composition': {
+    id: 'function-composition',
+    title: 'Function Composition',
+    description: 'compose (λn. n * 2) (λn. n + 3) 5 ⇒ 16. Functions taken as arguments and returned as results.',
+    fileName: 'example-function-composition.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [functionCompositionExample()] } }
   },
-  'palindrome-number': {
-    id: 'palindrome-number',
-    title: 'Palindrome Number 121',
-    description: 'Loads a digit-based palindrome check for 121; the digits are derived from the number, so editing it to 123 gives false.',
-    fileName: 'example-palindrome-number.blc',
-    workspace: {
-      blocks: {
-        languageVersion: 0,
-        blocks: [palindromeNumberExample()]
-      }
-    }
+  'apply-twice': {
+    id: 'apply-twice',
+    title: 'Apply Twice',
+    description: '(λf. λx. f (f x)) (λy. y + 3) 5 ⇒ 11. A function parameter applied to its own output.',
+    fileName: 'example-apply-twice.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [applyTwiceExample()] } }
+  },
+  'twice-twice': {
+    id: 'twice-twice',
+    title: 'Twice Twice',
+    description: 'twice twice (λn. n + 1) 0 ⇒ 4. A combinator applied to itself — legal, unlike λx. x x, which the occurs check rejects.',
+    fileName: 'example-twice-twice.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [twiceTwiceExample()] } }
+  },
+  'let-polymorphism': {
+    id: 'let-polymorphism',
+    title: 'Let-Polymorphism',
+    description: 'let id = λx. x in if id true then id 42 else 0 ⇒ 42. One id used at BOTH bool and int — the Hindley-Milner let generalization.',
+    fileName: 'example-let-polymorphism.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [letPolymorphismExample()] } }
+  },
+  'copy-vs-lookup': {
+    id: 'copy-vs-lookup',
+    title: 'Copy vs Lookup (CbS ⇄ CbV)',
+    description: '(λx. x + x) (3 * 7) ⇒ 42. Call-by-Structure copies the unevaluated 3 * 7 into both holes and multiplies twice; Call-by-Value multiplies once.',
+    fileName: 'example-copy-vs-lookup.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [copyVsLookupExample()] } }
+  },
+  'shadowing': {
+    id: 'shadowing',
+    title: 'Shadowing',
+    description: '(λx. (λx. x + 1) (x * 2)) 5 ⇒ 11. The inner binder shadows the outer one.',
+    fileName: 'example-shadowing.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [shadowingExample()] } }
+  },
+  'normal-form-binder': {
+    id: 'normal-form-binder',
+    title: 'Normal Form (no reduction under a binder)',
+    description: 'λy. 2 + 3 + y is already a value: neither strategy reduces under a binder, so 2 + 3 is left alone — zero steps.',
+    fileName: 'example-normal-form-binder.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [normalFormBinderExample()] } }
   },
   'simple-factorial': {
     id: 'simple-factorial',
@@ -262,6 +421,20 @@ export const LAMBDA_EXAMPLES: Record<LambdaExampleId, LambdaExampleDefinition> =
         blocks: [letrecBlock('factorial', standardFactorialFunction(), factorialFiveApplication())]
       }
     }
+  },
+  fibonacci: {
+    id: 'fibonacci',
+    title: 'Fibonacci 6',
+    description: 'letrec fib = λn. if n < 2 then n else fib (n-1) + fib (n-2) in fib 6 ⇒ 8. Tree recursion — two calls per level — where factorial’s is linear.',
+    fileName: 'example-fibonacci.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [fibonacciExample()] } }
+  },
+  'gcd-euclid': {
+    id: 'gcd-euclid',
+    title: 'GCD (Euclid)',
+    description: 'gcd 48 18 ⇒ 6. The language has no modulo, so it is built from integer division: a - (a / b) * b is a mod b because ÷ truncates.',
+    fileName: 'example-gcd-euclid.blc',
+    workspace: { blocks: { languageVersion: 0, blocks: [gcdEuclidExample()] } }
   }
 };
 

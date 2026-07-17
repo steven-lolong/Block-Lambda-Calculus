@@ -15,9 +15,9 @@
  */
 import * as Blockly from 'blockly';
 import { registerLambdaBlocks } from '../src/core/blocks/lambdaBlocks';
-import { LAMBDA_EXAMPLES } from '../src/core/examples/lambdaExamples';
-import { generateLambdaCode } from '../src/core/generator/lambdaGenerator';
+import { LAMBDA_EXAMPLES, type LambdaExampleId } from '../src/core/examples/lambdaExamples';
 import { parseLambdaTextToWorkspaceState } from '../src/core/parser/lambdaTextParser';
+import { inferLambdaWorkspaceTypes } from '../src/core/type-inference/lambdaTypeInference';
 import { computeReductionRun, renderLambdaReduction, type ReductionKind } from '../src/core/semantics/lambdaReduction';
 import {
   formatMachineValue,
@@ -217,42 +217,87 @@ check('viz · CbS duplicates the argument reduction (4 betas)', renderedBetaCoun
 check('viz · CbV evaluates the argument once (3 betas)', renderedBetaCount(LET_FN, 'value') === 3);
 
 /* ------------------------------------------------------------------ */
-/* The shipped Palindrome example must be the real check, not just the  */
-/* hand-written term above: load the EXAMPLE, evaluate it, then swap    */
-/* its number and require the answer to follow. The example previously  */
-/* hardcoded its digits and never read `number`, so 123 also said true. */
+/* Every SHIPPED example is pinned: its value, its inferred type, that   */
+/* it type-checks, and that it actually reaches a normal form within the */
+/* reduction budget under BOTH strategies. The budget matters — fib 8    */
+/* silently truncates under Call-by-Structure, which would look like an  */
+/* engine bug in the UI rather than an example that is simply too big.   */
+const EXAMPLE_EXPECTATIONS: Array<{ id: LambdaExampleId; value: string; type: string }> = [
+  { id: 'identity-function', value: 'function', type: "'a -> 'a" },
+  { id: 'currying-closures', value: '42', type: 'int' },
+  { id: 'function-composition', value: '16', type: 'int' },
+  { id: 'apply-twice', value: '11', type: 'int' },
+  { id: 'twice-twice', value: '4', type: 'int' },
+  { id: 'let-polymorphism', value: '42', type: 'int' },
+  { id: 'copy-vs-lookup', value: '42', type: 'int' },
+  { id: 'shadowing', value: '11', type: 'int' },
+  { id: 'normal-form-binder', value: 'function', type: 'int -> int' },
+  { id: 'simple-factorial', value: '120', type: 'int' },
+  { id: 'fibonacci', value: '8', type: 'int' },
+  { id: 'gcd-euclid', value: '6', type: 'int' }
+];
+
+check(
+  'examples · every shipped example is pinned here',
+  EXAMPLE_EXPECTATIONS.length === Object.keys(LAMBDA_EXAMPLES).length,
+  `${EXAMPLE_EXPECTATIONS.length} pinned vs ${Object.keys(LAMBDA_EXAMPLES).length} shipped`
+);
+
+for (const expectation of EXAMPLE_EXPECTATIONS) {
+  const workspace = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(LAMBDA_EXAMPLES[expectation.id].workspace as never, workspace);
+  // Select the program exactly as the app does, so the test exercises the
+  // same block the Run/Step buttons would.
+  const block = pickProgramBlock(workspace)!;
+
+  const report = inferLambdaWorkspaceTypes(workspace);
+  check(`example ${expectation.id} · type-checks`, !report.hasErrors,
+    report.issues.map((i) => i.message).join('; '));
+  const inferred = [...report.topLevelTypes.values()][0] ?? '?';
+  check(`example ${expectation.id} · type is ${expectation.type}`, inferred === expectation.type,
+    `got ${JSON.stringify(inferred)}`);
+
+  for (const kind of ['structure', 'value'] as ReductionKind[]) {
+    const run = computeReductionRun(block, kind);
+    check(`example ${expectation.id} · ${kind} value is ${expectation.value}`,
+      run.finalValue === expectation.value, `got ${JSON.stringify(run.finalValue)}`);
+    // Within budget: a truncated run is an example that is too big, and would
+    // silently disagree with the other strategy in the UI.
+    check(`example ${expectation.id} · ${kind} reaches a normal form within budget`,
+      run.normalForm && !run.truncated,
+      `normalForm=${run.normalForm} truncated=${run.truncated} frames=${run.frames.length}`);
+    check(`example ${expectation.id} · machine ${kind} agrees`,
+      machineRun(workspace, block, kind).value === expectation.value);
+  }
+  workspace.dispose();
+}
+
+// The Copy vs Lookup example earns its place by SHOWING the contrast: the
+// duplicated `prim *` must actually be there to be seen.
 {
   const workspace = new Blockly.Workspace();
-  Blockly.serialization.workspaces.load(
-    LAMBDA_EXAMPLES['palindrome-number'].workspace as never,
-    workspace
-  );
-  const source = generateLambdaCode(workspace as never).trim();
-  const shipped = computeReductionRun(workspace.getTopBlocks(true)[0], 'structure');
+  Blockly.serialization.workspaces.load(LAMBDA_EXAMPLES['copy-vs-lookup'].workspace as never, workspace);
+  const block = pickProgramBlock(workspace)!;
+  const muls = (kind: ReductionKind): number =>
+    computeReductionRun(block, kind).frames.filter((f) => f.salient === 'prim *').length;
+  check('example copy-vs-lookup · CbS multiplies twice (copies the redex)', muls('structure') === 2,
+    `got ${muls('structure')}`);
+  check('example copy-vs-lookup · CbV multiplies once (shares the value)', muls('value') === 1,
+    `got ${muls('value')}`);
   workspace.dispose();
+}
 
-  check('example · palindrome 121 evaluates to true', shipped.finalValue === 'true',
-    `got ${JSON.stringify(shipped.finalValue)}`);
-  check('example · palindrome reads `number` (it is not hardcoded)',
-    source.includes('number / 100') && source.includes('number / 10'),
-    `generated: ${source}`);
-
-  // The property that makes the example mean anything: change the number and
-  // the verdict must change with it.
-  const evalWith = (n: number): string => {
-    const ws = new Blockly.Workspace();
-    Blockly.serialization.workspaces.load(
-      parseLambdaTextToWorkspaceState(source.replace('121', String(n))) as never,
-      ws
-    );
-    const value = computeReductionRun(ws.getTopBlocks(true)[0], 'structure').finalValue;
-    ws.dispose();
-    return value;
-  };
-  for (const [n, expected] of [[121, 'true'], [131, 'true'], [222, 'true'], [123, 'false'], [100, 'false']] as const) {
-    check(`example · palindrome of ${n} is ${expected}`, evalWith(n) === expected,
-      `got ${JSON.stringify(evalWith(n))}`);
+// The Normal Form example earns its place by taking ZERO steps.
+{
+  const workspace = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(LAMBDA_EXAMPLES['normal-form-binder'].workspace as never, workspace);
+  const block = pickProgramBlock(workspace)!;
+  for (const kind of ['structure', 'value'] as ReductionKind[]) {
+    const run = computeReductionRun(block, kind);
+    check(`example normal-form-binder · ${kind} does not reduce under the binder`,
+      run.frames.length === 1 && run.normalForm, `got ${run.frames.length} frame(s)`);
   }
+  workspace.dispose();
 }
 
 console.log(failures === 0

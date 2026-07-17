@@ -84,11 +84,18 @@
                 <div class="example-menu-wrapper">
                   <button id="examplesMenuButton" class="menu-command" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="examplesSubMenu"><span>Open Example</span><span aria-hidden="true">›</span></button>
                   <div id="examplesSubMenu" class="example-submenu" role="menu" hidden>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="identity-function"><span class="example-menu-title">Identity Function</span><span class="example-menu-description">λx. x</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="let-binding"><span class="example-menu-title">Let Binding</span><span class="example-menu-description">let x = 10 in x + 5</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="if-else"><span class="example-menu-title">If Else</span><span class="example-menu-description">A typed conditional</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="palindrome-number"><span class="example-menu-title">Palindrome 121</span><span class="example-menu-description">Digit-based check</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="simple-factorial"><span class="example-menu-title">Factorial 5</span><span class="example-menu-description">Recursive factorial</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="identity-function"><span class="example-menu-title">Identity Function</span><span class="example-menu-description">λx. x — polymorphic</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="currying-closures"><span class="example-menu-title">Currying &amp; Closures</span><span class="example-menu-description">add 1 captures x ⇒ 42</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="function-composition"><span class="example-menu-title">Function Composition</span><span class="example-menu-description">compose f g 5 ⇒ 16</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="apply-twice"><span class="example-menu-title">Apply Twice</span><span class="example-menu-description">f (f x) ⇒ 11</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="twice-twice"><span class="example-menu-title">Twice Twice</span><span class="example-menu-description">twice applied to itself ⇒ 4</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="let-polymorphism"><span class="example-menu-title">Let-Polymorphism</span><span class="example-menu-description">id at bool and int ⇒ 42</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="copy-vs-lookup"><span class="example-menu-title">Copy vs Lookup</span><span class="example-menu-description">CbS ⇄ CbV contrast ⇒ 42</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="shadowing"><span class="example-menu-title">Shadowing</span><span class="example-menu-description">Inner binder wins ⇒ 11</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="normal-form-binder"><span class="example-menu-title">Normal Form</span><span class="example-menu-description">No reduction under a binder</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="simple-factorial"><span class="example-menu-title">Factorial 5</span><span class="example-menu-description">Linear recursion ⇒ 120</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="fibonacci"><span class="example-menu-title">Fibonacci 6</span><span class="example-menu-description">Tree recursion ⇒ 8</span></button>
+                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="gcd-euclid"><span class="example-menu-title">GCD (Euclid)</span><span class="example-menu-description">mod via ÷ ⇒ 6</span></button>
                   </div>
                 </div>
                 <div class="example-menu-wrapper theme-menu-wrapper">
