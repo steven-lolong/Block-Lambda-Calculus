@@ -97,13 +97,16 @@ const inspectorBlockTerm = requireElement<HTMLElement>('inspectorBlockTerm');
 const inspectorBlockType = requireElement<HTMLElement>('inspectorBlockType');
 const inspectorBlockStatus = requireElement<HTMLElement>('inspectorBlockStatus');
 const inspectorBlockIssues = requireElement<HTMLElement>('inspectorBlockIssues');
+const outlinePane = requireElement<HTMLElement>('outlinePane');
+const programOutline = requireElement<HTMLDivElement>('programOutline');
+const printDerivationButton = requireElement<HTMLButtonElement>('printDerivation');
 const copyCodeButton = requireElement<HTMLButtonElement>('copyCode');
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 let activeBlocklyRenderer = readBlocklyRendererName();
 let lastTypeReport: LambdaInferenceReport | null = null;
-let activeCodeTarget: 'code' | 'formal' | 'inspector' = 'code';
+let activeCodeTarget: 'code' | 'formal' | 'inspector' | 'outline' = 'code';
 let lambdaImportTimer: number | undefined;
 let applyingCodeEditorText = false;
 let suppressCodeEditorSyncUntil = 0;
@@ -341,6 +344,99 @@ function renderBlockInspector(): void {
   }));
 }
 
+function focusOutlineBlock(blockId: string): void {
+  const target = workspace.getBlockById(blockId) as Blockly.BlockSvg | null;
+  if (!target) return;
+  workspace.centerOnBlock(target.id, true);
+  Blockly.common.setSelected(target);
+}
+
+function renderOutline(): void {
+  programOutline.replaceChildren();
+
+  const topBlocks = workspace.getTopBlocks(true);
+  if (topBlocks.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'outline-empty';
+    empty.textContent = 'The workspace has no blocks.';
+    programOutline.appendChild(empty);
+    return;
+  }
+
+  const addBlock = (block: Blockly.Block, depth: number): void => {
+    const children = block.getChildren(true);
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'outline-item';
+    item.dataset.blockId = block.id;
+    item.style.setProperty('--outline-depth', String(depth));
+    item.setAttribute('role', 'treeitem');
+    item.setAttribute('aria-level', String(depth + 1));
+
+    const disclosure = document.createElement('span');
+    disclosure.className = 'outline-disclosure';
+    disclosure.textContent = children.length > 0 ? '⌄' : '·';
+    disclosure.setAttribute('aria-hidden', 'true');
+
+    const label = document.createElement('span');
+    label.className = 'outline-label';
+    const blockText = block.toString(54, '…');
+    label.textContent = blockText.replace(/\s+/g, ' ').trim() || block.type;
+
+    const type = document.createElement('span');
+    type.className = 'outline-type';
+    type.textContent = humanizeBlockType(block.type);
+
+    item.append(disclosure, label, type);
+    item.addEventListener('click', () => focusOutlineBlock(block.id));
+    programOutline.appendChild(item);
+    children.forEach((child) => addBlock(child, depth + 1));
+  };
+
+  topBlocks.forEach((block) => addBlock(block, 0));
+}
+
+function printDerivation(): void {
+  if (activeCodeTarget !== 'formal') return;
+  const originalHtml = codeOutput.innerHTML;
+
+  // Chromium does not fragment <fieldset>'s special internal layout across
+  // printed pages reliably. Swap in ordinary elements with the same classes
+  // for print layout, then restore the generated derivation DOM afterward.
+  const replaceElement = (element: HTMLElement, tag: 'div'): HTMLElement => {
+    const replacement = document.createElement(tag);
+    for (const attribute of Array.from(element.attributes)) {
+      replacement.setAttribute(attribute.name, attribute.value);
+    }
+    while (element.firstChild) replacement.appendChild(element.firstChild);
+    element.replaceWith(replacement);
+    return replacement;
+  };
+  for (const legend of Array.from(codeOutput.querySelectorAll<HTMLElement>('legend.legend-lambda'))) {
+    replaceElement(legend, 'div');
+  }
+  for (const fieldset of Array.from(codeOutput.querySelectorAll<HTMLElement>('fieldset.fieldset-lambda'))) {
+    replaceElement(fieldset, 'div');
+  }
+
+  let cleaned = false;
+  const cleanup = (): void => {
+    if (cleaned) return;
+    cleaned = true;
+    window.removeEventListener('afterprint', cleanup);
+    document.documentElement.classList.remove('printing-derivation');
+    document.body.classList.remove('printing-derivation');
+    codeOutput.innerHTML = originalHtml;
+  };
+  document.documentElement.classList.add('printing-derivation');
+  document.body.classList.add('printing-derivation');
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
+  // `print()` blocks in interactive browsers; this fallback covers cancelled
+  // and headless print calls where `afterprint` may not fire.
+  window.setTimeout(cleanup, 0);
+}
+
 function installCurrentWorkspaceInspector(): void {
   if (inspectorWorkspaces.has(workspace)) return;
   inspectorWorkspaces.add(workspace);
@@ -363,15 +459,19 @@ function installCurrentWorkspaceInspector(): void {
 function renderCodeTargetTabs(): void {
   const showingCodeEditor = activeCodeTarget === 'code';
   const showingInspector = activeCodeTarget === 'inspector';
+  const showingOutline = activeCodeTarget === 'outline';
+  const showingFormal = activeCodeTarget === 'formal';
   for (const button of codeTargetButtons) {
     const selected = button.dataset.codeTarget === activeCodeTarget;
     button.setAttribute('aria-selected', String(selected));
     button.tabIndex = selected ? 0 : -1;
   }
-  codeOutput.hidden = showingCodeEditor || showingInspector;
+  codeOutput.hidden = showingCodeEditor || showingInspector || showingOutline;
   lambdaEditorPane.hidden = !showingCodeEditor;
   blockInspectorPane.hidden = !showingInspector;
-  copyCodeButton.hidden = showingInspector;
+  outlinePane.hidden = !showingOutline;
+  copyCodeButton.hidden = showingInspector || showingOutline;
+  printDerivationButton.hidden = !showingFormal;
 }
 
 function renderGeneratedOutput(report: LambdaInferenceReport): void {
@@ -379,6 +479,11 @@ function renderGeneratedOutput(report: LambdaInferenceReport): void {
 
   if (activeCodeTarget === 'inspector') {
     renderBlockInspector();
+    return;
+  }
+
+  if (activeCodeTarget === 'outline') {
+    renderOutline();
     return;
   }
 
@@ -544,6 +649,7 @@ function refreshCode(report = annotateLambdaWorkspaceTypes(workspace)): LambdaIn
   syncTypeInfoComments(workspace, report);
   workbenchController?.renderDiagnostics(report);
   renderBlockInspector();
+  renderOutline();
   updateBlockCount();
   updateZoomLabel();
   return report;
@@ -994,7 +1100,7 @@ installBlocklyThemeMenu();
 for (const button of codeTargetButtons) {
   button.addEventListener('click', () => {
     const target = button.dataset.codeTarget;
-    if (target !== 'code' && target !== 'formal' && target !== 'inspector') return;
+    if (target !== 'code' && target !== 'formal' && target !== 'inspector' && target !== 'outline') return;
     activeCodeTarget = target;
     if (target === 'code') {
       syncLambdaEditorFromWorkspace();
@@ -1005,6 +1111,7 @@ for (const button of codeTargetButtons) {
         lambdaImportTimer = undefined;
       }
       if (target === 'inspector') renderBlockInspector();
+      if (target === 'outline') renderOutline();
     }
     renderCodeTargetTabs();
     refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
@@ -1012,7 +1119,9 @@ for (const button of codeTargetButtons) {
       ? 'Showing formal derivation.'
       : target === 'inspector'
         ? 'Showing the selected block inspector.'
-        : 'Editing Lambda code.');
+        : target === 'outline'
+          ? 'Showing the program outline.'
+          : 'Editing Lambda code.');
   });
 }
 
@@ -1029,6 +1138,8 @@ document.querySelector<HTMLElement>('.code-tabs')?.addEventListener('keydown', (
   codeTargetButtons[nextIndex].focus();
   codeTargetButtons[nextIndex].click();
 });
+
+printDerivationButton.addEventListener('click', printDerivation);
 
 lambdaEditor.addEventListener('input', scheduleLambdaTextImport);
 lambdaEditor.addEventListener('scroll', syncLambdaEditorHighlightScroll);

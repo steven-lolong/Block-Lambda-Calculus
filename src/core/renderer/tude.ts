@@ -118,6 +118,18 @@ class TudeConstantsProvider extends Blockly.zelos.ConstantProvider {
   }
 }
 
+class TudeRenderInfo extends Blockly.zelos.RenderInfo {
+  override getElemCenterline_(
+    row: Blockly.blockRendering.Row,
+    elem: Blockly.blockRendering.Measurable
+  ): number {
+    const isTopAlignedLabel = Blockly.blockRendering.Types.isField(elem)
+      && elem.field instanceof Blockly.FieldLabel;
+    if (isTopAlignedLabel) return row.yPos + elem.height / 2;
+    return super.getElemCenterline_(row, elem);
+  }
+}
+
 class TudeRenderer extends Blockly.zelos.Renderer {
   constructor(name: string) {
     super(name);
@@ -125,6 +137,10 @@ class TudeRenderer extends Blockly.zelos.Renderer {
 
   protected override makeConstants_(): TudeConstantsProvider {
     return new TudeConstantsProvider();
+  }
+
+  protected override makeRenderInfo_(block: Blockly.BlockSvg): TudeRenderInfo {
+    return new TudeRenderInfo(this, block);
   }
 }
 

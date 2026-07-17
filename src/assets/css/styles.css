@@ -1050,6 +1050,17 @@ html[data-theme='light'] .blockly-area {
 .inspector-properties dd[data-state='error'] { color: var(--ide-error); }
 .inspector-issues { margin: 10px; padding: 8px; color: var(--ide-error); border-left: 2px solid var(--ide-error); background: rgba(240, 93, 94, 0.08); font-size: 11px; line-height: 1.45; }
 
+/* Program outline -------------------------------------------------------- */
+.outline-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 31px minmax(0, 1fr); background: var(--ide-panel-bg); }
+.outline-toolbar { min-height: 31px; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--ide-border); color: var(--ide-text-disabled); font-size: 10px; }
+.program-outline { min-height: 0; overflow: auto; padding: 5px; }
+.outline-item { width: 100%; min-height: 28px; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 3px 6px 3px calc(6px + var(--outline-depth) * 12px); border: 0; border-radius: 3px; background: transparent; color: var(--ide-text-muted); cursor: pointer; text-align: left; font: 11px/1.35 var(--font-ui); }
+.outline-item:hover, .outline-item:focus-visible { background: var(--ide-hover-bg); color: var(--ide-text); }
+.outline-disclosure { color: var(--ide-text-disabled); }
+.outline-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outline-type { max-width: 100px; overflow: hidden; color: var(--ide-text-disabled); font-family: var(--font-mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.outline-empty { padding: 12px 9px; color: var(--ide-text-muted); font: 12px/1.45 var(--font-ui); }
+
 /* Formal derivation output --------------------------------------------- */
 .code-output.formal-output { color: var(--ide-text); font-family: var(--font-ui); font-size: 11px; line-height: 1.45; white-space: normal; }
 .formal-derivation { min-width: min-content; }
@@ -1080,6 +1091,89 @@ html[data-theme='light'] .blockly-area {
 .formal-type-error,
 .formal-issues { color: var(--ide-error); }
 .formal-issues { margin: 6px 0 0; padding-left: 16px; font-family: var(--font-mono); font-size: 10px; }
+
+@media print {
+  html.printing-derivation,
+  body.printing-derivation,
+  body.printing-derivation #app {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    background: #fff;
+  }
+
+  body.printing-derivation .ide-grid,
+  body.printing-derivation .code-panel {
+    display: block;
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  body.printing-derivation .topbar,
+  body.printing-derivation .activity-bar,
+  body.printing-derivation .toolbox-panel,
+  body.printing-derivation .workspace-panel,
+  body.printing-derivation .resize-handle,
+  body.printing-derivation .sidebar-resize-handle,
+  body.printing-derivation .code-header,
+  body.printing-derivation .code-tabs,
+  body.printing-derivation .lambda-editor-pane,
+  body.printing-derivation .block-inspector-pane,
+  body.printing-derivation .outline-pane,
+  body.printing-derivation .viz-dock,
+  body.printing-derivation .statusbar {
+    display: none !important;
+  }
+
+  body.printing-derivation .code-output,
+  body.printing-derivation #codeOutput {
+    display: block !important;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
+    white-space: normal;
+  }
+
+  body.printing-derivation .formal-derivation,
+  body.printing-derivation .formal-root h3,
+  body.printing-derivation .legend-lambda,
+  body.printing-derivation .formal-derivation .hr-text::after {
+    color: #000;
+  }
+
+  body.printing-derivation .formal-derivation .hr-text::before {
+    background: #000;
+  }
+
+  body.printing-derivation .formal-derivation .hr-text::after,
+  body.printing-derivation .legend-lambda span {
+    background: #fff;
+  }
+
+  body.printing-derivation .fieldset-lambda {
+    border-color: #555;
+    /* Formal derivations can be taller than one sheet. Keeping the fieldset
+       stand-in unbreakable makes Chromium reserve blank continuation pages. */
+    break-inside: auto;
+    page-break-inside: auto;
+    min-inline-size: 0;
+    position: static;
+  }
+
+  body.printing-derivation .legend-lambda {
+    position: static;
+    display: block;
+    width: auto;
+    margin-top: 4px;
+  }
+}
 
 /* Bottom tools ---------------------------------------------------------- */
 .viz-dock {

@@ -103,6 +103,7 @@ const stepper: StepperState = {
 };
 
 const STEP_PLAY_INTERVAL_MS = 650;
+const STEPPER_VIEW_PADDING = 24;
 const STEPPER_TITLE: Record<ReductionKind, string> = {
   structure: 'Call-by-Structure',
   value: 'Call-by-Value'
@@ -499,7 +500,11 @@ function renderStepperFrame(): void {
         }
         arrangeTopBlocks(workspace);
         Blockly.svgResize(workspace);
-        workspace.scrollCenter();
+        // arrangeTopBlocks() normalizes the frame's top blocks to workspace
+        // origin (0, 0); scroll there directly instead of scrollCenter() so
+        // the term stays anchored top-left instead of floating in the middle
+        // of the (much wider) stepper pane.
+        workspace.scroll(STEPPER_VIEW_PADDING, STEPPER_VIEW_PADDING);
       } catch (error) {
         console.error('[Block Lambda] stepper render failed', error);
       }
