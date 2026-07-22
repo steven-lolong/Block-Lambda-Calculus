@@ -2,6 +2,16 @@ import * as Blockly from 'blockly';
 
 export const TUDE_RENDERER_NAME = 'tude';
 
+export const TUDE_CONNECTOR_GEOMETRY = Object.freeze({
+  reporterShapePolicy: 'square-for-all',
+  pageGutterWidth: 16,
+  valueSocketWidth: 22,
+  valueSocketHeight: 20,
+  statementNotchWidth: 36,
+  statementNotchHeight: 8,
+  cornerRadius: 0
+} as const);
+
 type ZelosShape = ReturnType<Blockly.zelos.ConstantProvider['shapeFor']>;
 type TudeInsideCorners = Blockly.blockRendering.InsideCorners & {
   rightWidth: number;
@@ -10,9 +20,9 @@ type TudeInsideCorners = Blockly.blockRendering.InsideCorners & {
   pathBottomRight: string;
 };
 
-const PAGE_GUTTER_WIDTH = 16;
-const VALUE_SOCKET_WIDTH = 22;
-const VALUE_SOCKET_HEIGHT = 20;
+const PAGE_GUTTER_WIDTH = TUDE_CONNECTOR_GEOMETRY.pageGutterWidth;
+const VALUE_SOCKET_WIDTH = TUDE_CONNECTOR_GEOMETRY.valueSocketWidth;
+const VALUE_SOCKET_HEIGHT = TUDE_CONNECTOR_GEOMETRY.valueSocketHeight;
 
 function makeSquareReporterShape(type: number): Blockly.blockRendering.DynamicShape {
   return {
@@ -42,8 +52,8 @@ function makeSquarePuzzleTab(type: number): Blockly.blockRendering.PuzzleTab {
 function makeSquareStatementNotch(type: number): Blockly.blockRendering.Notch {
   return {
     type,
-    width: 36,
-    height: 8,
+    width: TUDE_CONNECTOR_GEOMETRY.statementNotchWidth,
+    height: TUDE_CONNECTOR_GEOMETRY.statementNotchHeight,
     pathLeft: 'h 12 v 8 h 12 v -8 h 12',
     pathRight: 'h -12 v 8 h -12 v -8 h -12'
   };
@@ -76,7 +86,7 @@ class TudeConstantsProvider extends Blockly.zelos.ConstantProvider {
   constructor() {
     super();
 
-    this.CORNER_RADIUS = 0;
+    this.CORNER_RADIUS = TUDE_CONNECTOR_GEOMETRY.cornerRadius;
     this.CURSOR_RADIUS = 0;
     this.FIELD_BORDER_RECT_RADIUS = 0;
     this.TAB_WIDTH = VALUE_SOCKET_WIDTH;

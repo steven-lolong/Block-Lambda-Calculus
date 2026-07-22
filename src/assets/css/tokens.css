@@ -51,13 +51,7 @@
   --state-info: #58a6ff;
   --state-execution: #8b7cf6;
 
-  /* Grammar category colors. Renderer mappings remain defined in TypeScript. */
-  --category-variable: #a78bfa;
-  --category-abstraction: #6f9ee8;
-  --category-application: #67b7dc;
-  --category-binding: #62b86b;
-  --category-operator: #df8e63;
-  --category-literal: #d9a441;
+  /* Grammar category values are installed from the authoritative Blockly theme. */
 
   /* Blockly fields and generated-code syntax. */
   --block-text-label: #ffffff;
@@ -179,12 +173,6 @@ html[data-theme='light'] {
   --state-error-wash: rgba(240, 93, 94, 0.08);
   --state-info: #2878c7;
   --state-execution: #8b7cf6;
-  --category-variable: #7447bd;
-  --category-abstraction: #356fd1;
-  --category-application: #2878c7;
-  --category-binding: #27863a;
-  --category-operator: #a9572f;
-  --category-literal: #9a6814;
   --syntax-terminal: #6d3bb7;
   --syntax-nonterminal: #245fae;
   --syntax-comment: #77808b;

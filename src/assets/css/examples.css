@@ -91,12 +91,15 @@
   border-radius: 0;
 }
 
-.toolbox-category[data-category='Variables'] .category-icon { color: var(--category-variable); border-color: var(--category-variable); }
-.toolbox-category[data-category='Abstraction'] .category-icon { color: var(--category-abstraction); border-color: var(--category-abstraction); }
-.toolbox-category[data-category='Application'] .category-icon { color: var(--category-application); border-color: var(--category-application); }
-.toolbox-category[data-category='Let Binding'] .category-icon { color: var(--category-binding); border-color: var(--category-binding); }
-.toolbox-category[data-category='Operators'] .category-icon { color: var(--category-operator); border-color: var(--category-operator); }
-.toolbox-category[data-category='Literals'] .category-icon { color: var(--category-literal); border-color: var(--category-literal); }
+[data-grammar-category='structure'] { --grammar-category-color: var(--grammar-structure, var(--text-muted)); }
+[data-grammar-category='bindings'] { --grammar-category-color: var(--grammar-bindings, var(--text-muted)); }
+[data-grammar-category='expressions'] { --grammar-category-color: var(--grammar-expressions, var(--text-muted)); }
+[data-grammar-category='operations'] { --grammar-category-color: var(--grammar-operations, var(--text-muted)); }
+[data-grammar-category='control'] { --grammar-category-color: var(--grammar-control, var(--text-muted)); }
+[data-grammar-category='values'] { --grammar-category-color: var(--grammar-values, var(--text-muted)); }
+[data-grammar-category='semantics'] { --grammar-category-color: var(--grammar-semantics, var(--text-muted)); }
+
+.toolbox-category[data-grammar-category] .category-icon { color: var(--grammar-category-color); }
 
 .toolbox-block-list {
   display: grid;
@@ -123,12 +126,7 @@
   user-select: none;
 }
 
-.toolbox-category[data-category='Variables'] .toolbox-block-card { border-left-color: var(--category-variable); }
-.toolbox-category[data-category='Abstraction'] .toolbox-block-card { border-left-color: var(--category-abstraction); }
-.toolbox-category[data-category='Application'] .toolbox-block-card { border-left-color: var(--category-application); }
-.toolbox-category[data-category='Let Binding'] .toolbox-block-card { border-left-color: var(--category-binding); }
-.toolbox-category[data-category='Operators'] .toolbox-block-card { border-left-color: var(--category-operator); }
-.toolbox-category[data-category='Literals'] .toolbox-block-card { border-left-color: var(--category-literal); }
+.toolbox-block-card[data-grammar-category] { border-left-color: var(--grammar-category-color); }
 
 .toolbox-block-card:hover,
 .toolbox-block-card:focus-visible,

@@ -1,17 +1,18 @@
 import * as Blockly from 'blockly';
+import { getLambdaGrammarCategory } from './theme';
 
-type ToolboxBlock = {
+export type ToolboxBlock = {
   type: string;
   label: string;
   description: string;
 };
 
-type ToolboxCategory = {
+export type ToolboxCategory = {
   name: string;
   blocks: ToolboxBlock[];
 };
 
-const TOOLBOX: ToolboxCategory[] = [
+export const LAMBDA_TOOLBOX_CATEGORIES: ReadonlyArray<ToolboxCategory> = [
   {
     name: 'Variables',
     blocks: [
@@ -91,7 +92,7 @@ function createIcon(name: string, className?: string): SVGSVGElement {
 }
 
 function isKnownBlockType(blockType: string): boolean {
-  return TOOLBOX.some((category) => category.blocks.some((block) => block.type === blockType));
+  return LAMBDA_TOOLBOX_CATEGORIES.some((category) => category.blocks.some((block) => block.type === blockType));
 }
 
 function workspaceCoordinatesFromPointer(
@@ -319,10 +320,14 @@ export function renderToolbox(
   empty.textContent = 'No blocks match this search.';
   empty.hidden = true;
 
-  TOOLBOX.forEach((category, index) => {
+  LAMBDA_TOOLBOX_CATEGORIES.forEach((category, index) => {
     const details = document.createElement('details');
     details.className = 'toolbox-category';
     details.dataset.category = category.name;
+    const categoryFamilies = new Set(category.blocks.map((block) => getLambdaGrammarCategory(block.type)));
+    if (categoryFamilies.size === 1) {
+      details.dataset.grammarCategory = categoryFamilies.values().next().value;
+    }
     details.open = true;
 
     const summary = document.createElement('summary');
@@ -343,6 +348,7 @@ export function renderToolbox(
       button.type = 'button';
       button.className = 'toolbox-block-card';
       button.dataset.blockType = block.type;
+      button.dataset.grammarCategory = getLambdaGrammarCategory(block.type);
       button.setAttribute('aria-label', `Add ${block.label} block`);
       button.innerHTML = `
         <span class="toolbox-block-label">${block.label}</span>

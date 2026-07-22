@@ -10,10 +10,11 @@
     "dev": "webpack serve --mode development --open",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"playwright.config.ts\"",
-    "test": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js && node .test-build/tests/semantics.js && node .test-build/tests/layoutState.js",
+    "test": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js && node .test-build/tests/semantics.js && node .test-build/tests/layoutState.js && node .test-build/tests/blockColors.js",
     "test:roundtrip": "tsc -p tsconfig.test.json && node .test-build/tests/roundtrip.js",
     "test:semantics": "tsc -p tsconfig.test.json && node .test-build/tests/semantics.js",
     "test:layout": "tsc -p tsconfig.test.json && node .test-build/tests/layoutState.js",
+    "test:block-colors": "tsc -p tsconfig.test.json && node .test-build/tests/blockColors.js",
     "test:ui": "playwright test tests/ui/workbench.spec.ts",
     "test:ui:visual": "playwright test tests/ui/workbench.visual.spec.ts",
     "test:ui:update": "playwright test tests/ui/workbench.visual.spec.ts --update-snapshots"

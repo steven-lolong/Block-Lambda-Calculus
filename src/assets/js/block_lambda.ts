@@ -12,6 +12,7 @@ import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
+import { applyLambdaGrammarCssTokens, darkTheme, lightTheme } from '../../core/renderer/theme';
 import { registerIdeLayoutResizeListener, setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
@@ -126,128 +127,7 @@ function applyBlocklyRendererStyle(rendererName: BlocklyRendererName): void {
 }
 
 applyBlocklyRendererStyle(activeBlocklyRenderer);
-
-const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
-  name: 'blockLambdaLightTheme',
-  base: Blockly.Themes.Classic,
-  fontStyle: {
-    family: 'Inter, Geist, system-ui, sans-serif',
-    weight: '600',
-    size: 9.75
-  },
-  blockStyles: {
-    lambda_term: {
-      colourPrimary: '#6341a1',
-      colourSecondary: '#4f3481',
-      colourTertiary: '#7c5ab5'
-    },
-    lambda_binding: {
-      colourPrimary: '#245ca8',
-      colourSecondary: '#1d4986',
-      colourTertiary: '#4277bb'
-    },
-    lambda_grouping: {
-      colourPrimary: '#116b64',
-      colourSecondary: '#0e5650',
-      colourTertiary: '#33847c'
-    },
-    lambda_literal: {
-      colourPrimary: '#7a510d',
-      colourSecondary: '#62410a',
-      colourTertiary: '#976b25'
-    },
-    lambda_operator: {
-      colourPrimary: '#146b68',
-      colourSecondary: '#105653',
-      colourTertiary: '#368481'
-    },
-    lambda_control: {
-      colourPrimary: '#87336f',
-      colourSecondary: '#6c2959',
-      colourTertiary: '#a34f8c'
-    },
-    lambda_meta: {
-      colourPrimary: '#46505f',
-      colourSecondary: '#38404c',
-      colourTertiary: '#606b7a'
-    }
-  },
-  componentStyles: {
-    workspaceBackgroundColour: '#f7f8fa',
-    toolboxBackgroundColour: '#f5f7f9',
-    toolboxForegroundColour: '#20242b',
-    flyoutBackgroundColour: '#ffffff',
-    flyoutForegroundColour: '#20242b',
-    flyoutOpacity: 1,
-    scrollbarColour: '#929aa5',
-    scrollbarOpacity: 0.62,
-    insertionMarkerColour: '#8839ef',
-    insertionMarkerOpacity: 0.30,
-    cursorColour: '#8839ef',
-    markerColour: '#179299'
-  }
-});
-
-const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
-  name: 'blockLambdaDarkTheme',
-  base: Blockly.Themes.Classic,
-  fontStyle: {
-    family: 'Inter, Geist, system-ui, sans-serif',
-    weight: '600',
-    size: 9.75
-  },
-  blockStyles: {
-    lambda_term: {
-      colourPrimary: '#7650b5',
-      colourSecondary: '#5e4091',
-      colourTertiary: '#906fc6'
-    },
-    lambda_binding: {
-      colourPrimary: '#2e68b7',
-      colourSecondary: '#255392',
-      colourTertiary: '#4b82c8'
-    },
-    lambda_grouping: {
-      colourPrimary: '#17776e',
-      colourSecondary: '#125f58',
-      colourTertiary: '#399087'
-    },
-    lambda_literal: {
-      colourPrimary: '#8b5d16',
-      colourSecondary: '#6f4a12',
-      colourTertiary: '#a57631'
-    },
-    lambda_operator: {
-      colourPrimary: '#18746e',
-      colourSecondary: '#135d58',
-      colourTertiary: '#3a8d88'
-    },
-    lambda_control: {
-      colourPrimary: '#963f82',
-      colourSecondary: '#783268',
-      colourTertiary: '#ae5c9b'
-    },
-    lambda_meta: {
-      colourPrimary: '#505a69',
-      colourSecondary: '#404854',
-      colourTertiary: '#6b7686'
-    }
-  },
-  componentStyles: {
-    workspaceBackgroundColour: '#171a20',
-    toolboxBackgroundColour: '#1a1d24',
-    toolboxForegroundColour: '#f1f3f5',
-    flyoutBackgroundColour: '#1d2027',
-    flyoutForegroundColour: '#f1f3f5',
-    flyoutOpacity: 1,
-    scrollbarColour: '#59616c',
-    scrollbarOpacity: 0.72,
-    insertionMarkerColour: '#c6a0f6',
-    insertionMarkerOpacity: 0.34,
-    cursorColour: '#91d7e3',
-    markerColour: '#8bd5ca'
-  }
-});
+applyLambdaGrammarCssTokens(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 
 function currentBlocklyTheme(): Blockly.Theme {
   return document.documentElement.dataset.theme === 'dark' ? darkTheme : lightTheme;
@@ -1195,7 +1075,10 @@ window.addEventListener('block-lambda:refresh-code', () => {
   const report = runLambdaInferenceToFixpoint(workspace, 'external-refresh');
   refreshCode(report);
 });
-window.addEventListener('block-lambda:theme-changed', disposeVisualizationWorkspaces);
+window.addEventListener('block-lambda:theme-changed', () => {
+  applyLambdaGrammarCssTokens(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+  disposeVisualizationWorkspaces();
+});
 
 function createStarterProgram(): void {
   if (workspace.getAllBlocks(false).length > 0) return;
