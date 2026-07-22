@@ -33,8 +33,7 @@
 }
 
 .example-menu-item:hover,
-.example-menu-item:focus-visible,
-.theme-menu-item[aria-checked='true'] {
+.example-menu-item:focus-visible {
   background: var(--surface-selection);
 }
 

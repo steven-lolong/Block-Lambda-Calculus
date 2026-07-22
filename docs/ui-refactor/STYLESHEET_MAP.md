@@ -38,7 +38,7 @@ The remaining `--ide-*` names are layout integration contracts read or written b
 
 ### `styles.css`: core workbench layer
 
-The core layer contains reset/focus/hidden behavior; header and menus; grid, panels and resizers; sidebar tools; Blockly surface compatibility; code, inspector, outline and formal output; bottom runtime views; status/dialogs/context menu; print; responsive rules; and reduced-motion behavior. It consumes tokens and no longer owns theme values.
+The core layer contains reset/focus/hidden behavior; header and menus; grid, panels and resizers; Blocks toolbox shell; Blockly surface compatibility; code, inspector, outline and formal output; bottom runtime views; status/dialogs/context menu; print; responsive rules; and reduced-motion behavior. It consumes tokens and no longer owns theme values. The former activity/sidebar command, project-file, and run-card rule groups were removed after repository-wide reference checks found no live markup, TypeScript, or test consumers.
 
 ### `examples.css`: toolbox/examples feature layer
 
@@ -53,14 +53,14 @@ This file owns examples and Blockly-renderer submenus plus toolbox categories, g
 | Previous conflict | Authoritative result |
 | --- | --- |
 | Theme values and component rules shared `styles.css` | Theme values live only in `tokens.css`; component files only consume them |
-| `--ide-*`, generic aliases, Catppuccin names, component aliases and direct colors overlapped | One semantic namespace; unused compatibility aliases were removed rather than chained |
-| Separate dark/light grid selector bodies | One rule consumes `--workspace-grid-line` |
-| Status colors bypassed the theme layer | One rule consumes status tokens |
+| `--ide-*`, generic aliases, component aliases and direct colors overlapped | One semantic namespace; unused compatibility aliases were removed rather than chained |
+| Separate dark/light grid selector bodies | Blockly injection owns the single functional grid value; the unused CSS grid token was removed |
+| Status colors bypassed the theme layer | Status feedback consumes semantic success, warning, error, and hover tokens |
 | Fallback context-menu presentation existed inline and in `!important` CSS | Fixed presentation is CSS-only; TypeScript retains creation, position and events |
 | Two adjacent 1240px media blocks | One block, with declaration order preserved |
 | `#app`-qualified presentation/maximize selectors | `.app-shell` state selectors retain identity with lower specificity |
 
-There is no legacy stylesheet, separate workbench skin, or temporary alias layer after consolidation.
+There is no legacy stylesheet, separate workbench skin, or temporary alias layer after consolidation. The cleanup also removed the last obsolete workbench selectors and unused icon/token declarations; no stylesheet file was deleted because all three remaining source stylesheets have live, distinct responsibilities.
 
 ## Duplicate and layered selectors
 
@@ -78,6 +78,8 @@ No exact selector is duplicated between `styles.css` and `examples.css`. These w
 | Formal-output selectors | Screen presentation is intentionally overridden for print |
 
 Shared button resets followed by component rules are also intentional, not contradictory copies.
+
+The duplicate base/Blockly `.workspace-panel` declarations were folded into one authoritative workspace rule. No duplicate responsive media block remains.
 
 ## Specificity contracts
 
@@ -110,11 +112,11 @@ The fallback context menu no longer needs any `!important` declaration.
 
 ### Accent, interaction and semantics
 
-`--accent-primary`, `--accent-primary-hover`, `--selection-fill`, `--selection-wash`, `--focus-ring`; `--state-success`, `--state-warning`, `--state-error`, `--state-error-wash`, `--state-info`, `--state-execution`; and six `--category-*` grammar tokens.
+`--accent-primary`, `--accent-primary-hover`, `--selection-fill`, `--selection-wash`, `--focus-ring`; `--state-success`, `--state-warning`, `--state-error`, `--state-error-wash`, `--state-info`, `--state-execution`; and seven runtime `--grammar-*` category tokens installed from the renderer theme.
 
 ### Typography and density
 
-`--font-ui`, `--font-mono`; `--font-size-2xs` through `--font-size-xl`; regular/medium/semibold/bold weight tokens; tight/normal/relaxed/code line heights; `--space-0` through `--space-10`; small/medium/large control and icon sizes.
+`--font-ui`, `--font-mono`; `--font-size-2xs` through `--font-size-xl`; medium/semibold/bold weight tokens; tight/normal/relaxed/code line heights; `--space-1` through `--space-6`; small/medium/large control heights and small/medium icon sizes.
 
 ### Shape, dimensions and layers
 
@@ -124,9 +126,9 @@ Panel/control/overlay radii; overlay/mobile-panel shadows; content/resizer/panel
 
 ### Colors
 
-There are no hex or `rgb()/rgba()` literals in `styles.css` or `examples.css`. Theme palettes, translucent washes, print colors, workspace grid, backdrops, status values and shadows are all in `tokens.css`.
+There are no hex or `rgb()/rgba()` literals in `styles.css` or `examples.css`. Theme palettes, translucent washes, print colors, backdrops, status feedback, and shadows are all in `tokens.css`.
 
-Blockly block/theme colors remain concrete values in `block_lambda.ts`, as required. Moving them would change renderer and grammatical color behavior.
+Blockly block/theme colors and the snapping grid remain concrete values in `block_lambda.ts`, as required by Blockly injection and renderer behavior. Moving them would change renderer and grammatical color behavior.
 
 ### Spacing and geometry
 
@@ -155,14 +157,14 @@ No webfont is imported; existing system fallbacks remain.
 
 | Breakpoint | Preserved behavior |
 | --- | --- |
-| 1240px in CSS and `COMPACT_LAYOUT_QUERY` | Sidebar/code drawers, hidden resizers, reduced header density |
+| 1240px in CSS and `COMPACT_LAYOUT_QUERY` | Sidebar/code drawers and disabled/hidden desktop resizers |
 | 900px in both component stylesheets | Header drawer and fixed menu/submenu overlays |
 | 780px in `layout.ts` only | Code-panel phone focus/scroll timing |
 | 620px in `styles.css` | Phone dimensions, reduced controls/status, full drawers, fixed bottom panel |
 | Print | Formal derivation isolation |
 | Reduced motion | Motion and smooth-scroll suppression |
 
-No breakpoint or responsive implementation changed. Breakpoint tokens are documentary because custom properties cannot be used in native media conditions.
+No breakpoint or responsive implementation changed. Native CSS media queries and the TypeScript compact-layout query remain the sole breakpoint source; unused documentary breakpoint custom properties were removed.
 
 ## Candidate files for later consolidation
 
@@ -172,6 +174,14 @@ No breakpoint or responsive implementation changed. Breakpoint tokens are docume
 | `examples.css` | Rename to describe toolbox plus examples | Medium: import identity only |
 | `tude.ts` runtime style | Scope rules to Tude | Very high: current alternate-renderer geometry |
 | `block_lambda.ts` theme literals | Add a typed Blockly palette aligned with shell semantics | Very high: concrete runtime API and block meaning |
+
+## Conservative cleanup record
+
+Repository-wide `rg` searches verified that the removed selectors, no-op markup classes, SVG symbols, and token declarations had no source, test, or runtime references. The following remain intentionally despite being hidden or visually duplicated:
+
+- The hidden legacy activity/sidebar subtree, because its IDs, `data-*` vocabulary, diagnostics updates, and persisted-layout migration remain live compatibility contracts.
+- Both header and workspace Run controls, because the accepted information architecture explicitly keeps Run in both locations.
+- Blockly upstream-class selectors and runtime Tude CSS, because absence from local markup does not establish that Blockly will not emit them.
 
 ## Highest-risk dependencies
 

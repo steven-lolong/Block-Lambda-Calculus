@@ -86,7 +86,7 @@ All IDs in this section are exact lookup strings or exact runtime-generated IDs.
 | `[data-id]` on Blockly SVG blocks | `contextMenus.ts` | Must preserve exactly | Maps fallback context-menu events back to a Blockly block ID; owned by Blockly |
 | `style` elements in `document.head` | `screenshot.ts` | Must preserve exactly as a query behavior | Screenshot export inlines Blockly-related runtime styles |
 
-Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`, `control-separator`, `status-brand`, and most layout typography helpers are **Presentation-only** unless they also appear in the table above. They may be renamed with their HTML/CSS together.
+Purely decorative classes such as `brand-copy`, `viz-tab-icon`, `control-separator`, and most layout typography helpers are **Presentation-only** unless they also appear in the table above. They may be renamed with their HTML/CSS together. The unused `code-tab-icon`, legacy sidebar/activity command classes, and no-op shell classes were removed after searches confirmed no source or test consumers.
 
 ## Behaviorally queried `data-*` attributes
 
@@ -192,7 +192,7 @@ The `bottomTab` storage field deliberately retains the prior seven-value vocabul
 | `block-lambda-autosave-time` | ISO timestamp | Must preserve exactly |
 | `block-lambda-autosave-interval-minutes` | Integer clamped to 2–20 | Must preserve exactly |
 
-The CSS custom properties `--ide-primary-sidebar-width`, `--ide-code-panel-width`, `--ide-bottom-panel-height`, `--viewport-height`, and grid-local `--resize-handle-left` are runtime layout channels and are also **Must preserve exactly** until TypeScript and CSS are migrated together.
+The CSS custom properties `--ide-primary-sidebar-width`, `--ide-code-panel-width`, `--ide-bottom-panel-height`, `--viewport-height`, and grid-local `--resize-handle-left` are runtime layout channels and are also **Must preserve exactly** until TypeScript and CSS are migrated together. Unused presentation tokens and documentary breakpoint variables are not compatibility contracts and were removed during the conservative cleanup.
 
 ## CSS selectors coupled to state
 
