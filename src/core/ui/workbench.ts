@@ -478,6 +478,10 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       } else {
         setActivity(requested);
       }
+      if (activityButton.closest('.app-menu-popup')) {
+        closeMenus();
+        closeCompactMenu();
+      }
       return;
     }
 

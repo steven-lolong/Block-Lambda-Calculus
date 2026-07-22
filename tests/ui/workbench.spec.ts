@@ -41,13 +41,14 @@ test('code and inspector panel can be hidden and restored', async ({ page }) => 
 });
 
 test('primary Run control opens the CEK runtime view', async ({ page }) => {
-  await page.locator('.quick-actions [data-bottom-tab="machine"]').click();
+  await page.locator('.header-run-button').click();
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
   await expect(page.locator('#bottomTab-machine')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.viz-host[data-kind="machine"]')).toHaveAttribute('data-active', 'true');
 });
 
 test('command palette exposes registered commands', async ({ page }) => {
+  await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.locator('#commandPaletteTrigger').click();
   await expect(page.locator('#commandPalette')).toHaveAttribute('open', '');
   await expect(page.getByRole('option', { name: /File: New Workspace/ })).toBeVisible();
@@ -56,8 +57,24 @@ test('command palette exposes registered commands', async ({ page }) => {
   await expect(page.locator('#commandPalette')).not.toHaveAttribute('open', '');
 });
 
+test('header menus support keyboard navigation and Escape dismissal', async ({ page }) => {
+  const fileMenu = page.getByRole('button', { name: 'File', exact: true });
+  await fileMenu.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: /New Workspace/ })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(fileMenu).toHaveAttribute('aria-expanded', 'false');
+
+  const examplesMenu = page.getByRole('button', { name: 'Examples', exact: true });
+  await examplesMenu.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: /Identity Function/ })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(examplesMenu).toHaveAttribute('aria-expanded', 'false');
+});
+
 test('perspective selection applies the Debug layout', async ({ page }) => {
-  await page.locator('[data-activity="settings"]').click();
+  await page.locator('.activity-button[data-activity="settings"]').click();
   await page.locator('#perspectiveSelect').selectOption('debug');
   await expect(page.locator('#statusPerspective')).toHaveText('Debug');
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
@@ -111,8 +128,10 @@ test('layout state is restored after reload', async ({ page }) => {
 });
 
 test('theme and autosave interval are configurable and persisted', async ({ page }) => {
+  await page.locator('.activity-button[data-activity="settings"]').click();
   const initialTheme = await page.locator('html').getAttribute('data-theme');
-  await page.locator('#themeToggle').click();
+  const nextTheme = initialTheme === 'dark' ? 'light' : 'dark';
+  await page.locator(`button[data-theme-mode="${nextTheme}"]`).click();
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', initialTheme ?? '');
   const switchedTheme = await page.locator('html').getAttribute('data-theme');
 

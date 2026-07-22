@@ -12,7 +12,7 @@ export async function loadWorkbench(page: Page): Promise<void> {
 
 export async function setTheme(page: Page, theme: 'light' | 'dark'): Promise<void> {
   if (await page.locator('html').getAttribute('data-theme') !== theme) {
-    await page.locator('#themeToggle').click();
+    await page.locator(`button[data-theme-mode="${theme}"]`).evaluate((button: HTMLButtonElement) => button.click());
   }
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 }

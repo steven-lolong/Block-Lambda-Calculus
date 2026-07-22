@@ -59,6 +59,7 @@
           <img class="brand-mark brand-mark-dark" src="assets/images/logo-dark.svg" alt="" />
           <span class="brand-copy">
             <strong>Block Lambda</strong>
+            <span id="topbarFileName" title="Untitled workspace" aria-live="polite">Untitled workspace</span>
           </span>
         </a>
 
@@ -79,13 +80,24 @@
                 <button id="loadAutosave" class="menu-command" type="button" role="menuitem"><span>Recover Autosave</span></button>
               </div>
             </div>
-            <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>Edit</span></button>
-              <div class="app-menu-popup" role="menu" hidden>
-                <button id="undoWorkspace" class="menu-command" type="button" role="menuitem"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
-                <button id="redoWorkspace" class="menu-command" type="button" role="menuitem"><span>Redo</span><kbd>Ctrl+Shift+Z</kbd></button>
+            <div class="example-menu-wrapper header-example-menu">
+              <button id="examplesMenuButton" class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="examplesSubMenu"><span>Examples</span></button>
+              <div id="examplesSubMenu" class="app-menu-popup example-submenu header-example-popup" role="menu" hidden>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="identity-function"><span class="example-menu-title">Identity Function</span><span class="example-menu-description">λx. x — polymorphic</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="currying-closures"><span class="example-menu-title">Currying &amp; Closures</span><span class="example-menu-description">add 1 captures x ⇒ 42</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="function-composition"><span class="example-menu-title">Function Composition</span><span class="example-menu-description">compose f g 5 ⇒ 16</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="apply-twice"><span class="example-menu-title">Apply Twice</span><span class="example-menu-description">f (f x) ⇒ 11</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="twice-twice"><span class="example-menu-title">Twice Twice</span><span class="example-menu-description">twice applied to itself ⇒ 4</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="let-polymorphism"><span class="example-menu-title">Let-Polymorphism</span><span class="example-menu-description">id at bool and int ⇒ 42</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="copy-vs-lookup"><span class="example-menu-title">Copy vs Lookup</span><span class="example-menu-description">CbS ⇄ CbV contrast ⇒ 42</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="shadowing"><span class="example-menu-title">Shadowing</span><span class="example-menu-description">Inner binder wins ⇒ 11</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="normal-form-binder"><span class="example-menu-title">Normal Form</span><span class="example-menu-description">No reduction under a binder</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="simple-factorial"><span class="example-menu-title">Factorial 5</span><span class="example-menu-description">Linear recursion ⇒ 120</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="fibonacci"><span class="example-menu-title">Fibonacci 6</span><span class="example-menu-description">Tree recursion ⇒ 8</span></button>
+                <button class="example-menu-item" type="button" role="menuitem" data-example-id="gcd-euclid"><span class="example-menu-title">GCD (Euclid)</span><span class="example-menu-description">mod via ÷ ⇒ 6</span></button>
               </div>
             </div>
+            <button class="header-run-button" type="button" data-bottom-tab="machine" aria-label="Run in the CEK machine" title="Run in the CEK machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg><span>Run</span></button>
             <div class="app-menu">
               <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>View</span></button>
               <div class="app-menu-popup" role="menu" hidden>
@@ -100,78 +112,25 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>Run</span></button>
-              <div class="app-menu-popup" role="menu" hidden>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>More</span></button>
+              <div class="app-menu-popup app-menu-popup-right" role="menu" hidden>
+                <button id="undoWorkspace" class="menu-command" type="button" role="menuitem"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
+                <button id="redoWorkspace" class="menu-command" type="button" role="menuitem"><span>Redo</span><kbd>Ctrl+Shift+Z</kbd></button>
+                <div class="menu-separator" role="separator"></div>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="structure"><span>Call-by-Structure Trace</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="value"><span>Call-by-Value Trace</span></button>
-                <button class="menu-command" type="button" role="menuitem" data-bottom-tab="machine"><span>CEK Machine</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="stepper"><span>Lockstep Debugger</span></button>
-              </div>
-            </div>
-            <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>Build</span></button>
-              <div class="app-menu-popup" role="menu" hidden>
+                <div class="menu-separator" role="separator"></div>
                 <button id="refreshCode" class="menu-command" type="button" role="menuitem"><span>Refresh Generated Output</span><kbd>Ctrl+Shift+B</kbd></button>
-                <button class="menu-command" type="button" role="menuitem" data-bottom-tab="types"><span>Run Type Analysis</span></button>
+                <button class="menu-command" type="button" role="menuitem" data-bottom-tab="types"><span>Show Inferred Types</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="problems"><span>Show Problems</span></button>
-              </div>
-            </div>
-            <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>Tools</span></button>
-              <div class="app-menu-popup tools-menu" role="menu" hidden>
-                <div class="example-menu-wrapper">
-                  <button id="examplesMenuButton" class="menu-command" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="examplesSubMenu"><span>Open Example</span><svg class="app-icon menu-disclosure-icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
-                  <div id="examplesSubMenu" class="example-submenu" role="menu" hidden>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="identity-function"><span class="example-menu-title">Identity Function</span><span class="example-menu-description">λx. x — polymorphic</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="currying-closures"><span class="example-menu-title">Currying &amp; Closures</span><span class="example-menu-description">add 1 captures x ⇒ 42</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="function-composition"><span class="example-menu-title">Function Composition</span><span class="example-menu-description">compose f g 5 ⇒ 16</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="apply-twice"><span class="example-menu-title">Apply Twice</span><span class="example-menu-description">f (f x) ⇒ 11</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="twice-twice"><span class="example-menu-title">Twice Twice</span><span class="example-menu-description">twice applied to itself ⇒ 4</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="let-polymorphism"><span class="example-menu-title">Let-Polymorphism</span><span class="example-menu-description">id at bool and int ⇒ 42</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="copy-vs-lookup"><span class="example-menu-title">Copy vs Lookup</span><span class="example-menu-description">CbS ⇄ CbV contrast ⇒ 42</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="shadowing"><span class="example-menu-title">Shadowing</span><span class="example-menu-description">Inner binder wins ⇒ 11</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="normal-form-binder"><span class="example-menu-title">Normal Form</span><span class="example-menu-description">No reduction under a binder</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="simple-factorial"><span class="example-menu-title">Factorial 5</span><span class="example-menu-description">Linear recursion ⇒ 120</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="fibonacci"><span class="example-menu-title">Fibonacci 6</span><span class="example-menu-description">Tree recursion ⇒ 8</span></button>
-                    <button class="example-menu-item" type="button" role="menuitem" data-example-id="gcd-euclid"><span class="example-menu-title">GCD (Euclid)</span><span class="example-menu-description">mod via ÷ ⇒ 6</span></button>
-                  </div>
-                </div>
-                <div class="example-menu-wrapper theme-menu-wrapper">
-                  <button id="blocklyThemeMenuButton" class="menu-command" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Blockly Renderer</span><svg class="app-icon menu-disclosure-icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
-                  <div id="blocklyThemeSubMenu" class="example-submenu theme-submenu" role="menu" hidden>
-                    <button class="example-menu-item theme-menu-item" type="button" role="menuitemradio" data-blockly-renderer="tude" aria-checked="false"><span class="example-menu-title">Tude</span><span class="example-menu-description">Project square renderer</span></button>
-                    <button class="example-menu-item theme-menu-item" type="button" role="menuitemradio" data-blockly-renderer="zelos" aria-checked="false"><span class="example-menu-title">Zelos</span><span class="example-menu-description">Rounded Blockly renderer</span></button>
-                    <button class="example-menu-item theme-menu-item" type="button" role="menuitemradio" data-blockly-renderer="thrasos" aria-checked="false"><span class="example-menu-title">Thrasos</span><span class="example-menu-description">Classic Blockly renderer</span></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>Help</span></button>
-              <div class="app-menu-popup app-menu-popup-right" role="menu" hidden>
+                <div class="menu-separator" role="separator"></div>
+                <button class="menu-command" type="button" role="menuitem" data-activity="settings"><span>Settings</span></button>
+                <button id="commandPaletteTrigger" class="menu-command" type="button" role="menuitem" aria-haspopup="dialog" aria-controls="commandPalette"><span>Command Palette…</span><kbd>Ctrl+Shift+P</kbd></button>
                 <button id="aboutApp" class="menu-command" type="button" role="menuitem"><span>About Block Lambda</span></button>
               </div>
             </div>
           </nav>
-
-          <button id="commandPaletteTrigger" class="command-trigger" type="button" aria-haspopup="dialog" aria-controls="commandPalette" title="Show Command Palette (Ctrl+Shift+P)">
-            <svg class="app-icon" aria-hidden="true"><use href="#icon-search"></use></svg>
-            <span>Search commands</span><kbd>Ctrl+Shift+P</kbd>
-          </button>
-
-          <div class="quick-actions" role="toolbar" aria-label="Common commands">
-            <button class="icon-button" type="button" data-command-target="loadWorkspace" aria-label="Open workspace" title="Open (Ctrl+O)"><svg class="app-icon" aria-hidden="true"><use href="#icon-folder"></use></svg></button>
-            <button class="icon-button" type="button" data-command-target="saveWorkspace" aria-label="Save workspace" title="Save (Ctrl+S)"><svg class="app-icon" aria-hidden="true"><use href="#icon-save"></use></svg></button>
-            <button class="icon-button compact-only" type="button" data-command-target="undoWorkspace" aria-label="Undo" title="Undo (Ctrl+Z)"><svg class="app-icon" aria-hidden="true"><use href="#icon-undo"></use></svg></button>
-            <button class="icon-button compact-only" type="button" data-command-target="redoWorkspace" aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><svg class="app-icon" aria-hidden="true"><use href="#icon-redo"></use></svg></button>
-            <button class="quiet-button run-button" type="button" data-bottom-tab="machine" aria-label="Open CEK machine" title="Run in CEK machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg><span>Run</span></button>
-          </div>
-
-          <span id="topSaveStatus" class="top-save-status" title="Local autosave status"><span class="status-dot"></span><span>Saved</span></span>
-          <label class="theme-switch" for="themeToggle" title="Toggle light or dark theme">
-            <input id="themeToggle" type="checkbox" aria-label="Toggle light or dark theme" />
-            <span class="theme-slider" aria-hidden="true"><svg class="app-icon"><use href="#icon-sun"></use></svg><svg class="app-icon"><use href="#icon-moon"></use></svg></span>
-          </label>
         </div>
       </header>
 
@@ -246,16 +205,20 @@
           <section class="sidebar-view" data-sidebar-view="settings" hidden>
             <div class="sidebar-section">
               <h2>Color Theme</h2>
+              <input id="themeToggle" class="visually-hidden" type="checkbox" aria-label="Use dark theme" />
               <div class="segmented-control" role="group" aria-label="Color theme">
-                <button type="button" data-theme-mode="dark">Dark</button>
                 <button type="button" data-theme-mode="light">Light</button>
+                <button type="button" data-theme-mode="dark">Dark</button>
               </div>
             </div>
             <div class="sidebar-section">
-              <h2>Blockly Renderer</h2>
-              <button class="settings-option" type="button" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-              <button class="settings-option" type="button" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-              <button class="settings-option" type="button" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+              <h2>Block Appearance</h2>
+              <button id="blocklyThemeMenuButton" class="settings-disclosure" type="button" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Choose block renderer</span><svg class="app-icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
+              <div id="blocklyThemeSubMenu" class="settings-options" role="group" aria-label="Block renderer" hidden>
+                <button class="settings-option" type="button" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+              </div>
             </div>
             <div class="sidebar-section">
               <h2>Perspective</h2>
@@ -266,6 +229,14 @@
                 <option value="presentation">Presentation</option>
                 <option value="custom">Custom</option>
               </select>
+            </div>
+            <div class="sidebar-section">
+              <h2>Autosave</h2>
+              <label class="settings-range" for="autosaveInterval">
+                <span>Save interval</span>
+                <input id="autosaveInterval" class="autosave-slider" type="range" min="2" max="20" step="1" value="2" aria-label="Autosave interval in minutes" />
+                <span id="autosaveIntervalLabel" class="autosave-interval-label">2 minutes</span>
+              </label>
             </div>
           </section>
         </aside>
@@ -446,19 +417,16 @@
       </section>
 
       <footer class="statusbar ide-status-bar" aria-label="IDE status">
-        <span class="status-brand" title="Block Lambda workspace"><svg class="app-icon" aria-hidden="true"><use href="#icon-blocks"></use></svg></span>
-        <span id="topbarFileName" class="status-item status-file-name" title="Untitled workspace" aria-live="polite">Untitled workspace</span>
-        <span class="status-item autosave-status-item"><span class="status-dot"></span> Autosaved <span id="autosaveTime">just now</span></span>
-        <label class="status-item autosave-interval-control" for="autosaveInterval" title="Autosave interval">
-          <span>Autosave</span>
-          <input id="autosaveInterval" class="autosave-slider" type="range" min="2" max="20" step="1" value="2" aria-label="Autosave interval in minutes" />
-          <span id="autosaveIntervalLabel" class="autosave-interval-label">2 minutes</span>
-        </label>
-        <span id="statusLine" class="status-line" role="status" aria-live="polite">Ready.</span>
-        <button class="status-item status-button" type="button" data-activity="problems" title="Show Problems"><svg id="statusProblemIcon" class="app-icon" aria-hidden="true"><use href="#icon-check"></use></svg><span id="statusProblemCount">0 problems</span></button>
-        <span class="status-item">Blocks <strong id="blockCount">0</strong></span>
-        <span id="statusPerspective" class="status-item">Edit</span>
-        <span class="status-version">λ IDE 1.0</span>
+        <div class="statusbar-left">
+          <span class="status-item">Blocks <strong id="blockCount">0</strong></span>
+          <button class="status-item status-button" type="button" data-activity="problems" title="Show Problems"><svg id="statusProblemIcon" class="app-icon" aria-hidden="true"><use href="#icon-check"></use></svg><span id="statusProblemCount">0 problems</span></button>
+        </div>
+        <div class="statusbar-right">
+          <span id="topSaveStatus" class="status-item top-save-status" title="Local autosave status"><span class="status-dot"></span><span>Saved locally</span></span>
+          <span id="autosaveTime" class="status-item">Just now</span>
+        </div>
+        <span id="statusLine" class="visually-hidden" role="status" aria-live="polite">Ready.</span>
+        <span id="statusPerspective" class="visually-hidden">Edit</span>
       </footer>
 
       <dialog id="commandPalette" class="command-palette" aria-labelledby="commandPaletteTitle">
