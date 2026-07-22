@@ -122,7 +122,7 @@ The class hooks `.app-menu`, `.app-menu-trigger`, `.app-menu-popup`, `.activity-
 
 ### ARIA relationships that must survive reorganization
 
-- `menuToggle` controls `topbarActions`; Examples and Renderer submenu triggers control their corresponding submenu IDs.
+- `menuToggle` controls `topbarActions`; File, View, More, Examples, and Renderer triggers control their corresponding popup/submenu IDs.
 - Primary inspector tabs control/label `lambdaEditorPane`, `typesPane`, and `outlinePane`; nested Types tabs control/label `blockInspectorPane` and `codeOutput`.
 - Primary bottom tabs control/label Problems, Output, and `semanticsViews`; nested Semantics tabs control/label their dynamically assigned `bottomPanel-structure`, `-value`, `-machine`, and `-stepper` tabpanels. Hidden `bottomTab-types`/`bottomPanel-types` remains an ARIA-linked compatibility pair.
 - `commandPalette` is labelled by `commandPaletteTitle`; its input controls `commandPaletteList`.
@@ -163,7 +163,7 @@ Current keyboard contracts:
 - `Ctrl/Cmd+Shift+P` or `F1`: Open command palette.
 - `F11`: Enter/leave Presentation perspective.
 - `/`: open Blocks and focus block search when focus is not editable.
-- `Escape`: close menus, compact header menu, palette, and relevant submenus.
+- `Escape`: close menus, compact header menu, palette, Settings submenus, and compact panel drawers. Focus returns to the control that opened the dismissed surface whenever that control remains available.
 - Arrow keys: navigate application menus, right-panel tabs, bottom-panel tabs, the command palette, and resizers. `Home`/`End` work on tablists; Enter activates the selected palette command; Enter/Space activates runtime provenance links.
 
 The current palette is not yet exhaustive: examples, renderer choices, autosave interval controls, print/copy, screenshot, panel maximization, context actions, and the individual machine/stepper controls are not all registered there. “Command palette: every application command” is therefore an acceptance requirement for the refactor, not a claim about current behavior.
@@ -173,14 +173,14 @@ The current palette is not yet exhaustive: examples, renderer choices, autosave 
 ### Responsive layout
 
 - Above 1240px the shell is a four-column grid: activity bar, resizable primary sidebar, Blockly workspace, and resizable right panel.
-- At `max-width: 1240px`, the sidebar and right panel become absolute overlay drawers over the workspace. Opening one hides the other. Their desktop resize handles are hidden. Stored visibility remains the source of truth and is reapplied when the media query changes.
+- At `max-width: 1240px`, the sidebar and right panel become absolute overlay drawers over the workspace. Opening one hides the other. Their desktop resize handles are hidden, removed from sequential keyboard navigation, marked `aria-disabled`, and ignore pointer/keyboard resize events. Stored visibility remains the source of truth and is reapplied when the media query changes.
 - At `max-width: 900px`, the application menu becomes a collapsible header drawer controlled by `menuToggle`; popups become viewport-positioned; autosave interval and visualization info are reduced.
 - Phone detection for scroll/focus behavior is `max-width: 780px`. Restoring the right panel scrolls it into view and focuses it after the layout settles.
-- At `max-width: 620px`, the activity/header/status dimensions shrink, the left and right panels occupy the width beside the activity bar, secondary workspace controls are hidden, and an open bottom panel becomes a fixed bottom drawer. Maximized bottom state fills from below the header to above the status bar. Only the active bottom-tab label is shown; stepper/machine panes stack vertically.
+- At `max-width: 620px`, the activity/header/status dimensions shrink, the left and right panels occupy the width beside the activity bar, secondary workspace controls are hidden, and an open bottom panel becomes a fixed bottom drawer. Its desktop resize handle is hidden, removed from the tab order, marked `aria-disabled`, and ignores resize events. Maximized bottom state fills from below the header to above the status bar. Only the active bottom-tab label is shown; stepper/machine panes stack vertically.
 - `prefers-reduced-motion: reduce` effectively disables transitions and animations.
 - `visualViewport`, window resize/orientation, observed panel geometry, and relevant transition completion all schedule a shared Blockly/layout resize. Preserve the `--viewport-height` workaround and `block-lambda:layout-resized` notification.
 
-Do not change the responsive drawer or resize implementation until browser-level regression tests cover the 1240px overlay transition, mutual exclusion, the 900px menu drawer, 780px restore behavior, the 620px bottom drawer, and orientation/viewport changes.
+Browser regression coverage now exercises the six approved viewports (1920×1080, 1440×900, 1280×800, 1024×768, 768×1024, and 390×844), drawer mutual exclusion/dismissal, resizer deactivation in drawer mode, bottom maximization, and workspace reachability. Retain this coverage before changing the responsive drawer or resize implementation.
 
 ### Resizers and maximization
 
@@ -198,6 +198,7 @@ Do not change the responsive drawer or resize implementation until browser-level
 | `block-lambda-ide-layout-v2` | Activity, sidebar visibility/width, code visibility/width/maximized, bottom visibility/height/tab/maximized, perspective |
 | `block-lambda-theme-mode` | `light` or `dark`; invalid/missing values resolve to dark |
 | `block-lambda-blockly-renderer` | `tude`, `zelos`, or `thrasos`; invalid/missing values resolve to Tude |
+| `block-lambda-active-inspector-target` | `code`, `inspector`, `outline`, or `formal`; invalid/missing values resolve to Code |
 | `block-lambda-autosave-workspace` | Blockly serialized workspace JSON |
 | `block-lambda-autosave-time` | ISO timestamp of the local autosave |
 | `block-lambda-autosave-interval-minutes` | Integer interval clamped to 2–20 minutes; default 2 |
@@ -234,7 +235,7 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 ### Functional and semantic
 
 - All existing automated suites pass: round-trip, semantics/machine correspondence, and layout-state validation.
-- Browser regression tests are added before changing drawer or resize behavior and pass at desktop, compact, header-drawer, and phone breakpoints.
+- Browser regression tests pass at 1920×1080, 1440×900, 1280×800, 1024×768, 768×1024, and 390×844, including drawer mutual exclusion/dismissal, disabled compact resizers, bottom maximization, and workspace recovery after a panel change.
 - Every shipped example loads (replace and merge), type-checks as before, reaches the same values under both strategies, and remains pinned by tests.
 - Saving/loading `.blc` preserves block types, fields, connections, positions, and comments; autosave/recovery and autosave interval work across reloads.
 - Text-to-block and block-to-text round trips remain stable; formal derivation, copy, print, outline, inspector, diagnostics, type comments, screenshot, and status updates remain functional.
@@ -254,12 +255,12 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 - No production ID, behaviorally significant `data-*` value, state class/attribute, custom event, storage key, keyboard shortcut, event handler, or ARIA relationship listed here is lost.
 - The branch mismatch and the absent brief IDs (`run-program`, `viz-dock`, `toolbox-column`, `perspective-select`) are resolved explicitly before release; current camelCase/source contracts are not silently renamed.
 - Desktop resizers work by pointer and keyboard, update ARIA values, respect bounds, and persist.
-- Compact drawers remain mutually exclusive; phone code restoration scrolls/focuses correctly; the phone bottom drawer and both maximization modes restore correctly; persisted layout survives reload and breakpoint changes.
+- Compact drawers remain mutually exclusive; Escape dismisses a compact drawer and restores focus to its trigger; phone code restoration scrolls/focuses correctly; the phone bottom drawer and both maximization modes restore correctly; persisted layout and the intended active inspector/bottom tabs survive reload and breakpoint changes.
 - Blockly resizes correctly after panel changes, theme changes, transitions, viewport/orientation changes, and restoration from persisted state.
 
 ### Accessibility and visual quality
 
-- Full application operation is possible with a keyboard, with visible focus and no keyboard trap.
+- Full application operation is possible with a keyboard, with visible focus and no keyboard trap. The document has one workbench `h1`, labelled header/main/navigation/aside/footer landmarks, and no duplicate IDs.
 - Menus, dialogs, tablists, tree items, live regions, toggles, groups, and separators retain correct roles, names, states, focus order, and relationships.
 - Tab lists use roving focus and Arrow/Home/End behavior; menus use Arrow navigation; the palette uses Arrow/Enter/Escape; resizers use Arrow keys; provenance links use Enter/Space.
 - Light and dark themes meet WCAG contrast expectations for text, controls, focus, selection, warnings, and errors; color is never the only carrier of state.
@@ -271,7 +272,7 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 
 1. **Product mismatch:** this checkout is Lambda Calculus while the brief names Block-MiniJava. Relabelling without the correct grammar/runtime would violate the primary preservation goal.
 2. **Selector mismatch:** the four explicitly mandated kebab-case IDs are absent; current TypeScript is coupled to camelCase IDs and delegated `data-*` routing.
-3. **Responsive coverage gap:** current tests validate persisted layout data but do not exercise DOM drawers, resizers, focus/scroll restoration, maximization, breakpoints, or ARIA updates in a browser.
+3. **Responsive regression sensitivity:** browser coverage now protects the approved viewport matrix and drawer/resizer contracts, but runtime Blockly geometry remains sensitive to later DOM/CSS changes and needs the same visual review at every breakpoint.
 4. **Distributed command wiring:** commands are currently spread across direct ID listeners, delegated `data-*` listeners, context-menu registry entries, and an incomplete palette array. Consolidation must preserve handlers while establishing a complete command registry/reachability test.
 5. **CSS/DOM coupling:** layout and state depend on exact class/data selectors and CSS custom properties. Markup movement can appear correct at one breakpoint while breaking overlay mutual exclusion or Blockly resize elsewhere.
 6. **Renderer sensitivity:** Tude’s square geometry and connector paths are executable grammar cues. Treating them as visual decoration could break connection affordances and serialized program expectations.

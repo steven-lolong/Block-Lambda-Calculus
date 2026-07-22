@@ -51,7 +51,7 @@ All IDs in this section are exact lookup strings or exact runtime-generated IDs.
 
 | IDs | Classification | Dependency |
 | --- | --- | --- |
-| `topbarActions` | May move but must retain identity | Target of `menuToggle[aria-controls]` |
+| `topbarActions`, `fileMenu`, `viewMenu`, `moreMenu` | May move but must retain identity | Targets of `menuToggle[aria-controls]` and the respective labelled application-menu triggers |
 | `commandPaletteTitle`, `saveNameDialogTitle`, `exampleLoadDialogTitle`, `aboutDialogTitle` | May move but must retain identity | Dialog `aria-labelledby` relationships |
 | `codeTargetCode`, `codeTargetFormal`, `codeTargetInspector`, `codeTargetOutline`, `typeTargetOverview`, `typesPane` | May move but must retain identity | Primary/secondary tab identity and panel `aria-labelledby`; `codeTarget*` buttons are also collected by `[data-code-target]` |
 | `bottomTab-semantics`, `semanticsViews`, `selectedTypeHeading` | May move but must retain identity | Static outer Semantics tab/panel and selected-type section labelling |
@@ -127,7 +127,7 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 | Primary bottom tabs | runtime Problems/Output tabs plus `bottomTab-semantics`/`semanticsViews` use `role="tab"`/`tabpanel`, `aria-controls`, `aria-labelledby`, `aria-selected` | Must preserve exactly | Roving focus among Problems, Output, and Semantics |
 | Semantics tabs | runtime `bottomTab-structure`, `-value`, `-machine`, `-stepper` control/label their `bottomPanel-*` hosts | Must preserve exactly | Nested roving focus and specific semantic/runtime view identity |
 | Dialog labels | Save, example-load, About, and Settings dialogs reference their title IDs; Settings returns focus to its invoker | Must preserve exactly | Native dialog accessible name and keyboard return path |
-| Resizers | `sidebarResizeHandle`, `resizeHandle`: vertical separator; `vizResizer`: horizontal separator; all focusable with value min/max/now | Must preserve exactly | Keyboard resize and announced value |
+| Resizers | `sidebarResizeHandle`, `resizeHandle`: vertical separator; `vizResizer`: horizontal separator; desktop instances are focusable with value min/max/now, while drawer-mode instances use `tabindex="-1"` and `aria-disabled="true"` | Must preserve exactly | Keyboard resize and announced value; drawer mode must not retain an active resizer |
 | Toggle state | activity/theme buttons and panel/maximize controls update `aria-pressed`; renderer items update `aria-checked` | Must preserve exactly | State is not conveyed by color alone |
 | Live regions | `statusLine`, `lambdaEditorStatus`, `sidebarProblems`, `outputLog`, `vizDockInfo`, `stepperStatus`, `stepperAgree`, `machineStatus`, file/status fields | Must preserve exactly | Async feedback and diagnostics announcements |
 | Outline | `programOutline[role="tree"]`; generated items carry `role="treeitem"` and `aria-level` | Must preserve exactly | Program-structure navigation semantics |
@@ -155,16 +155,16 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 
 | Item | Classification | Coupling |
 | --- | --- | --- |
-| `sidebarResizeHandle` | May move but must retain identity | Pointer capture; ArrowLeft/Right; 240–380 persisted width; hidden at ≤1240px |
-| `resizeHandle` | May move but must retain identity | Pointer capture; reversed ArrowLeft/Right direction; 320–760 width plus live workspace minimum; hidden at ≤1240px |
-| `vizResizer` | May move but must retain identity | Pointer drag; ArrowUp/Down; 180px–72vh live range; manual resize clears maximized state |
+| `sidebarResizeHandle` | May move but must retain identity | Pointer capture; ArrowLeft/Right; 240–380 persisted width; hidden, `tabindex=-1`, and `aria-disabled=true` at ≤1240px |
+| `resizeHandle` | May move but must retain identity | Pointer capture; reversed ArrowLeft/Right direction; 320–760 width plus live workspace minimum; hidden, `tabindex=-1`, and `aria-disabled=true` at ≤1240px |
+| `vizResizer` | May move but must retain identity | Pointer drag; ArrowUp/Down; 180px–72vh live range; manual resize clears maximized state; hidden, `tabindex=-1`, and `aria-disabled=true` in the ≤620px bottom drawer |
 | `toolboxPanel` left drawer | May move but must retain identity | Desktop grid column; absolute overlay at ≤1240px; full-width beside activity bar at ≤620px |
 | `codePanel` right drawer | May move but must retain identity | Desktop grid column; absolute overlay at ≤1240px; phone restore scroll/focus at ≤780px |
 | `topbarActions` header drawer | May move but must retain identity | Hidden/displayed by `.menu-open` at ≤900px; menu popups become fixed |
 | `vizDock` bottom drawer | May move but must retain identity | Grid row on desktop; fixed bottom overlay at ≤620px; `data-open` and `data-maximized` |
 | `showToolboxFromWorkspace`, `showCodeFromWorkspace` | May move but must retain identity | Responsive restoration affordances whose hidden/disabled/ARIA states are rendered by TypeScript |
 
-Do not change these implementations until browser tests cover desktop, 1240px overlay mutual exclusion, 900px header drawer, 780px code restoration, 620px bottom drawer, keyboard resizing, and persisted restoration.
+The UI smoke suite covers the approved 1920×1080, 1440×900, 1280×800, 1024×768, 768×1024, and 390×844 matrix, including compact drawer dismissal and resizer deactivation. Keep that coverage when changing these implementations.
 
 ## Perspective-dependent elements
 
@@ -187,6 +187,7 @@ The `bottomTab` storage field deliberately retains the prior seven-value vocabul
 | `block-lambda-ide-layout-v2` | `activity`, `sidebarVisible`, `sidebarWidth`, `codeVisible`, `codeWidth`, `codeMaximized`, `bottomVisible`, `bottomHeight`, `bottomTab`, `bottomMaximized`, `perspective` | Must preserve exactly; migrate only with versioned tests |
 | `block-lambda-theme-mode` | `light` or `dark` | Must preserve exactly |
 | `block-lambda-blockly-renderer` | `tude`, `zelos`, `thrasos` | Must preserve exactly |
+| `block-lambda-active-inspector-target` | `code`, `inspector`, `outline`, `formal`; invalid values fall back to `code` | Must preserve exactly |
 | `block-lambda-autosave-workspace` | Serialized Blockly workspace JSON | Must preserve exactly |
 | `block-lambda-autosave-time` | ISO timestamp | Must preserve exactly |
 | `block-lambda-autosave-interval-minutes` | Integer clamped to 2–20 | Must preserve exactly |

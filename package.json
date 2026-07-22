@@ -15,7 +15,7 @@
     "test:semantics": "tsc -p tsconfig.test.json && node .test-build/tests/semantics.js",
     "test:layout": "tsc -p tsconfig.test.json && node .test-build/tests/layoutState.js",
     "test:block-colors": "tsc -p tsconfig.test.json && node .test-build/tests/blockColors.js",
-    "test:ui": "playwright test tests/ui/workbench.spec.ts",
+    "test:ui": "playwright test tests/ui/workbench.spec.ts tests/ui/workbench.accessibility.spec.ts",
     "test:ui:visual": "playwright test tests/ui/workbench.visual.spec.ts",
     "test:ui:update": "playwright test tests/ui/workbench.visual.spec.ts --update-snapshots"
   },

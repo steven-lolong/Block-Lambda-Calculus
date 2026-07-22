@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { registerIdeLayoutResizeListener } from './layout';
+import { isPhoneDrawerLayout, registerIdeLayoutResizeListener } from './layout';
 import { readIdeLayoutState, updateIdeLayoutState, type BottomTab } from './layoutState';
 import {
   arrangeBlocksVertically,
@@ -659,6 +659,12 @@ function initResizer(): void {
   const resizer = byId<HTMLDivElement>('vizResizer');
   if (!resizer) return;
 
+  const syncResizerAvailability = (): void => {
+    const drawer = isPhoneDrawerLayout();
+    resizer.tabIndex = drawer ? -1 : 0;
+    resizer.setAttribute('aria-disabled', String(drawer));
+  };
+
   const applyHeight = (height: number): void => {
     const clamped = Math.max(180, Math.min(height, Math.round(window.innerHeight * 0.72)));
     document.documentElement.style.setProperty('--ide-bottom-panel-height', `${clamped}px`);
@@ -676,6 +682,7 @@ function initResizer(): void {
   };
 
   resizer.addEventListener('pointerdown', (event) => {
+    if (isPhoneDrawerLayout()) return;
     event.preventDefault();
     const startY = event.clientY;
     const startHeight = dock()?.getBoundingClientRect().height ?? 320;
@@ -691,6 +698,7 @@ function initResizer(): void {
   });
 
   resizer.addEventListener('keydown', (event) => {
+    if (isPhoneDrawerLayout()) return;
     const step = event.key === 'ArrowUp' ? 24 : event.key === 'ArrowDown' ? -24 : 0;
     if (!step) return;
     event.preventDefault();
@@ -700,6 +708,8 @@ function initResizer(): void {
   resizer.setAttribute('aria-valuemin', '180');
   resizer.setAttribute('aria-valuemax', String(Math.round(window.innerHeight * 0.72)));
   resizer.setAttribute('aria-valuenow', String(readIdeLayoutState().bottomHeight));
+  syncResizerAvailability();
+  registerIdeLayoutResizeListener(syncResizerAvailability);
 }
 
 export function initVisualizationPanel(initOptions: VisualizationOptions): void {

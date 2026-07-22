@@ -53,6 +53,7 @@
       <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></symbol>
     </svg>
     <div id="app" class="app-shell">
+      <h1 class="visually-hidden">Block Lambda Calculus workbench</h1>
       <header class="topbar application-header" aria-label="Application header">
         <a class="brand" href="#" aria-label="Block Lambda home">
           <img class="brand-mark brand-mark-light" src="assets/images/logo.svg" alt="" />
@@ -71,8 +72,8 @@
         <div id="topbarActions" class="topbar-actions command-toolbar">
           <nav class="menu-bar" aria-label="Application menu">
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>File</span></button>
-              <div class="app-menu-popup" role="menu" hidden>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="fileMenu"><span>File</span></button>
+              <div id="fileMenu" class="app-menu-popup" role="menu" hidden>
                 <button id="clearWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="clearWorkspace"><span>New Workspace</span><kbd>Ctrl+N</kbd></button>
                 <button id="loadWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="loadWorkspace"><span>Open…</span><kbd>Ctrl+O</kbd></button>
                 <button id="saveWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="saveWorkspace"><span>Save As…</span><kbd>Ctrl+S</kbd></button>
@@ -99,8 +100,8 @@
             </div>
             <button class="header-run-button" type="button" data-bottom-tab="machine" aria-label="Run in the CEK machine" title="Run in the CEK machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg><span>Run</span></button>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>View</span></button>
-              <div class="app-menu-popup" role="menu" hidden>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="viewMenu"><span>View</span></button>
+              <div id="viewMenu" class="app-menu-popup" role="menu" hidden>
                 <button class="menu-command" type="button" role="menuitem" data-panel-command="sidebar"><span>Toggle Primary Sidebar</span><kbd>Ctrl+B</kbd></button>
                 <button class="menu-command" type="button" role="menuitem" data-panel-command="code"><span>Toggle Code / Inspector</span><kbd>Ctrl+Alt+C</kbd></button>
                 <button id="toggleVizDock" class="menu-command" type="button" role="menuitem" data-panel-command="bottom" aria-pressed="false"><span>Toggle Bottom Panel</span><kbd>Ctrl+J</kbd></button>
@@ -112,8 +113,8 @@
               </div>
             </div>
             <div class="app-menu">
-              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>More</span></button>
-              <div class="app-menu-popup app-menu-popup-right" role="menu" hidden>
+              <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu"><span>More</span></button>
+              <div id="moreMenu" class="app-menu-popup app-menu-popup-right" role="menu" hidden>
                 <button id="undoWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="undoWorkspace"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
                 <button id="redoWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="redoWorkspace"><span>Redo</span><kbd>Ctrl+Shift+Z</kbd></button>
                 <div class="menu-separator" role="separator"></div>
@@ -280,10 +281,10 @@
             <section class="settings-section">
               <h3>Block appearance</h3>
               <button id="blocklyThemeMenuButton" class="settings-disclosure" type="button" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Choose block renderer</span><svg class="app-icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
-              <div id="blocklyThemeSubMenu" class="settings-options" role="group" aria-label="Block renderer" hidden>
-                <button class="settings-option" type="button" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-                <button class="settings-option" type="button" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-                <button class="settings-option" type="button" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+              <div id="blocklyThemeSubMenu" class="settings-options" role="radiogroup" aria-label="Block renderer" hidden>
+                <button class="settings-option" type="button" role="radio" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" role="radio" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" role="radio" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
               </div>
             </section>
             <section class="settings-section">

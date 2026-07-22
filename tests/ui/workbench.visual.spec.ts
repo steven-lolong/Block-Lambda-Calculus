@@ -34,6 +34,20 @@ test('wide light Edit perspective', async ({ page }) => {
   await expect(page.locator('#app')).toHaveScreenshot('wide-light-edit.png');
 });
 
+test('full HD Edit perspective', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loadWorkbench(page);
+  await setTheme(page, 'light');
+  await expect(page.locator('#app')).toHaveScreenshot('full-hd-light-edit.png');
+});
+
+test('desktop threshold Edit perspective', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await loadWorkbench(page);
+  await setTheme(page, 'light');
+  await expect(page.locator('#app')).toHaveScreenshot('desktop-threshold-light-edit.png');
+});
+
 test('wide dark Debug perspective', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loadWorkbench(page);

@@ -455,9 +455,10 @@ export function installExampleMenu(
   menu: HTMLElement,
   onLoadExample: ExampleLoader
 ): void {
-  function closeMenu(): void {
+  function closeMenu(returnFocus = false): void {
     menu.hidden = true;
     button.setAttribute('aria-expanded', 'false');
+    if (returnFocus) window.setTimeout(() => button.focus({ preventScroll: true }), 0);
   }
 
   function openMenu(): void {
@@ -518,6 +519,6 @@ export function installExampleMenu(
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeMenu();
+    if (event.key === 'Escape' && !menu.hidden) closeMenu(true);
   });
 }

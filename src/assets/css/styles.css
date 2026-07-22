@@ -1337,14 +1337,19 @@ html[data-theme='light'] .about-logo-dark { display: none; }
 @media (max-width: 620px) {
   :root {
     --ide-activity-bar-width: 46px;
-    --ide-header-height: 40px;
-    --ide-status-bar-height: 23px;
+    --ide-header-height: 44px;
+    --ide-panel-header-height: 40px;
+    --ide-status-bar-height: 24px;
+    --control-height-md: 40px;
+    --control-height-lg: 40px;
   }
 
   .brand { min-width: 0; }
   .brand-copy { display: none; }
   .brand-mark { width: 26px; height: var(--control-height-sm); }
   .activity-button { height: 44px; }
+  .icon-button { width: 40px; }
+  .menu-toggle { width: auto; min-width: 40px; padding: 0 7px; }
   .toolbox-panel,
   .code-panel { width: calc(100% - var(--ide-activity-bar-width)); box-shadow: none; }
   .code-panel { left: var(--ide-activity-bar-width); right: 0; }
@@ -1368,7 +1373,12 @@ html[data-theme='light'] .about-logo-dark { display: none; }
     height: min(var(--ide-bottom-panel-height), 58vh);
     margin-left: 0;
     box-shadow: var(--shadow-mobile-panel);
+    grid-template-rows: minmax(0, 1fr);
   }
+  .viz-resizer { display: none; }
+  .viz-panel { grid-template-rows: 40px minmax(0, 1fr); }
+  .semantics-region { grid-template-rows: 40px minmax(0, 1fr); }
+  .semantics-tab { height: 40px; }
   .viz-dock[data-open='true'][data-maximized='true'] {
     top: var(--ide-header-height);
     height: auto;

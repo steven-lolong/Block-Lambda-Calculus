@@ -1,7 +1,7 @@
 import * as Blockly from 'blockly';
 import { lambdaTermText } from '../generator/lambdaTermText';
 import type { LambdaInferenceReport } from '../type-inference/lambdaTypeInference';
-import { isCompactIdeLayout, requestIdeLayoutResize, type PanelController } from './layout';
+import { isCompactIdeLayout, isPhoneDrawerLayout, requestIdeLayoutResize, type PanelController } from './layout';
 import {
   readIdeLayoutState,
   updateIdeLayoutState,
@@ -183,8 +183,18 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   let priorPerspective: IdePerspective = activePerspective === 'presentation' ? 'edit' : activePerspective;
   let presentationRestore: ReturnType<typeof readIdeLayoutState> | null = null;
   let settingsReturnFocus: HTMLElement | null = null;
+  let menuReturnFocus: HTMLElement | null = null;
+  let paletteReturnFocus: HTMLElement | null = null;
+  let bottomDrawerReturnFocus: HTMLElement | null = null;
   let paletteSelection = 0;
   let filteredPaletteCommands: PaletteCommand[] = [];
+
+  const restoreFocus = (element: HTMLElement | null): void => {
+    window.setTimeout(() => {
+      if (!element?.isConnected || element.closest('[hidden]') || element.getClientRects().length === 0) return;
+      element.focus({ preventScroll: true });
+    }, 0);
+  };
 
   const closeMenus = (except?: HTMLElement): void => {
     for (const menu of document.querySelectorAll<HTMLElement>('.app-menu')) {
@@ -333,6 +343,9 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   };
 
   const openBottomTab = (kind: BottomTab): void => {
+    if (!isVisualizationOpen() && document.activeElement instanceof HTMLElement) {
+      bottomDrawerReturnFocus = document.activeElement;
+    }
     if (kind === 'types') {
       showInspectorTarget('codeTargetInspector', true);
       markCustomPerspective();
@@ -347,6 +360,9 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   };
 
   const toggleBottom = (): void => {
+    if (!isVisualizationOpen() && document.activeElement instanceof HTMLElement) {
+      bottomDrawerReturnFocus = document.activeElement;
+    }
     setVisualizationOpen(!isVisualizationOpen());
     markCustomPerspective();
   };
@@ -364,6 +380,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   const showPalette = (): void => {
     closeMenus();
     if (!palette) return;
+    paletteReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (typeof palette.showModal === 'function' && !palette.open) palette.showModal();
     else palette.setAttribute('open', '');
     if (paletteInput) paletteInput.value = '';
@@ -372,10 +389,12 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     window.setTimeout(() => paletteInput?.focus(), 0);
   };
 
-  const closePalette = (): void => {
+  const closePalette = (returnFocus = false): void => {
     if (!palette?.open) return;
     if (typeof palette.close === 'function') palette.close();
     else palette.removeAttribute('open');
+    if (returnFocus) restoreFocus(paletteReturnFocus);
+    paletteReturnFocus = null;
   };
 
   const toggleTheme = (): void => {
@@ -493,18 +512,29 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       closeMenus(willOpen ? menu : undefined);
       if (popup) popup.hidden = !willOpen;
       triggerButton.setAttribute('aria-expanded', String(willOpen));
+      menuReturnFocus = willOpen ? triggerButton : null;
     });
     triggerButton?.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowDown' || !popup) return;
       event.preventDefault();
+      closeMenus(menu);
       popup.hidden = false;
       triggerButton.setAttribute('aria-expanded', 'true');
+      menuReturnFocus = triggerButton;
       popup.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     });
     popup?.addEventListener('keydown', (event) => {
       const items = Array.from(popup.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])'));
       const index = items.indexOf(document.activeElement as HTMLElement);
-      const next = event.key === 'ArrowDown' ? index + 1 : event.key === 'ArrowUp' ? index - 1 : Number.NaN;
+      const next = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : event.key === 'ArrowDown'
+            ? index + 1
+            : event.key === 'ArrowUp'
+              ? index - 1
+              : Number.NaN;
       if (Number.isNaN(next) || items.length === 0) return;
       event.preventDefault();
       items[(next + items.length) % items.length].focus();
@@ -586,12 +616,71 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
 
     if (event.key === 'Escape') {
       if (settingsDialog?.open) {
+        event.preventDefault();
+        const rendererMenu = byId<HTMLElement>('blocklyThemeSubMenu');
+        if (rendererMenu && !rendererMenu.hidden) {
+          rendererMenu.hidden = true;
+          const rendererButton = byId<HTMLButtonElement>('blocklyThemeMenuButton');
+          rendererButton?.setAttribute('aria-expanded', 'false');
+          restoreFocus(rendererButton);
+          return;
+        }
         closeSettings();
         return;
       }
-      closeMenus();
-      closePalette();
-      closeCompactMenu();
+      if (palette?.open) {
+        event.preventDefault();
+        closePalette(true);
+        return;
+      }
+      const examplesMenu = byId<HTMLElement>('examplesSubMenu');
+      if (examplesMenu && !examplesMenu.hidden) {
+        event.preventDefault();
+        examplesMenu.hidden = true;
+        const examplesButton = byId<HTMLButtonElement>('examplesMenuButton');
+        examplesButton?.setAttribute('aria-expanded', 'false');
+        restoreFocus(examplesButton);
+        return;
+      }
+      const hasOpenMenu = Array.from(document.querySelectorAll<HTMLElement>('.app-menu-popup'))
+        .some((popup) => !popup.hidden);
+      if (hasOpenMenu) {
+        event.preventDefault();
+        const returnFocus = menuReturnFocus;
+        closeMenus();
+        menuReturnFocus = null;
+        restoreFocus(returnFocus);
+        return;
+      }
+      if (app?.classList.contains('menu-open')) {
+        event.preventDefault();
+        closeCompactMenu();
+        restoreFocus(byId<HTMLButtonElement>('menuToggle'));
+        return;
+      }
+      if (isCompactIdeLayout() && options.panels.isToolboxVisible()) {
+        event.preventDefault();
+        options.panels.setToolboxVisible(false);
+        markCustomPerspective();
+        restoreFocus(byId<HTMLButtonElement>('showToolboxFromWorkspace'));
+        return;
+      }
+      if (isCompactIdeLayout() && options.panels.isCodeVisible()) {
+        event.preventDefault();
+        options.panels.setCodeVisible(false);
+        markCustomPerspective();
+        restoreFocus(byId<HTMLButtonElement>('showCodeFromWorkspace'));
+        return;
+      }
+      if (isPhoneDrawerLayout() && isVisualizationOpen()) {
+        event.preventDefault();
+        const returnFocus = bottomDrawerReturnFocus ?? byId<HTMLButtonElement>('menuToggle');
+        setVisualizationOpen(false);
+        markCustomPerspective();
+        bottomDrawerReturnFocus = null;
+        restoreFocus(returnFocus);
+        return;
+      }
       return;
     }
     if (event.key === 'F1' || ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'p')) {
@@ -656,7 +745,10 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     requestIdeLayoutResize();
   });
   byId<HTMLButtonElement>('closeSettingsDialog')?.addEventListener('click', closeSettings);
-  settingsDialog?.addEventListener('close', () => settingsReturnFocus?.focus());
+  settingsDialog?.addEventListener('close', () => {
+    restoreFocus(settingsReturnFocus);
+    settingsReturnFocus = null;
+  });
   byId<HTMLButtonElement>('synchronizeCode')?.addEventListener('click', options.synchronizeCode);
   perspectiveSelect?.addEventListener('change', () => applyPerspective(perspectiveSelect.value as IdePerspective));
   window.addEventListener('block-lambda:theme-changed', syncThemeControls);

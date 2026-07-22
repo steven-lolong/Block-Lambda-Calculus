@@ -29,10 +29,12 @@ const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
 const AUTOSAVE_INTERVAL_STORAGE_KEY = 'block-lambda-autosave-interval-minutes';
 const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
 const BLOCKLY_RENDERER_STORAGE_KEY = 'block-lambda-blockly-renderer';
+const INSPECTOR_TARGET_STORAGE_KEY = 'block-lambda-active-inspector-target';
 const ZELOS_RENDERER_NAME = 'zelos';
 const THRASOS_RENDERER_NAME = 'thrasos';
 
 type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME | typeof THRASOS_RENDERER_NAME;
+type InspectorTarget = 'code' | 'formal' | 'inspector' | 'outline';
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -59,6 +61,27 @@ function isBlocklyRendererName(value: string | null): value is BlocklyRendererNa
 function readBlocklyRendererName(): BlocklyRendererName {
   const stored = window.localStorage.getItem(BLOCKLY_RENDERER_STORAGE_KEY);
   return isBlocklyRendererName(stored) ? stored : TUDE_RENDERER_NAME;
+}
+
+function isInspectorTarget(value: string | null): value is InspectorTarget {
+  return value === 'code' || value === 'formal' || value === 'inspector' || value === 'outline';
+}
+
+function readInspectorTarget(): InspectorTarget {
+  try {
+    const stored = window.localStorage.getItem(INSPECTOR_TARGET_STORAGE_KEY);
+    return isInspectorTarget(stored) ? stored : 'code';
+  } catch {
+    return 'code';
+  }
+}
+
+function persistInspectorTarget(target: InspectorTarget): void {
+  try {
+    window.localStorage.setItem(INSPECTOR_TARGET_STORAGE_KEY, target);
+  } catch {
+    // The inspector remains usable when local storage is unavailable.
+  }
 }
 
 function formatAutosaveInterval(minutes: number): string {
@@ -112,7 +135,7 @@ let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 let activeBlocklyRenderer = readBlocklyRendererName();
 let lastTypeReport: LambdaInferenceReport | null = null;
-let activeCodeTarget: 'code' | 'formal' | 'inspector' | 'outline' = 'code';
+let activeCodeTarget: InspectorTarget = readInspectorTarget();
 let lambdaImportTimer: number | undefined;
 let applyingCodeEditorText = false;
 let suppressCodeEditorSyncUntil = 0;
@@ -447,8 +470,9 @@ function resetLambdaEditorSyncGuard(): void {
   suppressCodeEditorSyncUntil = 0;
 }
 
-function activateCodeTarget(target: 'code' | 'formal' | 'inspector' | 'outline'): void {
+function activateCodeTarget(target: InspectorTarget): void {
   activeCodeTarget = target;
+  persistInspectorTarget(target);
   if (target === 'code') {
     syncLambdaEditorFromWorkspace();
     window.setTimeout(() => lambdaEditor.focus(), 0);
@@ -474,6 +498,7 @@ function activateCodeTarget(target: 'code' | 'formal' | 'inspector' | 'outline')
 function synchronizeCodeFromWorkspace(): void {
   resetLambdaEditorSyncGuard();
   activeCodeTarget = 'code';
+  persistInspectorTarget(activeCodeTarget);
   syncLambdaEditorFromWorkspace();
   renderCodeTargetTabs();
   window.setTimeout(() => lambdaEditor.focus(), 0);
@@ -826,9 +851,10 @@ function renderBlocklyRendererMenu(): void {
   blocklyThemeMenuButton.title = `Blockly theme: ${blocklyRendererLabel(activeBlocklyRenderer)}`;
 }
 
-function closeBlocklyThemeMenu(): void {
+function closeBlocklyThemeMenu(returnFocus = false): void {
   blocklyThemeSubMenu.hidden = true;
   blocklyThemeMenuButton.setAttribute('aria-expanded', 'false');
+  if (returnFocus) window.setTimeout(() => blocklyThemeMenuButton.focus({ preventScroll: true }), 0);
 }
 
 function toggleBlocklyThemeMenu(): void {
@@ -885,6 +911,12 @@ function installBlocklyThemeMenu(): void {
     event.stopPropagation();
     toggleBlocklyThemeMenu();
   });
+  blocklyThemeMenuButton.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    if (blocklyThemeSubMenu.hidden) toggleBlocklyThemeMenu();
+    blocklyThemeSubMenu.querySelector<HTMLButtonElement>('[data-blockly-renderer]')?.focus();
+  });
 
   for (const button of blocklyRendererButtons) {
     button.addEventListener('click', (event) => {
@@ -895,6 +927,21 @@ function installBlocklyThemeMenu(): void {
     });
   }
 
+  blocklyThemeSubMenu.addEventListener('keydown', (event) => {
+    if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+    const buttons = blocklyRendererButtons.filter((button) => !button.disabled);
+    const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    if (buttons.length === 0 || currentIndex < 0) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? buttons.length - 1
+        : (currentIndex + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[nextIndex].focus();
+    buttons[nextIndex].click();
+  });
+
   document.addEventListener('click', (event) => {
     const target = event.target;
     if (!(target instanceof Node)) return;
@@ -902,7 +949,7 @@ function installBlocklyThemeMenu(): void {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeBlocklyThemeMenu();
+    if (event.key === 'Escape' && !blocklyThemeSubMenu.hidden) closeBlocklyThemeMenu(true);
   });
 
   renderBlocklyRendererMenu();
