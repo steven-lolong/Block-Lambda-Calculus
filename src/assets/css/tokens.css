@@ -72,22 +72,22 @@
   --syntax-hole: var(--state-error);
 
   /* Typography. */
-  --font-ui: Inter, Geist, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  --font-size-2xs: 8px;
-  --font-size-xs: 9px;
-  --font-size-sm: 10px;
-  --font-size-md: 11px;
-  --font-size-lg: 12px;
-  --font-size-base: 13px;
+  --font-ui: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-size-2xs: 10px;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-base: 14px;
   --font-size-xl: 16px;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  --line-height-tight: 1.1;
-  --line-height-normal: 1.35;
-  --line-height-relaxed: 1.45;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.45;
+  --line-height-relaxed: 1.55;
   --line-height-code: 1.6;
 
   /* Density. */
@@ -102,11 +102,11 @@
   --space-8: 16px;
   --space-9: 20px;
   --space-10: 24px;
-  --control-height-sm: 26px;
-  --control-height-md: 28px;
-  --control-height-lg: 32px;
-  --icon-size-sm: 14px;
-  --icon-size-md: 18px;
+  --control-height-sm: 28px;
+  --control-height-md: 32px;
+  --control-height-lg: 36px;
+  --icon-size-sm: 16px;
+  --icon-size-md: 16px;
   --icon-size-lg: 24px;
 
   /* Shape, elevation, and layering. */

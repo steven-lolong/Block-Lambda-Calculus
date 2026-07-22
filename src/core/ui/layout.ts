@@ -404,17 +404,16 @@ export function setupPanelControls(
 
   copyCode?.addEventListener('click', async () => {
     const code = codeOutput instanceof HTMLElement ? (codeOutput.dataset.rawCode ?? codeOutput.textContent ?? '') : '';
-    const copyIcon = copyCode.querySelector<HTMLElement>('[aria-hidden="true"]');
-    const setCopyButtonState = (icon: string, label: string) => {
-      if (copyIcon) copyIcon.textContent = icon;
-      else copyCode.textContent = icon;
+    const copyIcon = copyCode.querySelector<SVGUseElement>('svg use');
+    const setCopyButtonState = (icon: 'check' | 'copy', label: string) => {
+      copyIcon?.setAttribute('href', `#icon-${icon}`);
       copyCode.setAttribute('aria-label', label);
       copyCode.title = label;
     };
     await navigator.clipboard.writeText(code);
-    setCopyButtonState('✓', 'Copied generated output');
+    setCopyButtonState('check', 'Copied generated output');
     window.setTimeout(() => {
-      setCopyButtonState('⧉', 'Copy generated output');
+      setCopyButtonState('copy', 'Copy generated output');
     }, 1200);
   });
 

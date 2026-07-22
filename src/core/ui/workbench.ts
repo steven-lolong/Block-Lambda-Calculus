@@ -122,7 +122,7 @@ function renderDiagnosticsIntoWorkbench(workspace: Blockly.WorkspaceSvg, report:
   const typesSummary = byId<HTMLElement>('typesPanelSummary');
 
   if (statusProblemCount) statusProblemCount.textContent = issueLabel;
-  if (statusProblemIcon) statusProblemIcon.textContent = report.hasErrors ? '!' : '✓';
+  statusProblemIcon?.querySelector('use')?.setAttribute('href', report.hasErrors ? '#icon-alert' : '#icon-check');
   if (activityProblemCount) {
     activityProblemCount.textContent = String(report.issueCount);
     activityProblemCount.hidden = !report.hasErrors;

@@ -136,13 +136,20 @@ Tude connector dimensions remain independent TypeScript geometry because they en
 
 ## Typography
 
-- Global UI uses `--font-size-base` and `--font-ui`.
-- Code/editor/output uses `--font-mono` and `--line-height-code`.
-- Section labels and controls use semantic size and weight tokens.
-- Former weights 550/650 normalize to 500/600; the CEK label normalizes from 900 to 700.
+- Global UI uses `--font-size-base` and the single `--font-ui` stack; code, generated output, technical labels, values, and grammar data use `--font-mono` and `--line-height-code`.
+- The restrained 10/11/12/13/14/16px scale replaces the former 8–13px default scale. Small labels now start at 11px and normal controls at 13px.
+- Section labels and controls use semantic size and only 400/500/600/700 weight tokens. General section and toolbox labels are sentence case; mathematical/source notation remains unchanged.
 - Blockly’s theme font data remains unchanged in TypeScript.
 
 No webfont is imported; existing system fallbacks remain.
+
+## Icons and controls
+
+`src/index.html` owns a small, inline SVG symbol sprite. `styles.css` provides the shared 16px `.app-icon` presentation; the inspector empty state deliberately uses the 24px token. The generated toolbox uses the same symbols through `createIcon()` in `src/core/renderer/toolbox.ts`.
+
+- No icon package was added. The sprite covers navigation, file, workspace, execution, status, theme, dialog, and toolbar symbols.
+- Presentation glyphs and letter badges were removed from application chrome. Lambda, turnstile, operators, and other notation inside source, grammar, type, and semantic content remain domain data.
+- `.primary-button`, `.secondary-button`, `.quiet-button`, and `.small-button` now share control height, padding, weight, disabled, hover, and focus behavior. Icon-only controls retain accessible names and browser-native title tooltips.
 
 ## Responsive breakpoints
 

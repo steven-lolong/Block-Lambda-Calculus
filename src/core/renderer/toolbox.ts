@@ -57,12 +57,12 @@ const TOOLBOX: ToolboxCategory[] = [
 ];
 
 const CATEGORY_ICONS: Record<string, string> = {
-  Variables: 'λ',
-  Abstraction: '↦',
-  Application: '◇',
-  'Let Binding': '≔',
-  Operators: '±',
-  Literals: '#'
+  Variables: 'file',
+  Abstraction: 'trace',
+  Application: 'blocks',
+  'Let Binding': 'sync',
+  Operators: 'arrange',
+  Literals: 'workspace'
 };
 
 type ActiveDrag = {
@@ -77,6 +77,18 @@ type ActiveDrag = {
 
 let activeDrag: ActiveDrag | null = null;
 let suppressNextClick = false;
+
+function createIcon(name: string, className?: string): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('app-icon');
+  if (className) svg.classList.add(className);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `#icon-${name}`);
+  svg.appendChild(use);
+  return svg;
+}
 
 function isKnownBlockType(blockType: string): boolean {
   return TOOLBOX.some((category) => category.blocks.some((block) => block.type === blockType));
@@ -314,7 +326,13 @@ export function renderToolbox(
     details.open = true;
 
     const summary = document.createElement('summary');
-    summary.innerHTML = `<span class="category-icon" aria-hidden="true">${CATEGORY_ICONS[category.name] ?? '•'}</span> ${category.name}`;
+    const label = document.createElement('span');
+    label.textContent = category.name;
+    summary.append(
+      createIcon(CATEGORY_ICONS[category.name] ?? 'blocks', 'category-icon'),
+      label,
+      createIcon('chevron-right', 'toolbox-disclosure-icon')
+    );
     details.appendChild(summary);
 
     const blocks = document.createElement('div');

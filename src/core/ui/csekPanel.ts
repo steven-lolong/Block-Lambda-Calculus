@@ -130,7 +130,7 @@ export function machineStatusText(state: CsekState | null): string {
   if (!state) return '';
   if (state.status === 'error') return `⨯ stuck after ${state.stepCount} step(s): ${state.error}`;
   if (state.status === 'done') {
-    return `✓ value after ${state.stepCount} step(s): ${state.result ? formatMachineValue(state.result) : '—'}`;
+    return `Value after ${state.stepCount} step(s): ${state.result ? formatMachineValue(state.result) : '—'}`;
   }
   return `step ${state.stepCount}${state.lastRule ? ` · ${state.lastRule}` : ''}`;
 }
@@ -190,11 +190,11 @@ function renderStatus(): void {
   if (!status) return;
   status.removeAttribute('data-state');
   if (!current) {
-    status.textContent = 'Press ⟲ Load to run the program on the CEK machine.';
+    status.textContent = 'Load a program to run it on the CEK machine.';
     return;
   }
   if (stale) {
-    status.textContent = 'Program changed — press ⟲ Load to restart.';
+    status.textContent = 'Program changed — load it again to restart.';
     status.dataset.state = 'stale';
     return;
   }
@@ -211,7 +211,7 @@ function renderButtons(): void {
   if (step) step.disabled = !canStep;
   if (play) {
     play.disabled = !canStep && playTimer === null;
-    play.textContent = playTimer === null ? '⏵' : '⏸';
+    play.querySelector('use')?.setAttribute('href', playTimer === null ? '#icon-play' : '#icon-pause');
   }
   if (back) back.disabled = history.length === 0 || stale;
 }

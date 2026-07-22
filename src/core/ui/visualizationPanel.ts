@@ -224,7 +224,7 @@ function updateInfo(): void {
     return;
   }
   if (active === 'stepper') {
-    info.textContent = stepper.frames.length ? `Lockstep · ${STEPPER_TITLE[stepper.kind]} rewriting ⇄ CEK machine` : '';
+    info.textContent = stepper.frames.length ? `Lockstep · ${STEPPER_TITLE[stepper.kind]} rewriting with the CEK machine` : '';
     return;
   }
   if (active === 'machine') {
@@ -551,12 +551,12 @@ function renderStepperAgree(): void {
     const machineValue = entry.machine.result ? formatMachineValue(entry.machine.result) : '—';
     const same = machineValue === stepper.finalValue;
     agree.textContent = same
-      ? `⇄ in sync — ${entry.syncCount} salient rules matched, same value`
+      ? `In sync — ${entry.syncCount} salient rules matched, same value`
       : `⚠ same rules but DIFFERENT final values (machine: ${machineValue})`;
     agree.dataset.state = same ? 'sync' : 'diverged';
     return;
   }
-  agree.textContent = `⇄ in sync — ${entry.syncCount} salient rules matched`;
+  agree.textContent = `In sync — ${entry.syncCount} salient rules matched`;
   agree.dataset.state = 'sync';
 }
 
@@ -566,12 +566,12 @@ function renderStepperStatus(): void {
   status.removeAttribute('data-state');
   if (stepper.frames.length === 0) {
     status.textContent = pickProgramBlock()
-      ? 'Press ⟲ Load to step this program.'
-      : 'Add a term to the workspace, then press ⟲ Load.';
+      ? 'Load a program to step it.'
+      : 'Add a term to the workspace, then load it.';
     return;
   }
   if (stepper.stale) {
-    status.textContent = 'Program changed — press ⟲ Load to restart.';
+    status.textContent = 'Program changed — load it again to restart.';
     status.dataset.state = 'stale';
     return;
   }
@@ -584,7 +584,7 @@ function renderStepperStatus(): void {
     return;
   }
   if (atEnd) {
-    status.textContent = `✓ value after ${total} step(s): ${stepper.finalValue}`;
+    status.textContent = `Value after ${total} step(s): ${stepper.finalValue}`;
     status.dataset.state = 'done';
     return;
   }
@@ -601,7 +601,7 @@ function renderStepperButtons(): void {
   if (step) step.disabled = !loaded || atEnd;
   if (play) {
     play.disabled = !loaded || (atEnd && stepper.playTimer === null);
-    play.textContent = stepper.playTimer === null ? '⏵' : '⏸';
+    play.querySelector('use')?.setAttribute('href', stepper.playTimer === null ? '#icon-play' : '#icon-pause');
   }
 }
 
