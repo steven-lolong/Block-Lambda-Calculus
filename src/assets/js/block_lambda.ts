@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import 'blockly/blocks';
+import '../css/tokens.css';
 import '../css/styles.css';
 import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';

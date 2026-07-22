@@ -23,7 +23,7 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: 'npx webpack serve --mode development --host 127.0.0.1 --port 4173',
+    command: 'npx webpack serve --mode development --host 127.0.0.1 --port 4173 --output-path /tmp/block-lambda-playwright-build',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000

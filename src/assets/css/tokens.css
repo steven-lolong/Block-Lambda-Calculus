@@ -1,0 +1,195 @@
+/*
+ * Block Lambda workbench design tokens.
+ *
+ * This is the only file that assigns theme values. Component styles consume
+ * semantic names so theme and density changes stay local to this layer.
+ */
+:root {
+  /* Layout contracts. TypeScript reads and updates several of these values. */
+  --viewport-height: 100vh;
+  --ide-activity-bar-width: 50px;
+  --ide-primary-sidebar-width: 276px;
+  --ide-code-panel-width: 430px;
+  --ide-bottom-panel-height: 272px;
+  --ide-status-bar-height: 24px;
+  --ide-header-height: 42px;
+  --ide-panel-header-height: 36px;
+
+  /* Surfaces. */
+  --surface-app: #111318;
+  --surface-activity: #15181e;
+  --surface-sidebar: #1a1d24;
+  --surface-panel: #1d2027;
+  --surface-raised: #242832;
+  --surface-recessed: #12151a;
+  --surface-workspace: #171a20;
+  --surface-toolbar: #191c22;
+  --surface-header: #20242c;
+  --surface-hover: #292e38;
+  --surface-selection: #303746;
+  --surface-code: #14171c;
+
+  /* Borders and text. */
+  --border-default: #303640;
+  --border-strong: #414955;
+  --text-primary: #f1f3f5;
+  --text-secondary: #a9b0bc;
+  --text-muted: #6f7782;
+  --text-on-accent: #ffffff;
+  --text-code: #dce1e8;
+
+  /* Product accent, interaction, and state. */
+  --accent-primary: #5b8def;
+  --accent-primary-hover: #74a0f5;
+  --selection-fill: rgba(91, 141, 239, 0.28);
+  --selection-wash: rgba(91, 141, 239, 0.08);
+  --focus-ring: 0 0 0 2px rgba(91, 141, 239, 0.45);
+  --state-success: #3fb950;
+  --state-warning: #d9a441;
+  --state-error: #f05d5e;
+  --state-error-wash: rgba(240, 93, 94, 0.08);
+  --state-info: #58a6ff;
+  --state-execution: #8b7cf6;
+
+  /* Grammar category colors. Renderer mappings remain defined in TypeScript. */
+  --category-variable: #a78bfa;
+  --category-abstraction: #6f9ee8;
+  --category-application: #67b7dc;
+  --category-binding: #62b86b;
+  --category-operator: #df8e63;
+  --category-literal: #d9a441;
+
+  /* Blockly fields and generated-code syntax. */
+  --block-text-label: #ffffff;
+  --block-field-surface: #ffffff;
+  --block-field-text: #111318;
+  --block-field-border: #c5cad1;
+  --block-widget-surface: #ffffff;
+  --block-widget-text: #16191f;
+  --syntax-terminal: #c792ea;
+  --syntax-nonterminal: #82aaff;
+  --syntax-comment: #7f8792;
+  --syntax-hole: var(--state-error);
+
+  /* Typography. */
+  --font-ui: Inter, Geist, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-size-2xs: 8px;
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-md: 11px;
+  --font-size-lg: 12px;
+  --font-size-base: 13px;
+  --font-size-xl: 16px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.35;
+  --line-height-relaxed: 1.45;
+  --line-height-code: 1.6;
+
+  /* Density. */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 14px;
+  --space-8: 16px;
+  --space-9: 20px;
+  --space-10: 24px;
+  --control-height-sm: 26px;
+  --control-height-md: 28px;
+  --control-height-lg: 32px;
+  --icon-size-sm: 14px;
+  --icon-size-md: 18px;
+  --icon-size-lg: 24px;
+
+  /* Shape, elevation, and layering. */
+  --radius-panel: 0;
+  --radius-control: 4px;
+  --radius-overlay: 6px;
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.34);
+  --shadow-mobile-panel: 0 -10px 28px rgba(0, 0, 0, 0.28);
+  --layer-content-raised: 2;
+  --layer-resizer: 20;
+  --layer-panel-behind: 55;
+  --layer-panel: 60;
+  --layer-header: 100;
+  --layer-drawer: 110;
+  --layer-menu: 120;
+  --layer-submenu: 140;
+  --layer-drag: 9999;
+  --layer-context-menu: 100000;
+
+  /* Overlays, workspace grid, and status surface. */
+  --workspace-grid-line: rgba(145, 154, 168, 0.08);
+  --backdrop-palette: rgba(7, 9, 12, 0.52);
+  --backdrop-dialog: rgba(7, 9, 12, 0.55);
+  --surface-status: #285ea8;
+  --surface-status-brand: rgba(0, 0, 0, 0.12);
+  --surface-status-hover: rgba(255, 255, 255, 0.1);
+  --text-status: rgba(255, 255, 255, 0.88);
+  --state-status-ready: #8ce99a;
+
+  /* Print-only values intentionally do not vary by application theme. */
+  --surface-print: #ffffff;
+  --text-print: #000000;
+  --border-print: #555555;
+
+  /* Breakpoint registry. Native media queries repeat these values by necessity. */
+  --breakpoint-layout-compact: 1240px;
+  --breakpoint-header-compact: 900px;
+  --breakpoint-phone-focus: 780px;
+  --breakpoint-phone: 620px;
+}
+
+html[data-theme='light'] {
+  --surface-app: #eef1f4;
+  --surface-activity: #e5e9ee;
+  --surface-sidebar: #f5f7f9;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-recessed: #ffffff;
+  --surface-workspace: #f7f8fa;
+  --surface-toolbar: #f3f5f7;
+  --surface-header: #e9edf2;
+  --surface-hover: #e7ebf0;
+  --surface-selection: #dce5f4;
+  --surface-code: #fbfcfd;
+  --border-default: #d2d8e0;
+  --border-strong: #aeb7c4;
+  --text-primary: #20242b;
+  --text-secondary: #5f6875;
+  --text-muted: #929aa5;
+  --text-on-accent: #ffffff;
+  --text-code: #252a32;
+  --accent-primary: #356fd1;
+  --accent-primary-hover: #245fbe;
+  --selection-fill: rgba(91, 141, 239, 0.28);
+  --selection-wash: rgba(91, 141, 239, 0.08);
+  --focus-ring: 0 0 0 2px rgba(53, 111, 209, 0.32);
+  --state-success: #27863a;
+  --state-warning: #9a6814;
+  --state-error: #c43b3d;
+  --state-error-wash: rgba(240, 93, 94, 0.08);
+  --state-info: #2878c7;
+  --state-execution: #8b7cf6;
+  --category-variable: #7447bd;
+  --category-abstraction: #356fd1;
+  --category-application: #2878c7;
+  --category-binding: #27863a;
+  --category-operator: #a9572f;
+  --category-literal: #9a6814;
+  --syntax-terminal: #6d3bb7;
+  --syntax-nonterminal: #245fae;
+  --syntax-comment: #77808b;
+  --workspace-grid-line: rgba(80, 91, 108, 0.08);
+  --shadow-overlay: 0 12px 30px rgba(36, 44, 55, 0.18);
+  --surface-status: #2d66b1;
+  --text-status: #ffffff;
+}
