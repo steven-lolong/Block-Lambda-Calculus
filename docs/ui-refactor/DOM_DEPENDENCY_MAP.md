@@ -13,6 +13,14 @@ Classifications mean:
 
 The brief-supplied IDs `run-program`, `viz-dock`, `toolbox-column`, and `perspective-select` have no exact matches. Current equivalents are `data-bottom-tab` run dispatch, `#vizDock`, `#toolboxPanel`, and `#perspectiveSelect`. This mismatch must be resolved before a MiniJava release; it does not authorize renaming current IDs.
 
+## Toolbox and workspace-toolbar refactor update
+
+- `#toolboxPanel` now contains only `#sidebarTitle`, `#toggleToolboxPanel`, the Blocks `data-sidebar-view`, `#toolboxSearch`, and `#blockToolboxContent`. Its desktop resize handle and responsive drawer mechanics are unchanged.
+- `#workspaceUndo`, `#workspaceRedo`, `#zoomOut`, `#zoomIn`, `#zoomFit`, and the labeled `.workspace-run-button[data-bottom-tab="machine"]` are the visible workspace toolbar commands. `#showToolboxFromWorkspace` and `#showCodeFromWorkspace` remain in the same toolbar as hidden responsive restore controls. `#zoomLabel` remains as a visually-hidden state/readout target.
+- `#clearWorkspace` moved to Header → File; `#toggleVizDock` and `#presentationMode` moved to Header → View. Their IDs, click targets, ARIA state updates, and keyboard routes are unchanged.
+- Settings controls moved to `#settingsDialog`, labelled by `#settingsDialogTitle` and opened by `#openSettings[data-activity="settings"]`; `#closeSettingsDialog` closes it and returns focus to its invoker. The existing theme, renderer, perspective, and autosave IDs remain unique.
+- Legacy `files`, `problems`, `run`, and `settings` `data-sidebar-view` records and hidden `data-activity="files"`/`"run"` records remain as compatibility state. `workbench.ts` normalizes the visible activity to Blocks. `data-activity="problems"` opens the Problems bottom tab, `data-activity="run"` opens CEK, and `data-activity="settings"` opens Settings. No non-Blocks sidebar content is user-visible.
+
 The brief also names a `bottom-maximized` state class that is absent in this checkout. The current live contract is `#vizDock[data-maximized="true"]`, backed by the persisted `bottomMaximized` field. Preserve that implementation and reserve the mandated class name for an explicit compatibility decision; do not silently substitute one contract for the other.
 
 ## IDs queried by TypeScript
@@ -76,7 +84,7 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 | `data-command-target`: `clearWorkspace`, `loadWorkspace`, `saveWorkspace`, `loadAutosave`, `undoWorkspace`, `redoWorkspace` | Must preserve exactly | Document-level click delegation forwards to the element whose ID matches the value |
 | `data-panel-command`: `sidebar`, `code`, `bottom` | Must preserve exactly | Document-level View-menu routing |
 | `data-activity`: `blocks`, `files`, `problems`, `run`, `settings` | Must preserve exactly | Activity/status routing and selected-state rendering |
-| `data-sidebar-view`: same five values | Must preserve exactly | Controls which sidebar section receives `hidden=false` |
+| `data-sidebar-view`: same five values | Must preserve exactly | Blocks is the only visible toolbox view; the remaining values persist as hidden compatibility state for existing layout payloads and diagnostics bindings |
 | `data-bottom-tab`: `problems`, `output`, `types`, `structure`, `value`, `machine`, `stepper` | Must preserve exactly | Delegated commands open the matching bottom tab |
 | `data-kind`: same seven bottom kinds on `.viz-tab`/`.viz-host` | Must preserve exactly | Active tab/host lookup and dispatch |
 | `data-code-target`: `code`, `formal`, `inspector`, `outline` | Must preserve exactly | Right-panel tab collection, dispatch, visibility, output mode |
@@ -105,7 +113,7 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 | Command palette | trigger controls `commandPalette`; dialog labelled by `commandPaletteTitle`; input controls `commandPaletteList`; list uses `role="listbox"`, generated buttons use `role="option"`/`aria-selected` | Must preserve exactly | Keyboard/focus and screen-reader model |
 | Right-panel tabs | `codeTarget*` buttons use `role="tab"`, `aria-controls`, `aria-selected`; panels use `role="tabpanel"`, `aria-labelledby` | Must preserve exactly | Roving focus and panel identity |
 | Bottom tabs | runtime `bottomTab-*`/`bottomPanel-*` with `role="tab"`/`tabpanel`, `aria-controls`, `aria-labelledby`, `aria-selected` | Must preserve exactly | Built dynamically by `initVisualizationPanel` |
-| Dialog labels | Save, example-load, About dialogs reference their title IDs | Must preserve exactly | Native dialog accessible name |
+| Dialog labels | Save, example-load, About, and Settings dialogs reference their title IDs; Settings returns focus to its invoker | Must preserve exactly | Native dialog accessible name and keyboard return path |
 | Resizers | `sidebarResizeHandle`, `resizeHandle`: vertical separator; `vizResizer`: horizontal separator; all focusable with value min/max/now | Must preserve exactly | Keyboard resize and announced value |
 | Toggle state | activity/theme buttons and panel/maximize controls update `aria-pressed`; renderer items update `aria-checked` | Must preserve exactly | State is not conveyed by color alone |
 | Live regions | `statusLine`, `lambdaEditorStatus`, `sidebarProblems`, `outputLog`, `vizDockInfo`, `stepperStatus`, `stepperAgree`, `machineStatus`, file/status fields | Must preserve exactly | Async feedback and diagnostics announcements |
@@ -148,8 +156,8 @@ Do not change these implementations until browser tests cover desktop, 1240px ov
 | Perspective | Activity/sidebar | Code panel | Bottom panel | CSS/state | Classification |
 | --- | --- | --- | --- | --- | --- |
 | `edit` | `blocks`, visible | visible, not maximized | hidden; stored tab set to `problems` | `perspective=edit` | Must preserve exactly |
-| `debug` | `run`, visible | visible, not maximized | visible on `stepper` | `perspective=debug` | Must preserve exactly |
-| `types` | `problems`, visible | visible, not maximized | visible on `types` | `perspective=types` | Must preserve exactly |
+| `debug` | `blocks`, visible | visible, not maximized | visible on `stepper` | `perspective=debug` | Must preserve exactly |
+| `types` | `blocks`, visible | visible, not maximized | visible on `types` | `perspective=types` | Must preserve exactly |
 | `presentation` | retains activity identity but sidebar hidden | hidden | hidden | `#app.presentation-mode`; previous full layout retained in memory | Must preserve exactly |
 | `custom` | current manual state | current manual state | current manual state | persisted whenever a panel is manually changed; also Presentation restore target | Must preserve exactly |
 

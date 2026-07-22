@@ -17,9 +17,22 @@ export async function setTheme(page: Page, theme: 'light' | 'dark'): Promise<voi
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 }
 
+export async function openSettings(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.locator('#openSettings').click();
+  await expect(page.locator('#settingsDialog')).toHaveAttribute('open', '');
+}
+
+export async function toggleBottomPanel(page: Page): Promise<void> {
+  const viewMenu = page.getByRole('button', { name: 'View', exact: true });
+  if (!await viewMenu.isVisible()) await page.locator('#menuToggle').click();
+  await viewMenu.click();
+  await page.locator('#toggleVizDock').click();
+}
+
 export async function openBottomTab(page: Page, kind: string): Promise<void> {
   if (await page.locator('#vizDock').getAttribute('data-open') !== 'true') {
-    await page.locator('#toggleVizDock').click();
+    await toggleBottomPanel(page);
   }
   await page.locator(`.viz-tab[data-kind="${kind}"]`).click();
   await expect(page.locator(`.viz-host[data-kind="${kind}"]`)).toHaveAttribute('data-active', 'true');

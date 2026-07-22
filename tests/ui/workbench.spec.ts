@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { cssLength, layoutStorageKey, loadWorkbench, openBottomTab } from './workbenchTestUtils';
+import { cssLength, layoutStorageKey, loadWorkbench, openBottomTab, openSettings, toggleBottomPanel } from './workbenchTestUtils';
 
 test.beforeEach(async ({ page }) => {
   await loadWorkbench(page);
@@ -40,8 +40,8 @@ test('code and inspector panel can be hidden and restored', async ({ page }) => 
   await expect(page.locator('#app')).not.toHaveClass(/code-hidden/);
 });
 
-test('primary Run control opens the CEK runtime view', async ({ page }) => {
-  await page.locator('.header-run-button').click();
+test('workspace Run control opens the CEK runtime view', async ({ page }) => {
+  await page.locator('.workspace-run-button').click();
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
   await expect(page.locator('#bottomTab-machine')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.viz-host[data-kind="machine"]')).toHaveAttribute('data-active', 'true');
@@ -74,16 +74,17 @@ test('header menus support keyboard navigation and Escape dismissal', async ({ p
 });
 
 test('perspective selection applies the Debug layout', async ({ page }) => {
-  await page.locator('.activity-button[data-activity="settings"]').click();
+  await openSettings(page);
   await page.locator('#perspectiveSelect').selectOption('debug');
   await expect(page.locator('#statusPerspective')).toHaveText('Debug');
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
   await expect(page.locator('#bottomTab-stepper')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('[data-sidebar-view="run"]')).not.toHaveAttribute('hidden', '');
+  await expect(page.locator('[data-sidebar-view="blocks"]')).not.toHaveAttribute('hidden', '');
+  await expect(page.locator('[data-sidebar-view="run"]')).toHaveAttribute('hidden', '');
 });
 
 test('bottom panel opens, maximizes, and closes', async ({ page }) => {
-  await page.locator('#toggleVizDock').click();
+  await toggleBottomPanel(page);
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
 
   await page.locator('#vizMaximize').click();
@@ -105,7 +106,7 @@ test('keyboard resizers update persisted panel dimensions', async ({ page }) => 
   await page.keyboard.press('ArrowLeft');
   await expect.poll(() => cssLength(page, '--ide-code-panel-width')).not.toBe(codeBefore);
 
-  await page.locator('#toggleVizDock').click();
+  await toggleBottomPanel(page);
   const bottomBefore = await cssLength(page, '--ide-bottom-panel-height');
   await page.locator('#vizResizer').focus();
   await page.keyboard.press('ArrowUp');
@@ -128,7 +129,7 @@ test('layout state is restored after reload', async ({ page }) => {
 });
 
 test('theme and autosave interval are configurable and persisted', async ({ page }) => {
-  await page.locator('.activity-button[data-activity="settings"]').click();
+  await openSettings(page);
   const initialTheme = await page.locator('html').getAttribute('data-theme');
   const nextTheme = initialTheme === 'dark' ? 'light' : 'dark';
   await page.locator(`button[data-theme-mode="${nextTheme}"]`).click();
@@ -162,7 +163,7 @@ test('mobile header and panel drawers remain operable', async ({ page }) => {
   await page.locator('#toggleToolboxPanel').click();
   await expect(page.locator('#app')).toHaveClass(/toolbox-hidden/);
 
-  await page.locator('#toggleVizDock').click();
+  await toggleBottomPanel(page);
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
   await expect(page.locator('#vizDock')).toHaveCSS('position', 'fixed');
 });
@@ -195,4 +196,44 @@ test('code, analysis, structure, utility, and runtime views remain reachable', a
     await openBottomTab(page, kind);
     await expect(page.locator(`#bottomTab-${kind}`)).toHaveAttribute('aria-selected', 'true');
   }
+});
+
+test('toolbox search, categories, click-to-add, drag-to-add, undo, redo, and zoom controls work', async ({ page }) => {
+  const blockCount = () => page.locator('#blockCount').evaluate((element) => Number(element.textContent));
+  const initialCount = await blockCount();
+
+  await page.locator('#toolboxSearch').fill('boolean');
+  await expect(page.locator('.toolbox-block-card:visible')).toHaveCount(2);
+  await page.locator('#toolboxSearch').fill('');
+
+  const closedCategory = page.locator('.toolbox-category').nth(4);
+  await closedCategory.locator('summary').click();
+  await expect(closedCategory).not.toHaveAttribute('open', '');
+  await closedCategory.locator('summary').click();
+  await expect(closedCategory).toHaveAttribute('open', '');
+
+  const clickCard = page.locator('.toolbox-block-card').first();
+  await clickCard.click();
+  await expect.poll(blockCount).toBe(initialCount + 1);
+  await page.locator('#workspaceUndo').click();
+  await expect.poll(blockCount).toBe(initialCount);
+  await page.locator('#workspaceRedo').click();
+  await expect.poll(blockCount).toBe(initialCount + 1);
+
+  const dragCard = page.locator('.toolbox-block-card').nth(1);
+  const source = await dragCard.boundingBox();
+  const destination = await page.locator('#blocklyArea').boundingBox();
+  if (!source || !destination) throw new Error('Expected toolbox card and Blockly workspace bounds.');
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(destination.x + destination.width / 2, destination.y + destination.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(blockCount).toBe(initialCount + 2);
+
+  const zoomBefore = await page.locator('#zoomLabel').textContent();
+  await page.locator('#zoomIn').click();
+  await expect(page.locator('#zoomLabel')).not.toHaveText(zoomBefore ?? '');
+  await page.locator('#zoomOut').click();
+  await page.locator('#zoomFit').click();
+  await expect(page.locator('#zoomLabel')).toHaveText(/\d+%/);
 });

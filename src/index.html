@@ -73,11 +73,11 @@
             <div class="app-menu">
               <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>File</span></button>
               <div class="app-menu-popup" role="menu" hidden>
-                <button class="menu-command" type="button" role="menuitem" data-command-target="clearWorkspace"><span>New Workspace</span><kbd>Ctrl+N</kbd></button>
-                <button id="loadWorkspace" class="menu-command" type="button" role="menuitem"><span>Open…</span><kbd>Ctrl+O</kbd></button>
-                <button id="saveWorkspace" class="menu-command" type="button" role="menuitem"><span>Save As…</span><kbd>Ctrl+S</kbd></button>
+                <button id="clearWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="clearWorkspace"><span>New Workspace</span><kbd>Ctrl+N</kbd></button>
+                <button id="loadWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="loadWorkspace"><span>Open…</span><kbd>Ctrl+O</kbd></button>
+                <button id="saveWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="saveWorkspace"><span>Save As…</span><kbd>Ctrl+S</kbd></button>
                 <div class="menu-separator" role="separator"></div>
-                <button id="loadAutosave" class="menu-command" type="button" role="menuitem"><span>Recover Autosave</span></button>
+                <button id="loadAutosave" class="menu-command" type="button" role="menuitem" data-command-target="loadAutosave"><span>Recover Autosave</span></button>
               </div>
             </div>
             <div class="example-menu-wrapper header-example-menu">
@@ -103,19 +103,19 @@
               <div class="app-menu-popup" role="menu" hidden>
                 <button class="menu-command" type="button" role="menuitem" data-panel-command="sidebar"><span>Toggle Primary Sidebar</span><kbd>Ctrl+B</kbd></button>
                 <button class="menu-command" type="button" role="menuitem" data-panel-command="code"><span>Toggle Code / Inspector</span><kbd>Ctrl+Alt+C</kbd></button>
-                <button class="menu-command" type="button" role="menuitem" data-panel-command="bottom"><span>Toggle Bottom Panel</span><kbd>Ctrl+J</kbd></button>
+                <button id="toggleVizDock" class="menu-command" type="button" role="menuitem" data-panel-command="bottom" aria-pressed="false"><span>Toggle Bottom Panel</span><kbd>Ctrl+J</kbd></button>
                 <div class="menu-separator" role="separator"></div>
                 <button class="menu-command" type="button" role="menuitem" data-perspective="edit"><span>Edit Perspective</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-perspective="debug"><span>Debug Perspective</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-perspective="types"><span>Type Analysis Perspective</span></button>
-                <button class="menu-command" type="button" role="menuitem" data-perspective="presentation"><span>Presentation Perspective</span><kbd>F11</kbd></button>
+                <button id="presentationMode" class="menu-command" type="button" role="menuitem" data-perspective="presentation" aria-pressed="false"><span>Presentation Perspective</span><kbd>F11</kbd></button>
               </div>
             </div>
             <div class="app-menu">
               <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false"><span>More</span></button>
               <div class="app-menu-popup app-menu-popup-right" role="menu" hidden>
-                <button id="undoWorkspace" class="menu-command" type="button" role="menuitem"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
-                <button id="redoWorkspace" class="menu-command" type="button" role="menuitem"><span>Redo</span><kbd>Ctrl+Shift+Z</kbd></button>
+                <button id="undoWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="undoWorkspace"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
+                <button id="redoWorkspace" class="menu-command" type="button" role="menuitem" data-command-target="redoWorkspace"><span>Redo</span><kbd>Ctrl+Shift+Z</kbd></button>
                 <div class="menu-separator" role="separator"></div>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="structure"><span>Call-by-Structure Trace</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="value"><span>Call-by-Value Trace</span></button>
@@ -125,7 +125,7 @@
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="types"><span>Show Inferred Types</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-bottom-tab="problems"><span>Show Problems</span></button>
                 <div class="menu-separator" role="separator"></div>
-                <button class="menu-command" type="button" role="menuitem" data-activity="settings"><span>Settings</span></button>
+                <button id="openSettings" class="menu-command" type="button" role="menuitem" data-activity="settings" aria-haspopup="dialog" aria-controls="settingsDialog"><span>Settings</span></button>
                 <button id="commandPaletteTrigger" class="menu-command" type="button" role="menuitem" aria-haspopup="dialog" aria-controls="commandPalette"><span>Command Palette…</span><kbd>Ctrl+Shift+P</kbd></button>
                 <button id="aboutApp" class="menu-command" type="button" role="menuitem"><span>About Block Lambda</span></button>
               </div>
@@ -139,21 +139,7 @@
           <div class="activity-items">
             <button class="activity-button" type="button" data-activity="blocks" aria-pressed="true" aria-label="Blocks" title="Blocks">
               <svg class="app-icon" aria-hidden="true"><use href="#icon-blocks"></use></svg>
-            </button>
-            <button class="activity-button" type="button" data-activity="files" aria-pressed="false" aria-label="Workspace files" title="Workspace Files">
-              <svg class="app-icon" aria-hidden="true"><use href="#icon-file"></use></svg>
-            </button>
-            <button class="activity-button" type="button" data-activity="problems" aria-pressed="false" aria-label="Problems" title="Problems">
-              <svg class="app-icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
-              <span id="activityProblemCount" class="activity-badge" hidden>0</span>
-            </button>
-            <button class="activity-button" type="button" data-activity="run" aria-pressed="false" aria-label="Run and debug" title="Run and Debug">
-              <svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg>
-            </button>
-          </div>
-          <div class="activity-items activity-items-bottom">
-            <button class="activity-button" type="button" data-activity="settings" aria-pressed="false" aria-label="Settings" title="Settings">
-              <svg class="app-icon" aria-hidden="true"><use href="#icon-settings"></use></svg>
+              <span id="activityProblemCount" class="visually-hidden" hidden>0</span>
             </button>
           </div>
         </nav>
@@ -171,74 +157,6 @@
             </label>
             <div id="blockToolboxContent" class="block-toolbox-content"></div>
           </section>
-          <section class="sidebar-view" data-sidebar-view="files" hidden>
-            <div class="sidebar-section">
-              <h2>Workspace</h2>
-              <div class="file-entry is-active">
-                <svg class="app-icon" aria-hidden="true"><use href="#icon-file"></use></svg>
-                <span id="projectFileLabel">block-lambda-workspace.blc</span>
-              </div>
-            </div>
-            <div class="sidebar-section">
-              <h2>File Commands</h2>
-              <button class="sidebar-command" type="button" data-command-target="loadWorkspace"><span>Open workspace</span><kbd>Ctrl+O</kbd></button>
-              <button class="sidebar-command" type="button" data-command-target="saveWorkspace"><span>Save workspace</span><kbd>Ctrl+S</kbd></button>
-              <button class="sidebar-command" type="button" data-command-target="loadAutosave"><span>Recover autosave</span></button>
-            </div>
-            <div class="sidebar-note"><strong>.blc</strong><span>Blockly workspace files preserve blocks, fields, connections, and positions.</span></div>
-          </section>
-          <section class="sidebar-view" data-sidebar-view="problems" hidden>
-            <div id="sidebarProblemsSummary" class="sidebar-summary">No type problems.</div>
-            <div id="sidebarProblems" class="sidebar-list" aria-live="polite"></div>
-            <button class="sidebar-footer-command" type="button" data-bottom-tab="problems">Open Problems Panel</button>
-          </section>
-          <section class="sidebar-view" data-sidebar-view="run" hidden>
-            <div class="sidebar-section">
-              <h2>Execution</h2>
-              <button class="run-command" type="button" data-bottom-tab="structure"><span class="run-command-icon"><svg class="app-icon" aria-hidden="true"><use href="#icon-trace"></use></svg></span><span><strong>Call-by-Structure</strong><small>Substitution trace</small></span></button>
-              <button class="run-command" type="button" data-bottom-tab="value"><span class="run-command-icon"><svg class="app-icon" aria-hidden="true"><use href="#icon-trace"></use></svg></span><span><strong>Call-by-Value</strong><small>Value-first trace</small></span></button>
-              <button class="run-command" type="button" data-bottom-tab="machine"><span class="run-command-icon"><svg class="app-icon" aria-hidden="true"><use href="#icon-machine"></use></svg></span><span><strong>CEK Machine</strong><small>Control · environment · Kontinuation</small></span></button>
-              <button class="run-command" type="button" data-bottom-tab="stepper"><span class="run-command-icon"><svg class="app-icon" aria-hidden="true"><use href="#icon-lockstep"></use></svg></span><span><strong>Lockstep Debugger</strong><small>Rewriting and CEK correspondence</small></span></button>
-            </div>
-            <div class="sidebar-note"><span>Execution uses the selected top-level term. Application block context menus can open a specific trace.</span></div>
-          </section>
-          <section class="sidebar-view" data-sidebar-view="settings" hidden>
-            <div class="sidebar-section">
-              <h2>Color Theme</h2>
-              <input id="themeToggle" class="visually-hidden" type="checkbox" aria-label="Use dark theme" />
-              <div class="segmented-control" role="group" aria-label="Color theme">
-                <button type="button" data-theme-mode="light">Light</button>
-                <button type="button" data-theme-mode="dark">Dark</button>
-              </div>
-            </div>
-            <div class="sidebar-section">
-              <h2>Block Appearance</h2>
-              <button id="blocklyThemeMenuButton" class="settings-disclosure" type="button" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Choose block renderer</span><svg class="app-icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
-              <div id="blocklyThemeSubMenu" class="settings-options" role="group" aria-label="Block renderer" hidden>
-                <button class="settings-option" type="button" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-                <button class="settings-option" type="button" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-                <button class="settings-option" type="button" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-              </div>
-            </div>
-            <div class="sidebar-section">
-              <h2>Perspective</h2>
-              <select id="perspectiveSelect" aria-label="Workbench perspective">
-                <option value="edit">Edit</option>
-                <option value="debug">Debug</option>
-                <option value="types">Type Analysis</option>
-                <option value="presentation">Presentation</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-            <div class="sidebar-section">
-              <h2>Autosave</h2>
-              <label class="settings-range" for="autosaveInterval">
-                <span>Save interval</span>
-                <input id="autosaveInterval" class="autosave-slider" type="range" min="2" max="20" step="1" value="2" aria-label="Autosave interval in minutes" />
-                <span id="autosaveIntervalLabel" class="autosave-interval-label">2 minutes</span>
-              </label>
-            </div>
-          </section>
         </aside>
 
         <div id="sidebarResizeHandle" class="sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize primary sidebar" title="Drag to resize sidebar" tabindex="0"></div>
@@ -255,14 +173,11 @@
               <button id="workspaceRedo" class="icon-button" type="button" aria-label="Redo" title="Redo"><svg class="app-icon" aria-hidden="true"><use href="#icon-redo"></use></svg></button>
               <span class="control-separator"></span>
               <button id="zoomOut" class="icon-button" type="button" aria-label="Zoom out" title="Zoom Out"><svg class="app-icon" aria-hidden="true"><use href="#icon-zoom-out"></use></svg></button>
-              <span id="zoomLabel" class="zoom-value" title="Blockly zoom level">92%</span>
               <button id="zoomIn" class="icon-button" type="button" aria-label="Zoom in" title="Zoom In"><svg class="app-icon" aria-hidden="true"><use href="#icon-zoom-in"></use></svg></button>
               <button id="zoomFit" class="icon-button" type="button" aria-label="Fit blocks in workspace" title="Zoom to Fit"><svg class="app-icon" aria-hidden="true"><use href="#icon-fit"></use></svg></button>
-              <span class="control-separator"></span>
-              <button id="toggleVizDock" class="icon-button" type="button" aria-pressed="false" aria-label="Toggle bottom tools" title="Toggle Bottom Panel"><svg class="app-icon" aria-hidden="true"><use href="#icon-bottom-panel"></use></svg></button>
               <button id="showCodeFromWorkspace" class="icon-button workspace-restore-button" type="button" hidden aria-label="Show code and inspector" title="Show Code / Inspector"><svg class="app-icon" aria-hidden="true"><use href="#icon-code"></use></svg></button>
-              <button id="presentationMode" class="icon-button" type="button" aria-label="Toggle presentation perspective" title="Presentation Perspective (F11)"><svg class="app-icon" aria-hidden="true"><use href="#icon-fit"></use></svg></button>
-              <button id="clearWorkspace" class="icon-button danger-button" type="button" aria-label="Clear workspace" title="Clear Workspace"><svg class="app-icon" aria-hidden="true"><use href="#icon-trash"></use></svg></button>
+              <button class="workspace-run-button" type="button" data-bottom-tab="machine" aria-label="Run in the CEK machine" title="Run in the CEK machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg><span>Run</span></button>
+              <span id="zoomLabel" class="visually-hidden" title="Blockly zoom level">92%</span>
             </div>
           </div>
           <div id="blocklyArea" class="blockly-area">
@@ -327,6 +242,61 @@
           </div>
         </aside>
       </main>
+
+      <div class="sidebar-legacy-state" hidden aria-hidden="true">
+        <button class="activity-button" type="button" data-activity="files" aria-pressed="false"></button>
+        <button class="activity-button" type="button" data-activity="run" aria-pressed="false"></button>
+        <section class="sidebar-view" data-sidebar-view="files" hidden><span id="projectFileLabel">block-lambda-workspace.blc</span></section>
+        <section class="sidebar-view" data-sidebar-view="problems" hidden><span id="sidebarProblemsSummary">No type problems.</span><div id="sidebarProblems" aria-live="polite"></div></section>
+        <section class="sidebar-view" data-sidebar-view="run" hidden></section>
+        <section class="sidebar-view" data-sidebar-view="settings" hidden></section>
+      </div>
+
+      <dialog id="settingsDialog" class="about-dialog settings-dialog" aria-labelledby="settingsDialogTitle">
+        <div class="about-card settings-card">
+          <header class="about-header">
+            <div><h2 id="settingsDialogTitle">Settings</h2><p>Appearance, persistence, and workbench layout.</p></div>
+            <button id="closeSettingsDialog" class="icon-button" type="button" aria-label="Close settings" title="Close Settings"><svg class="app-icon" aria-hidden="true"><use href="#icon-close"></use></svg></button>
+          </header>
+          <div class="settings-dialog-body">
+            <section class="settings-section">
+              <h3>Color theme</h3>
+              <input id="themeToggle" class="visually-hidden" type="checkbox" aria-label="Use dark theme" />
+              <div class="segmented-control" role="group" aria-label="Color theme">
+                <button type="button" data-theme-mode="light">Light</button>
+                <button type="button" data-theme-mode="dark">Dark</button>
+              </div>
+            </section>
+            <section class="settings-section">
+              <h3>Block appearance</h3>
+              <button id="blocklyThemeMenuButton" class="settings-disclosure" type="button" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Choose block renderer</span><svg class="app-icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
+              <div id="blocklyThemeSubMenu" class="settings-options" role="group" aria-label="Block renderer" hidden>
+                <button class="settings-option" type="button" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+              </div>
+            </section>
+            <section class="settings-section">
+              <h3>Perspective</h3>
+              <select id="perspectiveSelect" aria-label="Workbench perspective">
+                <option value="edit">Edit</option>
+                <option value="debug">Debug</option>
+                <option value="types">Type Analysis</option>
+                <option value="presentation">Presentation</option>
+                <option value="custom">Custom</option>
+              </select>
+            </section>
+            <section class="settings-section">
+              <h3>Autosave</h3>
+              <label class="settings-range" for="autosaveInterval">
+                <span>Save interval</span>
+                <input id="autosaveInterval" class="autosave-slider" type="range" min="2" max="20" step="1" value="2" aria-label="Autosave interval in minutes" />
+                <span id="autosaveIntervalLabel" class="autosave-interval-label">2 minutes</span>
+              </label>
+            </section>
+          </div>
+        </div>
+      </dialog>
 
       <section id="vizDock" class="viz-dock bottom-tools-region" aria-label="Program visualization" data-open="false">
         <div id="vizResizer" class="viz-resizer" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize visualization panel" title="Drag to resize"></div>

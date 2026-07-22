@@ -770,7 +770,6 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     Blockly.svgResize(view.workspace);
   });
   byId<HTMLButtonElement>('vizCollapse')?.addEventListener('click', () => setVisualizationOpen(false));
-  byId<HTMLButtonElement>('toggleVizDock')?.addEventListener('click', () => setVisualizationOpen(!isVisualizationOpen()));
   byId<HTMLButtonElement>('vizMaximize')?.addEventListener('click', () => {
     const panel = dock();
     if (!panel) return;

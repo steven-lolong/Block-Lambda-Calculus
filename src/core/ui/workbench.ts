@@ -175,11 +175,13 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   const palette = byId<HTMLDialogElement>('commandPalette');
   const paletteInput = byId<HTMLInputElement>('commandPaletteInput');
   const paletteList = byId<HTMLElement>('commandPaletteList');
+  const settingsDialog = byId<HTMLDialogElement>('settingsDialog');
   const themeToggle = byId<HTMLInputElement>('themeToggle');
-  let activeActivity = readIdeLayoutState().activity;
+  let activeActivity: ActivitySection = 'blocks';
   let activePerspective = readIdeLayoutState().perspective;
   let priorPerspective: IdePerspective = activePerspective === 'presentation' ? 'edit' : activePerspective;
   let presentationRestore: ReturnType<typeof readIdeLayoutState> | null = null;
+  let settingsReturnFocus: HTMLElement | null = null;
   let paletteSelection = 0;
   let filteredPaletteCommands: PaletteCommand[] = [];
 
@@ -200,6 +202,19 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     menuToggle?.setAttribute('aria-label', 'Open application menu');
   };
 
+  const showSettings = (): void => {
+    if (!settingsDialog?.open) {
+      settingsReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      settingsDialog?.showModal();
+    }
+    byId<HTMLButtonElement>('closeSettingsDialog')?.focus();
+  };
+
+  const closeSettings = (): void => {
+    if (!settingsDialog?.open) return;
+    settingsDialog.close();
+  };
+
   const renderPerspective = (perspective: IdePerspective): void => {
     activePerspective = perspective;
     if (perspectiveSelect) perspectiveSelect.value = perspective;
@@ -209,27 +224,30 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   };
 
   const setActivity = (activity: ActivitySection, ensureVisible = true): void => {
-    activeActivity = activity;
+    // The primary sidebar is now exclusively the Blocks toolbox. Legacy activity
+    // values remain in persisted state and delegated controls, but no longer swap
+    // unrelated command surfaces into the toolbox.
+    activeActivity = 'blocks';
     if (ensureVisible) options.panels.setToolboxVisible(true, false);
     if (isCompactIdeLayout() && ensureVisible) {
       options.panels.setCodeVisible(false, false);
     }
     for (const button of document.querySelectorAll<HTMLButtonElement>('.activity-button[data-activity]')) {
-      const selected = button.dataset.activity === activity;
+      const selected = button.dataset.activity === 'blocks';
       button.classList.toggle('is-active', selected);
       button.setAttribute('aria-pressed', String(selected));
     }
-    for (const view of document.querySelectorAll<HTMLElement>('[data-sidebar-view]')) {
-      view.hidden = view.dataset.sidebarView !== activity;
+    for (const view of document.querySelectorAll<HTMLElement>('#toolboxPanel [data-sidebar-view]')) {
+      view.hidden = view.dataset.sidebarView !== 'blocks';
     }
-    if (sidebarTitle) sidebarTitle.textContent = ACTIVITY_TITLES[activity];
+    if (sidebarTitle) sidebarTitle.textContent = ACTIVITY_TITLES.blocks;
     updateIdeLayoutState(ensureVisible
       ? {
-          activity,
+          activity: 'blocks',
           sidebarVisible: options.panels.isToolboxVisible(),
           codeVisible: options.panels.isCodeVisible()
         }
-      : { activity });
+      : { activity: 'blocks' });
     requestIdeLayoutResize();
   };
 
@@ -264,9 +282,9 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     const preset = perspective === 'edit'
       ? { activity: 'blocks' as const, sidebar: true, code: true, bottom: false, tab: 'problems' as const }
       : perspective === 'debug'
-        ? { activity: 'run' as const, sidebar: true, code: true, bottom: true, tab: 'stepper' as const }
+        ? { activity: 'blocks' as const, sidebar: true, code: true, bottom: true, tab: 'stepper' as const }
         : perspective === 'types'
-          ? { activity: 'problems' as const, sidebar: true, code: true, bottom: true, tab: 'types' as const }
+          ? { activity: 'blocks' as const, sidebar: true, code: true, bottom: true, tab: 'types' as const }
           : { activity: activeActivity, sidebar: false, code: false, bottom: false, tab: readIdeLayoutState().bottomTab };
 
     setActivity(preset.activity, false);
@@ -354,7 +372,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     { label: 'View: Toggle Code and Inspector', detail: 'Ctrl+Alt+C', keywords: 'editor', action: () => { options.panels.toggleCode(); markCustomPerspective(); } },
     { label: 'View: Toggle Bottom Panel', detail: 'Ctrl+J', keywords: 'tools', action: toggleBottom },
     { label: 'View: Show Blocks', keywords: 'toolbox sidebar', action: () => setActivity('blocks') },
-    { label: 'View: Show Project', keywords: 'files sidebar', action: () => setActivity('files') },
+    { label: 'File: Show Menu', keywords: 'project files workspace', action: () => byId<HTMLButtonElement>('clearWorkspace')?.closest<HTMLElement>('.app-menu')?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.click() },
     { label: 'View: Show Problems', keywords: 'diagnostics errors', action: () => openBottomTab('problems') },
     { label: 'View: Show Inferred Types', keywords: 'analysis', action: () => openBottomTab('types') },
     { label: 'View: Show Output', keywords: 'log messages', action: () => openBottomTab('output') },
@@ -366,6 +384,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     { label: 'Perspective: Debug', action: () => applyPerspective('debug') },
     { label: 'Perspective: Type Analysis', action: () => applyPerspective('types') },
     { label: 'Perspective: Presentation', detail: 'F11', action: () => applyPerspective('presentation') },
+    { label: 'Preferences: Settings', keywords: 'theme autosave renderer layout', action: showSettings },
     { label: 'Preferences: Toggle Color Theme', keywords: 'dark light', action: toggleTheme },
     { label: 'Workspace: Zoom In', action: () => zoom(1) },
     { label: 'Workspace: Zoom Out', action: () => zoom(-1) },
@@ -472,11 +491,17 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     if (activityButton?.dataset.activity) {
       const requested = activityButton.dataset.activity as ActivitySection;
       const mayToggle = activityButton.classList.contains('activity-button');
-      if (mayToggle && requested === activeActivity && options.panels.isToolboxVisible()) {
+      if (requested === 'settings') {
+        showSettings();
+      } else if (requested === 'problems') {
+        openBottomTab('problems');
+      } else if (requested === 'run') {
+        openBottomTab('machine');
+      } else if (mayToggle && options.panels.isToolboxVisible()) {
         options.panels.setToolboxVisible(false);
         markCustomPerspective();
       } else {
-        setActivity(requested);
+        setActivity('blocks');
       }
       if (activityButton.closest('.app-menu-popup')) {
         closeMenus();
@@ -485,8 +510,9 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       return;
     }
 
-    const commandTarget = target.closest<HTMLElement>('[data-command-target]')?.dataset.commandTarget;
-    if (commandTarget) {
+    const commandElement = target.closest<HTMLElement>('[data-command-target]');
+    const commandTarget = commandElement?.dataset.commandTarget;
+    if (commandTarget && commandElement?.id !== commandTarget) {
       trigger(commandTarget);
       closeCompactMenu();
     }
@@ -532,6 +558,10 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     const key = event.key.toLocaleLowerCase();
 
     if (event.key === 'Escape') {
+      if (settingsDialog?.open) {
+        closeSettings();
+        return;
+      }
       closeMenus();
       closePalette();
       closeCompactMenu();
@@ -598,9 +628,8 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     options.getWorkspace().zoomToFit();
     requestIdeLayoutResize();
   });
-  byId<HTMLButtonElement>('presentationMode')?.addEventListener('click', () => {
-    applyPerspective(activePerspective === 'presentation' ? priorPerspective : 'presentation');
-  });
+  byId<HTMLButtonElement>('closeSettingsDialog')?.addEventListener('click', closeSettings);
+  settingsDialog?.addEventListener('close', () => settingsReturnFocus?.focus());
   byId<HTMLButtonElement>('synchronizeCode')?.addEventListener('click', options.synchronizeCode);
   perspectiveSelect?.addEventListener('change', () => applyPerspective(perspectiveSelect.value as IdePerspective));
   window.addEventListener('block-lambda:theme-changed', syncThemeControls);
