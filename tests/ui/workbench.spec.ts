@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { cssLength, layoutStorageKey, loadWorkbench, openBottomTab, openSettings, toggleBottomPanel } from './workbenchTestUtils';
+import { cssLength, layoutStorageKey, loadWorkbench, openBottomTab, openInspectorView, openSettings, toggleBottomPanel } from './workbenchTestUtils';
 
 test.beforeEach(async ({ page }) => {
   await loadWorkbench(page);
@@ -52,8 +52,15 @@ test('command palette exposes registered commands', async ({ page }) => {
   await page.locator('#commandPaletteTrigger').click();
   await expect(page.locator('#commandPalette')).toHaveAttribute('open', '');
   await expect(page.getByRole('option', { name: /File: New Workspace/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /View: Show Inferred Types/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /View: Show Outline/ })).toBeVisible();
   await expect(page.getByRole('option', { name: /Run: CEK Machine/ })).toBeVisible();
-  await page.keyboard.press('Escape');
+
+  await page.getByRole('option', { name: /View: Show Inferred Types/ }).click();
+  await expect(page.locator('#typesPane')).toBeVisible();
+  await page.keyboard.press('F1');
+  await page.getByRole('option', { name: /View: Show Outline/ }).click();
+  await expect(page.locator('#outlinePane')).toBeVisible();
   await expect(page.locator('#commandPalette')).not.toHaveAttribute('open', '');
 });
 
@@ -79,6 +86,7 @@ test('perspective selection applies the Debug layout', async ({ page }) => {
   await expect(page.locator('#statusPerspective')).toHaveText('Debug');
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
   await expect(page.locator('#bottomTab-stepper')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#bottomTab-semantics')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('[data-sidebar-view="blocks"]')).not.toHaveAttribute('hidden', '');
   await expect(page.locator('[data-sidebar-view="run"]')).toHaveAttribute('hidden', '');
 });
@@ -90,6 +98,10 @@ test('bottom panel opens, maximizes, and closes', async ({ page }) => {
   await page.locator('#vizMaximize').click();
   await expect(page.locator('#vizDock')).toHaveAttribute('data-maximized', 'true');
   await expect(page.locator('#vizMaximize')).toHaveAttribute('aria-pressed', 'true');
+
+  await page.locator('#vizMaximize').click();
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-maximized', 'false');
+  await expect(page.locator('#vizMaximize')).toHaveAttribute('aria-pressed', 'false');
 
   await page.locator('#vizCollapse').click();
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'false');
@@ -120,12 +132,51 @@ test('keyboard resizers update persisted panel dimensions', async ({ page }) => 
 
 test('layout state is restored after reload', async ({ page }) => {
   await page.locator('#toggleToolboxPanel').click();
+  await page.locator('#toggleCodePanel').click();
+  await openBottomTab(page, 'machine');
+  await page.locator('#vizMaximize').click();
   await expect(page.locator('#app')).toHaveClass(/toolbox-hidden/);
+  await expect(page.locator('#app')).toHaveClass(/code-hidden/);
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), layoutStorageKey)).toContain('sidebarVisible');
 
   await page.reload();
   await expect(page.locator('#blocklyDiv .blocklySvg')).toBeVisible();
   await expect(page.locator('#app')).toHaveClass(/toolbox-hidden/);
+  await expect(page.locator('#app')).toHaveClass(/code-hidden/);
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-maximized', 'true');
+  await expect(page.locator('#bottomTab-machine')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#bottomTab-semantics')).toHaveAttribute('aria-selected', 'true');
+});
+
+test('legacy persisted bottom Types state migrates to inspector Types without duplication', async ({ page }) => {
+  await page.evaluate((key) => {
+    const current = JSON.parse(window.localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
+    window.localStorage.setItem(key, JSON.stringify({
+      ...current,
+      codeVisible: false,
+      bottomVisible: true,
+      bottomTab: 'types',
+      perspective: 'custom'
+    }));
+  }, layoutStorageKey);
+
+  await page.reload();
+  await expect(page.locator('#blocklyDiv .blocklySvg')).toBeVisible();
+  await expect(page.locator('#app')).not.toHaveClass(/code-hidden/);
+  await expect(page.locator('#codeTargetInspector')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#typesPane')).toBeVisible();
+  await expect(page.locator('#bottomTab-types')).toBeHidden();
+  await expect(page.locator('#bottomTab-problems')).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(async () => {
+    const value = await page.evaluate((key) => window.localStorage.getItem(key), layoutStorageKey);
+    if (!value) return undefined;
+    const parsed = JSON.parse(value) as { bottomTab?: string; codeVisible?: boolean };
+    return { bottomTab: parsed.bottomTab, codeVisible: parsed.codeVisible };
+  }).toEqual({
+    bottomTab: 'problems',
+    codeVisible: true
+  });
 });
 
 test('theme and autosave interval are configurable and persisted', async ({ page }) => {
@@ -163,9 +214,25 @@ test('mobile header and panel drawers remain operable', async ({ page }) => {
   await page.locator('#toggleToolboxPanel').click();
   await expect(page.locator('#app')).toHaveClass(/toolbox-hidden/);
 
+  await expect(page.locator('#showCodeFromWorkspace')).toBeVisible();
+  await page.locator('#showCodeFromWorkspace').click();
+  await expect(page.locator('#app')).not.toHaveClass(/code-hidden/);
+  await expect(page.locator('#codePanel')).toBeVisible();
+  await page.locator('#toggleCodePanel').click();
+  await expect(page.locator('#app')).toHaveClass(/code-hidden/);
+
   await toggleBottomPanel(page);
   await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
   await expect(page.locator('#vizDock')).toHaveCSS('position', 'fixed');
+  await page.locator('#bottomTab-semantics').click();
+  await expect(page.locator('.semantics-tabs')).toBeVisible();
+  const semanticLabels = page.locator('.semantics-tab .viz-tab-label');
+  await expect(semanticLabels).toHaveCount(4);
+  for (let index = 0; index < 4; index += 1) {
+    await expect(semanticLabels.nth(index)).toBeVisible();
+  }
+  await page.locator('#bottomTab-machine').click();
+  await expect(page.locator('#bottomPanel-machine')).toHaveAttribute('data-active', 'true');
 });
 
 test('keyboard shortcuts invoke shell commands', async ({ page }) => {
@@ -184,18 +251,125 @@ test('keyboard shortcuts invoke shell commands', async ({ page }) => {
   await expect(page.locator('#toolboxSearch')).toBeFocused();
 });
 
-test('code, analysis, structure, utility, and runtime views remain reachable', async ({ page }) => {
-  await page.locator('#codeTargetCode').click();
+test('code editing and code-to-block synchronization remain functional', async ({ page }) => {
+  await openInspectorView(page, 'code');
   await expect(page.locator('#lambdaEditorPane')).toBeVisible();
-  await page.locator('#codeTargetOutline').click();
-  await expect(page.locator('#outlinePane')).toBeVisible();
-  await page.locator('#codeTargetFormal').click();
-  await expect(page.locator('#codeOutput')).toBeVisible();
+  await page.locator('#lambdaEditor').fill('-- edited in Code\n\\y. y');
+  await expect(page.locator('#lambdaEditorStatus')).toHaveText('Converted 1 term.');
+  await expect(page.locator('#lambdaEditorStatus')).toHaveAttribute('data-state', 'ok');
+  await expect(page.locator('#blocklyDiv .blocklyText')).toContainText(['y']);
 
-  for (const kind of ['types', 'problems', 'output', 'structure', 'value', 'machine', 'stepper']) {
+  await page.locator('#synchronizeCode').click();
+  await expect(page.locator('#lambdaEditorStatus')).toHaveText('Synchronized from workspace.');
+  await expect(page.locator('#lambdaEditor')).toHaveValue(/\\y\. y/);
+});
+
+test('Code, Types, Outline, Problems, Output, and every semantics view remain reachable once', async ({ page }) => {
+  await openInspectorView(page, 'outline');
+  await expect(page.locator('#outlinePane')).toBeVisible();
+
+  await openInspectorView(page, 'inspector');
+  await expect(page.locator('#typesPane')).toBeVisible();
+  await expect(page.locator('#typesPanelSummary')).toContainText('top-level term');
+  await expect(page.locator('#typesList .type-row')).toHaveCount(1);
+  await page.locator('#typesList .type-row').click();
+  await expect(page.locator('#blockInspectorContent')).toBeVisible();
+  await expect(page.locator('#inspectorBlockType')).not.toHaveText('unknown');
+
+  await openInspectorView(page, 'formal');
+  await expect(page.locator('#codeOutput')).toBeVisible();
+  await expect(page.locator('#codeOutput')).toHaveClass(/formal-output/);
+  await expect(page.locator('#bottomTab-types')).toBeHidden();
+  await expect(page.locator('#bottomPanel-types')).toBeHidden();
+
+  await openBottomTab(page, 'problems');
+  await expect(page.locator('#bottomTab-problems')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#problemsList')).toBeVisible();
+  await expect(page.locator('#problemsPanelSummary')).toContainText('No problems');
+
+  await openBottomTab(page, 'output');
+  await expect(page.locator('#bottomTab-output')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#outputLog')).toBeVisible();
+
+  for (const kind of ['structure', 'value', 'machine', 'stepper']) {
     await openBottomTab(page, kind);
+    await expect(page.locator('#bottomTab-semantics')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator(`#bottomTab-${kind}`)).toHaveAttribute('aria-selected', 'true');
   }
+});
+
+test('semantic and runtime views retain their evaluation controls', async ({ page }) => {
+  await page.getByRole('button', { name: 'Examples', exact: true }).click();
+  await page.locator('[data-example-id="currying-closures"]').click();
+  await expect(page.locator('#exampleLoadDialog')).toHaveAttribute('open', '');
+  await page.locator('#exampleLoadDialog button[value="replace"]').click();
+  await expect(page.locator('#exampleLoadDialog')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#blockCount')).not.toHaveText('2');
+
+  const applicationBlock = page.locator('#blocklyDiv .lambda_application.blocklyDraggable[data-id]').first();
+  await expect(applicationBlock).toBeAttached();
+  const openApplicationMenu = async () => {
+    const bounds = await applicationBlock.boundingBox();
+    if (!bounds) throw new Error('Expected an application block in the rendered workspace.');
+    await page.mouse.click(bounds.x + 8, bounds.y + 8, { button: 'right' });
+  };
+  await openApplicationMenu();
+
+  await page.getByRole('menuitem', { name: 'Evaluate - Call-by-Structure' }).click();
+  await expect(page.locator('#bottomTab-semantics')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#bottomPanel-structure .blocklySvg')).toBeVisible();
+
+  await page.locator('#vizCollapse').click();
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'false');
+  await openApplicationMenu();
+  await page.getByRole('menuitem', { name: 'Evaluate - Call-by-Value' }).click();
+  await expect(page.locator('#bottomPanel-value .blocklySvg')).toBeVisible();
+
+  await openBottomTab(page, 'machine');
+  await page.locator('#machineLoad').click();
+  await expect(page.locator('#machineStep')).toBeEnabled();
+  const machineStatus = await page.locator('#machineStatus').textContent();
+  await page.locator('#machineStep').click();
+  await expect(page.locator('#machineStatus')).not.toHaveText(machineStatus ?? '');
+
+  await openBottomTab(page, 'stepper');
+  await page.locator('#stepperLoad').click();
+  await expect(page.locator('#stepperStep')).toBeEnabled();
+  await page.locator('#stepperStep').click();
+  await expect(page.locator('#stepperStatus')).toContainText('step 1/');
+});
+
+test('Type Analysis perspective opens static Types with Problems in the bottom panel', async ({ page }) => {
+  await openSettings(page);
+  await page.locator('#perspectiveSelect').selectOption('types');
+  await expect(page.locator('#statusPerspective')).toHaveText('Type Analysis');
+  await expect(page.locator('#codeTargetInspector')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#typesPane')).toBeVisible();
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
+  await expect(page.locator('#bottomTab-problems')).toHaveAttribute('aria-selected', 'true');
+});
+
+test('inspector and bottom tablists support keyboard navigation', async ({ page }) => {
+  await page.locator('#codeTargetCode').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#codeTargetInspector')).toBeFocused();
+  await expect(page.locator('#typesPane')).toBeVisible();
+
+  await page.locator('#typeTargetOverview').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#codeTargetFormal')).toBeFocused();
+  await expect(page.locator('#codeOutput')).toBeVisible();
+
+  await openBottomTab(page, 'problems');
+  await page.locator('#bottomTab-problems').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#bottomTab-output')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#bottomTab-semantics')).toBeFocused();
+
+  await page.locator('#bottomTab-structure').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#bottomTab-value')).toBeFocused();
 });
 
 test('toolbox search, categories, click-to-add, drag-to-add, undo, redo, and zoom controls work', async ({ page }) => {

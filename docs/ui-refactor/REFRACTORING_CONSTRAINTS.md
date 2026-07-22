@@ -27,8 +27,8 @@ The completed shell should use the following primary locations:
 - **Header:** project and file identity, File menu, Examples, primary Run action, View menu, and an overflow menu.
 - **Left panel:** block search and the categorized toolbox.
 - **Workspace toolbar:** Undo, Redo, Zoom, Fit workspace, and the primary Run action.
-- **Right inspector:** Code, Types, and Outline. Existing formal derivation and selected-block inspection must remain reachable even if moved to an overflow menu or the command palette.
-- **Bottom panel:** Problems, Output, and semantics/runtime tools.
+- **Right inspector:** Code, Types, and Outline. Types owns the existing inferred top-level types, selected-block inspection, and formal typing derivation through restrained secondary navigation.
+- **Bottom panel:** Problems, Output, and Semantics. Semantics owns the existing Call-by-Structure, Call-by-Value, CEK machine, and Lockstep views through a secondary tab row.
 - **Status bar:** block count, problem count, and autosave state. File and perspective status may remain when useful, but should not compete with these core signals.
 - **Settings:** theme, autosave interval, perspectives, renderer if still user-selectable, and layout controls.
 - **Command palette:** every application command, including less frequently used actions.
@@ -45,6 +45,7 @@ The completed shell should use the following primary locations:
 - Preserve Call-by-Structure as the language default, Call-by-Value traces, CEK Load/Back/Step/Play, Lockstep Load/Back/Step/Play and its CbS/CbV switch, salient-rule matching, stale-on-edit behavior, runtime provenance links, re-run, arrange, collapse, and panel maximization.
 - Preserve type inference warnings, native Blockly type/value comments, selected-block inspection, inferred top-level types, problem badges/counts, and formal typing derivations.
 - Preserve light/dark shell and Blockly themes, renderer selection (`tude`, `zelos`, `thrasos`), and renderer reinjection behavior.
+- Preserve the seven-value persisted/delegated bottom-kind vocabulary even though Types is now a static right-inspector view. The legacy `types` route must continue to open Inspector → Types, and a stored `bottomTab: "types"` must normalize without exposing a duplicate bottom Types view. Persist a specific semantic kind (`structure`, `value`, `machine`, or `stepper`), not the outer Semantics label, so reload restores the same tool.
 
 ### DOM, events, and accessibility
 
@@ -93,14 +94,14 @@ The following IDs are direct lookup or handler contracts and must remain stable:
 | Theme and renderer | `themeToggle`, `blocklyThemeMenuButton`, `blocklyThemeSubMenu` |
 | Left panel/toolbox | `toolboxPanel`, `toggleToolboxPanel`, `showToolboxFromWorkspace`, `sidebarResizeHandle`, `sidebarTitle`, `toolboxSearch`, `blockToolboxContent`, `sidebarProblemsSummary`, `sidebarProblems`, `projectFileLabel` |
 | Workspace | `blocklyArea`, `blocklyDiv`, `workspaceTitle`, `workspaceFileLabel`, `workspaceUndo`, `workspaceRedo`, `zoomOut`, `zoomIn`, `zoomFit`, `zoomLabel`, `toggleVizDock`, `presentationMode` |
-| Right panel | `codePanel`, `resizeHandle`, `toggleCodePanel`, `showCodeFromWorkspace`, `maximizeCodePanel`, `synchronizeCode`, `copyCode`, `printDerivation`, `codeTargetCode`, `codeTargetFormal`, `codeTargetInspector`, `codeTargetOutline`, `codeOutput`, `lambdaEditorPane`, `lambdaEditor`, `lambdaEditorHighlight`, `lambdaEditorGutter`, `lambdaEditorStatus` |
-| Inspector/outline | `blockInspectorPane`, `blockInspectorEmpty`, `blockInspectorContent`, `inspectorBlockKind`, `inspectorBlockId`, `inspectorBlockTerm`, `inspectorBlockType`, `inspectorBlockStatus`, `inspectorBlockIssues`, `outlinePane`, `programOutline` |
-| Bottom panel | `vizDock`, `vizDockInfo`, `vizResizer`, `vizRerun`, `vizArrange`, `vizMaximize`, `vizCollapse`, `vizEmpty`, `problemsPanelSummary`, `problemsList`, `outputLog`, `typesPanelSummary`, `typesList` |
+| Right panel | `codePanel`, `resizeHandle`, `toggleCodePanel`, `showCodeFromWorkspace`, `maximizeCodePanel`, `synchronizeCode`, `copyCode`, `printDerivation`, `codeTargetCode`, `codeTargetFormal`, `codeTargetInspector`, `codeTargetOutline`, `typeTargetOverview`, `typesPane`, `codeOutput`, `lambdaEditorPane`, `lambdaEditor`, `lambdaEditorHighlight`, `lambdaEditorGutter`, `lambdaEditorStatus` |
+| Inspector/outline | `typesPanelSummary`, `typesList`, `blockInspectorPane`, `blockInspectorEmpty`, `blockInspectorContent`, `inspectorBlockKind`, `inspectorBlockId`, `inspectorBlockTerm`, `inspectorBlockType`, `inspectorBlockStatus`, `inspectorBlockIssues`, `outlinePane`, `programOutline` |
+| Bottom panel | `vizDock`, `vizDockInfo`, `vizResizer`, `vizRerun`, `vizArrange`, `vizMaximize`, `vizCollapse`, `vizEmpty`, `bottomTab-semantics`, `semanticsViews`, `problemsPanelSummary`, `problemsList`, `outputLog` |
 | Lockstep | `stepperStrategyStructure`, `stepperStrategyValue`, `stepperLoad`, `stepperBack`, `stepperStep`, `stepperPlay`, `stepperStatus`, `stepperAgree`, `stepperWorkspace`, `stepperMachineStatus`, `stepperMachineEnv`, `stepperMachineKont` |
 | CEK machine | `machineLoad`, `machineBack`, `machineStep`, `machinePlay`, `machineStatus`, `machineControl`, `machineEnv`, `machineKont` |
 | Status/settings | `topSaveStatus`, `topbarFileName`, `autosaveTime`, `autosaveInterval`, `autosaveIntervalLabel`, `statusLine`, `statusProblemIcon`, `statusProblemCount`, `activityProblemCount`, `bottomProblemCount`, `blockCount`, `perspectiveSelect`, `statusPerspective` |
 
-Dynamic bottom tabs and panels receive runtime IDs `bottomTab-{kind}` and `bottomPanel-{kind}` for each of `problems`, `output`, `types`, `structure`, `value`, `machine`, and `stepper`. These generated IDs and their ARIA links are stable contracts.
+Dynamic bottom tabs and panels receive runtime IDs `bottomTab-{kind}` and `bottomPanel-{kind}` for each of `problems`, `output`, `types`, `structure`, `value`, `machine`, and `stepper`. These generated IDs and their ARIA links remain stable contracts: `types` is hidden compatibility markup, while the four semantic/runtime pairs are nested under the static `bottomTab-semantics`/`semanticsViews` relationship.
 
 ### Behaviorally significant `data-*` selectors
 
@@ -108,7 +109,7 @@ Dynamic bottom tabs and panels receive runtime IDs `bottomTab-{kind}` and `botto
 - `[data-panel-command]`: `sidebar`, `code`, `bottom`.
 - `[data-activity]`: `blocks`, `files`, `problems`, `run`, `settings`.
 - `[data-sidebar-view]`: the same activity vocabulary.
-- `[data-bottom-tab]`, `.viz-tab[data-kind]`, and `.viz-host[data-kind]`: `problems`, `output`, `types`, `structure`, `value`, `machine`, `stepper`.
+- `[data-bottom-tab]`, `.viz-tab[data-kind]`, and `.viz-host[data-kind]`: `problems`, `output`, `types`, `structure`, `value`, `machine`, `stepper`. `types` remains a compatibility route to the right inspector; the four runtime kinds remain the persisted nested Semantics identity.
 - `[data-code-target]`: `code`, `formal`, `inspector`, `outline`.
 - `[data-perspective]`: `edit`, `debug`, `types`, `presentation`; the persisted/select vocabulary also includes `custom`.
 - `[data-theme-mode]`: `dark`, `light`.
@@ -117,13 +118,13 @@ Dynamic bottom tabs and panels receive runtime IDs `bottomTab-{kind}` and `botto
 - Runtime state: `html[data-theme]`, `html[data-blockly-renderer]`, `#vizDock[data-open]`, `#vizDock[data-maximized]`, `.viz-host[data-active]`, and `[data-state]` values including `ok`, `error`, `pending`, `saved`, `stale`, `done`, `sync`, and `diverged` where applicable.
 - Runtime metadata used by behavior: `data-raw-code`, `data-block-id`, `data-block-type`, `data-category`, `data-tone`, and `data-provenance-id`.
 
-The class hooks `.app-menu`, `.app-menu-trigger`, `.app-menu-popup`, `.activity-button`, `.sidebar-view`, `.code-tabs`, `.code-tab`, `.viz-tabs`, `.viz-tab`, `.viz-host`, `.workspace-panel`, `.toolbox-panel`, `.code-panel`, `.topbar-actions`, `.statusbar`, and `.block-lambda-context-menu` are queried or used as layout/event boundaries and must not be renamed without updating and testing all consumers.
+The class hooks `.app-menu`, `.app-menu-trigger`, `.app-menu-popup`, `.activity-button`, `.sidebar-view`, `.code-tabs`, `.code-tab`, `.type-tabs`, `.type-tab`, `.viz-tabs`, `.semantics-tabs`, `.viz-tab`, `.viz-host`, `.workspace-panel`, `.toolbox-panel`, `.code-panel`, `.topbar-actions`, `.statusbar`, and `.block-lambda-context-menu` are queried or used as layout/event boundaries and must not be renamed without updating and testing all consumers.
 
 ### ARIA relationships that must survive reorganization
 
 - `menuToggle` controls `topbarActions`; Examples and Renderer submenu triggers control their corresponding submenu IDs.
-- Code tabs control/label `lambdaEditorPane`, `codeOutput`, `blockInspectorPane`, and `outlinePane`.
-- Bottom tabs control/label their dynamically assigned `bottomPanel-*` tabpanels.
+- Primary inspector tabs control/label `lambdaEditorPane`, `typesPane`, and `outlinePane`; nested Types tabs control/label `blockInspectorPane` and `codeOutput`.
+- Primary bottom tabs control/label Problems, Output, and `semanticsViews`; nested Semantics tabs control/label their dynamically assigned `bottomPanel-structure`, `-value`, `-machine`, and `-stepper` tabpanels. Hidden `bottomTab-types`/`bottomPanel-types` remains an ARIA-linked compatibility pair.
 - `commandPalette` is labelled by `commandPaletteTitle`; its input controls `commandPaletteList`.
 - Save, example-load, and About dialogs retain their `aria-labelledby` titles.
 - Resizers remain focusable separators with the correct orientation and `aria-valuemin`, `aria-valuemax`, and `aria-valuenow`.
@@ -246,7 +247,7 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 - Each command has one obvious primary location; redundant persistent controls are removed or demoted without deleting the wired command.
 - Every command in section 5 is reachable through the command palette, and every removed top-level control remains reachable through an explicit menu or the palette.
 - The primary Run action is clearly labelled and routes to the intended language-default execution behavior. Existing alternate semantics remain explicitly reachable.
-- Project/file identity, block search/toolbox, Code/Types/Outline, Problems/Output/runtime tools, block/problem counts, and autosave state are visible in their designated regions.
+- Project/file identity, block search/toolbox, Code/Types/Outline, Problems/Output/Semantics, block/problem counts, and autosave state are visible in their designated regions; no view is simultaneously visible in both inspector and bottom panel.
 
 ### Compatibility and responsive behavior
 
@@ -275,4 +276,3 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 5. **CSS/DOM coupling:** layout and state depend on exact class/data selectors and CSS custom properties. Markup movement can appear correct at one breakpoint while breaking overlay mutual exclusion or Blockly resize elsewhere.
 6. **Renderer sensitivity:** Tude’s square geometry and connector paths are executable grammar cues. Treating them as visual decoration could break connection affordances and serialized program expectations.
 7. **Generated artifacts:** webpack cleans and regenerates `docs/`; hand edits there will be lost and can create misleading diffs. Implement in `src/`, then rebuild deliberately.
-

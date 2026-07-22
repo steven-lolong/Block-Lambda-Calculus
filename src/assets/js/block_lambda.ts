@@ -85,6 +85,9 @@ const examplesSubMenu = requireElement<HTMLElement>('examplesSubMenu');
 const blocklyThemeMenuButton = requireElement<HTMLButtonElement>('blocklyThemeMenuButton');
 const blocklyThemeSubMenu = requireElement<HTMLElement>('blocklyThemeSubMenu');
 const codeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-code-target]'));
+const primaryCodeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.code-tabs [data-code-target]'));
+const typesPane = requireElement<HTMLElement>('typesPane');
+const typeTargetOverview = requireElement<HTMLButtonElement>('typeTargetOverview');
 const blocklyRendererButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-blockly-renderer]'));
 const topbarFileName = requireElement<HTMLElement>('topbarFileName');
 const projectFileLabel = requireElement<HTMLElement>('projectFileLabel');
@@ -102,6 +105,7 @@ const outlinePane = requireElement<HTMLElement>('outlinePane');
 const programOutline = requireElement<HTMLDivElement>('programOutline');
 const printDerivationButton = requireElement<HTMLButtonElement>('printDerivation');
 const copyCodeButton = requireElement<HTMLButtonElement>('copyCode');
+const synchronizeCodeButton = requireElement<HTMLButtonElement>('synchronizeCode');
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
@@ -462,16 +466,23 @@ function renderCodeTargetTabs(): void {
   const showingInspector = activeCodeTarget === 'inspector';
   const showingOutline = activeCodeTarget === 'outline';
   const showingFormal = activeCodeTarget === 'formal';
+  const showingTypes = showingInspector || showingFormal;
   for (const button of codeTargetButtons) {
-    const selected = button.dataset.codeTarget === activeCodeTarget;
+    const selected = button.id === 'codeTargetInspector'
+      ? showingTypes
+      : button.dataset.codeTarget === activeCodeTarget;
     button.setAttribute('aria-selected', String(selected));
     button.tabIndex = selected ? 0 : -1;
   }
-  codeOutput.hidden = showingCodeEditor || showingInspector || showingOutline;
+  typeTargetOverview.setAttribute('aria-selected', String(showingInspector));
+  typeTargetOverview.tabIndex = showingInspector ? 0 : -1;
+  typesPane.hidden = !showingTypes;
+  codeOutput.hidden = !showingFormal;
   lambdaEditorPane.hidden = !showingCodeEditor;
   blockInspectorPane.hidden = !showingInspector;
   outlinePane.hidden = !showingOutline;
-  copyCodeButton.hidden = showingInspector || showingOutline;
+  synchronizeCodeButton.hidden = !showingCodeEditor;
+  copyCodeButton.hidden = !(showingCodeEditor || showingFormal);
   printDerivationButton.hidden = !showingFormal;
 }
 
@@ -554,6 +565,30 @@ function resetLambdaEditorSyncGuard(): void {
   }
   applyingCodeEditorText = false;
   suppressCodeEditorSyncUntil = 0;
+}
+
+function activateCodeTarget(target: 'code' | 'formal' | 'inspector' | 'outline'): void {
+  activeCodeTarget = target;
+  if (target === 'code') {
+    syncLambdaEditorFromWorkspace();
+    window.setTimeout(() => lambdaEditor.focus(), 0);
+  } else {
+    if (lambdaImportTimer !== undefined) {
+      window.clearTimeout(lambdaImportTimer);
+      lambdaImportTimer = undefined;
+    }
+    if (target === 'inspector') renderBlockInspector();
+    if (target === 'outline') renderOutline();
+  }
+  renderCodeTargetTabs();
+  refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+  setStatus(target === 'formal'
+    ? 'Showing the typing derivation.'
+    : target === 'inspector'
+      ? 'Showing inferred types and selected-block type details.'
+      : target === 'outline'
+        ? 'Showing the program outline.'
+        : 'Editing Lambda code.');
 }
 
 function synchronizeCodeFromWorkspace(): void {
@@ -1102,42 +1137,39 @@ for (const button of codeTargetButtons) {
   button.addEventListener('click', () => {
     const target = button.dataset.codeTarget;
     if (target !== 'code' && target !== 'formal' && target !== 'inspector' && target !== 'outline') return;
-    activeCodeTarget = target;
-    if (target === 'code') {
-      syncLambdaEditorFromWorkspace();
-      window.setTimeout(() => lambdaEditor.focus(), 0);
-    } else {
-      if (lambdaImportTimer !== undefined) {
-        window.clearTimeout(lambdaImportTimer);
-        lambdaImportTimer = undefined;
-      }
-      if (target === 'inspector') renderBlockInspector();
-      if (target === 'outline') renderOutline();
-    }
-    renderCodeTargetTabs();
-    refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
-    setStatus(target === 'formal'
-      ? 'Showing formal derivation.'
-      : target === 'inspector'
-        ? 'Showing the selected block inspector.'
-        : target === 'outline'
-          ? 'Showing the program outline.'
-          : 'Editing Lambda code.');
+    activateCodeTarget(target);
   });
 }
 
+typeTargetOverview.addEventListener('click', () => activateCodeTarget('inspector'));
+
 document.querySelector<HTMLElement>('.code-tabs')?.addEventListener('keydown', (event) => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
-  const currentIndex = codeTargetButtons.indexOf(document.activeElement as HTMLButtonElement);
+  const currentIndex = primaryCodeTargetButtons.indexOf(document.activeElement as HTMLButtonElement);
   if (currentIndex < 0) return;
   event.preventDefault();
   const nextIndex = event.key === 'Home'
     ? 0
     : event.key === 'End'
-      ? codeTargetButtons.length - 1
-      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + codeTargetButtons.length) % codeTargetButtons.length;
-  codeTargetButtons[nextIndex].focus();
-  codeTargetButtons[nextIndex].click();
+      ? primaryCodeTargetButtons.length - 1
+      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + primaryCodeTargetButtons.length) % primaryCodeTargetButtons.length;
+  primaryCodeTargetButtons[nextIndex].focus();
+  primaryCodeTargetButtons[nextIndex].click();
+});
+
+document.querySelector<HTMLElement>('.type-tabs')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+  const buttons = [typeTargetOverview, requireElement<HTMLButtonElement>('codeTargetFormal')];
+  const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? buttons.length - 1
+      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  buttons[nextIndex].focus();
+  buttons[nextIndex].click();
 });
 
 printDerivationButton.addEventListener('click', printDerivation);

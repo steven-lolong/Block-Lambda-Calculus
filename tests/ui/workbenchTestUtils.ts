@@ -30,11 +30,26 @@ export async function toggleBottomPanel(page: Page): Promise<void> {
   await page.locator('#toggleVizDock').click();
 }
 
+export async function openInspectorView(page: Page, target: 'code' | 'inspector' | 'formal' | 'outline'): Promise<void> {
+  if (await page.locator('#app').evaluate((element) => element.classList.contains('code-hidden'))) {
+    await page.locator('#showCodeFromWorkspace').click();
+  }
+  if (target === 'formal') {
+    await page.locator('#codeTargetInspector').click();
+    await page.locator('#codeTargetFormal').click();
+    return;
+  }
+  await page.locator(`[data-code-target="${target}"]`).click();
+}
+
 export async function openBottomTab(page: Page, kind: string): Promise<void> {
   if (await page.locator('#vizDock').getAttribute('data-open') !== 'true') {
     await toggleBottomPanel(page);
   }
-  await page.locator(`.viz-tab[data-kind="${kind}"]`).click();
+  if (['structure', 'value', 'machine', 'stepper'].includes(kind)) {
+    await page.locator('#bottomTab-semantics').click();
+  }
+  await page.locator(`#bottomTab-${kind}`).click();
   await expect(page.locator(`.viz-host[data-kind="${kind}"]`)).toHaveAttribute('data-active', 'true');
 }
 

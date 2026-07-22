@@ -23,20 +23,28 @@ The brief-supplied IDs `run-program`, `viz-dock`, `toolbox-column`, and `perspec
 
 The brief also names a `bottom-maximized` state class that is absent in this checkout. The current live contract is `#vizDock[data-maximized="true"]`, backed by the persisted `bottomMaximized` field. Preserve that implementation and reserve the mandated class name for an explicit compatibility decision; do not silently substitute one contract for the other.
 
+## Inspector and bottom-panel refactor update
+
+- The right panel has one primary tablist (`.code-tabs`) for `#codeTargetCode`, `#codeTargetInspector` (labelled Types), and `#codeTargetOutline`. `#typesPane` is the panel controlled by the Types tab.
+- Types has a secondary tablist (`.type-tabs`) for `#typeTargetOverview`/`#blockInspectorPane` and the retained `#codeTargetFormal`/`#codeOutput` pair. `#typesPanelSummary` and `#typesList` moved into the overview without changing identity or row behavior.
+- The bottom panel has one primary tablist (`.viz-tabs`) for Problems, Output, and the static `#bottomTab-semantics`/`#semanticsViews` pair. `.semantics-tabs` is the secondary tablist for the existing `structure`, `value`, `machine`, and `stepper` kinds.
+- `#bottomTab-types` and `#bottomPanel-types` remain runtime-assigned hidden compatibility identities. A delegated `data-bottom-tab="types"` route now opens Inspector → Types. A persisted legacy `bottomTab: "types"` is accepted but normalized to Inspector → Types with Bottom → Problems when the full workbench controller restores it.
+- The selected specific semantic kind—not the outer Semantics label—continues to be stored in `bottomTab`. This preserves prior layout payloads and restores the same nested semantic view after reload.
+
 ## IDs queried by TypeScript
 
 All IDs in this section are exact lookup strings or exact runtime-generated IDs. Their elements may move, but the identity must remain unless production references and browser regression tests are deliberately migrated.
 
 | Area / owning module | Queried IDs | Classification | Dependency |
 | --- | --- | --- | --- |
-| Required at entry-point startup | `blocklyDiv`, `blockToolboxContent`, `codeOutput`, `lambdaEditorPane`, `lambdaEditor`, `lambdaEditorHighlight`, `lambdaEditorGutter`, `lambdaEditorStatus`, `statusLine`, `workspaceTitle`, `workspaceFileLabel`, `zoomLabel`, `blockCount`, `autosaveTime`, `autosaveInterval`, `autosaveIntervalLabel`, `examplesMenuButton`, `examplesSubMenu`, `blocklyThemeMenuButton`, `blocklyThemeSubMenu`, `topbarFileName`, `projectFileLabel`, `topSaveStatus`, `blockInspectorPane`, `blockInspectorEmpty`, `blockInspectorContent`, `inspectorBlockKind`, `inspectorBlockId`, `inspectorBlockTerm`, `inspectorBlockType`, `inspectorBlockStatus`, `inspectorBlockIssues`, `outlinePane`, `programOutline`, `printDerivation`, `copyCode` | May move but must retain identity | `requireElement` throws and aborts boot if any is missing |
+| Required at entry-point startup | `blocklyDiv`, `blockToolboxContent`, `codeOutput`, `lambdaEditorPane`, `lambdaEditor`, `lambdaEditorHighlight`, `lambdaEditorGutter`, `lambdaEditorStatus`, `statusLine`, `workspaceTitle`, `workspaceFileLabel`, `zoomLabel`, `blockCount`, `autosaveTime`, `autosaveInterval`, `autosaveIntervalLabel`, `examplesMenuButton`, `examplesSubMenu`, `blocklyThemeMenuButton`, `blocklyThemeSubMenu`, `topbarFileName`, `projectFileLabel`, `topSaveStatus`, `typesPane`, `typeTargetOverview`, `blockInspectorPane`, `blockInspectorEmpty`, `blockInspectorContent`, `inspectorBlockKind`, `inspectorBlockId`, `inspectorBlockTerm`, `inspectorBlockType`, `inspectorBlockStatus`, `inspectorBlockIssues`, `outlinePane`, `programOutline`, `printDerivation`, `copyCode`, `synchronizeCode` | May move but must retain identity | `requireElement` throws and aborts boot if any is missing |
 | Entry-point dialogs | `saveNameDialog`, `saveNameInput`, `exampleLoadDialog`, `exampleLoadName` | May move but must retain identity | Save naming and example replace/merge promises read dialog return values |
 | Shell/panel controller | `app`, `menuToggle`, `toggleToolboxPanel`, `showToolboxFromWorkspace`, `toggleCodePanel`, `maximizeCodePanel`, `showCodeFromWorkspace`, `refreshCode`, `clearWorkspace`, `saveWorkspace`, `loadWorkspace`, `loadAutosave`, `aboutApp`, `aboutDialog`, `closeAboutDialog`, `copyCode`, `themeToggle`, `codePanel`, `resizeHandle`, `sidebarResizeHandle`, `toolboxPanel`, `vizDock` | May move but must retain identity | Direct click/change handlers, state classes, resizers, ResizeObserver targets |
 | Workbench/palette | `sidebarTitle`, `perspectiveSelect`, `statusPerspective`, `commandPalette`, `commandPaletteInput`, `commandPaletteList`, `commandPaletteTrigger`, `activityProblemCount`, `bottomProblemCount`, `statusProblemCount`, `statusProblemIcon`, `sidebarProblemsSummary`, `problemsPanelSummary`, `typesPanelSummary`, `problemsList`, `sidebarProblems`, `typesList`, `outputLog`, `presentationMode`, `undoWorkspace`, `redoWorkspace`, `workspaceUndo`, `workspaceRedo`, `zoomOut`, `zoomIn`, `zoomFit`, `synchronizeCode`, `toolboxSearch` | May move but must retain identity | Palette rendering, delegated commands, diagnostics, direct toolbar bindings |
-| Bottom-panel shell | `vizDock`, `vizDockInfo`, `vizEmpty`, `vizRerun`, `vizArrange`, `vizCollapse`, `toggleVizDock`, `vizMaximize`, `vizResizer` | May move but must retain identity | Visibility, active-tab tools, resize/maximize state |
+| Bottom-panel shell | `vizDock`, `vizDockInfo`, `vizEmpty`, `vizRerun`, `vizArrange`, `vizCollapse`, `toggleVizDock`, `vizMaximize`, `vizResizer`, `bottomTab-semantics`, `semanticsViews` | May move but must retain identity | Visibility, active-tab tools, nested Semantics selection, resize/maximize state |
 | Lockstep | `stepperWorkspace`, `stepperStatus`, `stepperAgree`, `stepperMachineStatus`, `stepperMachineEnv`, `stepperMachineKont`, `stepperBack`, `stepperStep`, `stepperPlay`, `stepperLoad`, `stepperStrategyStructure`, `stepperStrategyValue` | May move but must retain identity | Stepper state renderer and controls |
 | CEK machine | `machineStatus`, `machineControl`, `machineEnv`, `machineKont`, `machineLoad`, `machineStep`, `machineBack`, `machinePlay` | May move but must retain identity | Machine transport, output, provenance rendering |
-| Runtime-generated bottom ARIA IDs | `bottomTab-problems`, `bottomTab-output`, `bottomTab-types`, `bottomTab-structure`, `bottomTab-value`, `bottomTab-machine`, `bottomTab-stepper`; matching `bottomPanel-*` | Must preserve exactly | Assigned at initialization and used in `aria-controls`/`aria-labelledby` |
+| Runtime-generated bottom ARIA IDs | `bottomTab-problems`, `bottomTab-output`, hidden compatibility `bottomTab-types`, `bottomTab-structure`, `bottomTab-value`, `bottomTab-machine`, `bottomTab-stepper`; matching `bottomPanel-*` | Must preserve exactly | Assigned at initialization and used in `aria-controls`/`aria-labelledby`; semantic kinds now live in the nested Semantics tablist |
 | Runtime renderer style | `tude-renderer-style` | Must preserve exactly | Prevents duplicate renderer style insertion |
 
 ### HTML IDs not directly queried but semantically coupled
@@ -45,7 +53,8 @@ All IDs in this section are exact lookup strings or exact runtime-generated IDs.
 | --- | --- | --- |
 | `topbarActions` | May move but must retain identity | Target of `menuToggle[aria-controls]` |
 | `commandPaletteTitle`, `saveNameDialogTitle`, `exampleLoadDialogTitle`, `aboutDialogTitle` | May move but must retain identity | Dialog `aria-labelledby` relationships |
-| `codeTargetCode`, `codeTargetFormal`, `codeTargetInspector`, `codeTargetOutline` | May move but must retain identity | Tab identity and panel `aria-labelledby`; buttons are also collected by `[data-code-target]` |
+| `codeTargetCode`, `codeTargetFormal`, `codeTargetInspector`, `codeTargetOutline`, `typeTargetOverview`, `typesPane` | May move but must retain identity | Primary/secondary tab identity and panel `aria-labelledby`; `codeTarget*` buttons are also collected by `[data-code-target]` |
+| `bottomTab-semantics`, `semanticsViews`, `selectedTypeHeading` | May move but must retain identity | Static outer Semantics tab/panel and selected-type section labelling |
 | `blocklyArea` | May rename after updating references and tests | CSS/layout wrapper; the inner `blocklyDiv` is the behavioral mount |
 | Count/status child IDs such as `activityProblemCount`, `bottomProblemCount`, `statusProblemIcon`, `statusProblemCount` | May move but must retain identity | Updated independently by diagnostics rendering |
 
@@ -63,7 +72,9 @@ All IDs in this section are exact lookup strings or exact runtime-generated IDs.
 | `.app-menu`, `.app-menu-trigger`, `.app-menu-popup` | `workbench.ts` | May rename after updating references and tests | Menu discovery, open/close, focus, Arrow navigation |
 | `.activity-button[data-activity]`, `[data-sidebar-view]` | `workbench.ts` | Must preserve exactly | Activity selection and delegated view switching |
 | `.code-tabs` | `block_lambda.ts` | May rename after updating references and tests | Root for Arrow/Home/End tab keyboard handler |
-| `.viz-tabs`, `.viz-tab[data-kind]`, `.viz-host[data-kind]` | `visualizationPanel.ts` | Must preserve exactly | Bottom tab lookup, keyboard root, active host routing |
+| `.type-tabs` | `block_lambda.ts` | May rename after updating references and tests | Root for Arrow/Home/End navigation between Inferred types and Typing derivation |
+| `.viz-tabs`, `.viz-tab[data-kind]`, `.viz-host[data-kind]` | `visualizationPanel.ts` | Must preserve exactly | Primary bottom keyboard root plus compatibility lookup and active-host routing |
+| `.semantics-tabs` | `visualizationPanel.ts` | Must preserve exactly | Root for Arrow/Home/End navigation among semantic/runtime views |
 | `.activity-bar`, `.ide-grid`, `.workspace-panel`, `.toolbox-panel`, `.code-panel`, `.topbar`, `.topbar-actions`, `.app-shell`, `.statusbar`, `.viz-dock` | `layout.ts` | May rename after updating references and tests | Resize observation, transition filtering, geometry, drawer boundaries; state variants remain exact |
 | `.workspace-panel`, `.blocklySvg`, `.blockly-canvas` | `toolbox.ts` | May rename after updating references and tests | Drag/drop hit testing and drop-surface lookup |
 | `.custom-toolbox-list`, `.toolbox-category`, `.toolbox-block-card` | `block_lambda.ts`, `toolbox.ts` | May rename after updating references and tests | Toolbox regeneration and search filtering |
@@ -85,8 +96,8 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 | `data-panel-command`: `sidebar`, `code`, `bottom` | Must preserve exactly | Document-level View-menu routing |
 | `data-activity`: `blocks`, `files`, `problems`, `run`, `settings` | Must preserve exactly | Activity/status routing and selected-state rendering |
 | `data-sidebar-view`: same five values | Must preserve exactly | Blocks is the only visible toolbox view; the remaining values persist as hidden compatibility state for existing layout payloads and diagnostics bindings |
-| `data-bottom-tab`: `problems`, `output`, `types`, `structure`, `value`, `machine`, `stepper` | Must preserve exactly | Delegated commands open the matching bottom tab |
-| `data-kind`: same seven bottom kinds on `.viz-tab`/`.viz-host` | Must preserve exactly | Active tab/host lookup and dispatch |
+| `data-bottom-tab`: `problems`, `output`, `types`, `structure`, `value`, `machine`, `stepper` | Must preserve exactly | Delegated commands open the matching bottom view; `types` is a compatibility route to Inspector → Types |
+| `data-kind`: same seven retained kinds on `.viz-tab`/`.viz-host` | Must preserve exactly | Active tab/host lookup and dispatch; `types` is hidden compatibility identity and the four runtime kinds are nested under Semantics |
 | `data-code-target`: `code`, `formal`, `inspector`, `outline` | Must preserve exactly | Right-panel tab collection, dispatch, visibility, output mode |
 | `data-perspective`: `edit`, `debug`, `types`, `presentation` | Must preserve exactly | Delegated preset application |
 | `data-theme-mode`: `dark`, `light` | Must preserve exactly | Delegated explicit theme selection |
@@ -111,8 +122,10 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 | Examples submenu | `examplesMenuButton[aria-controls="examplesSubMenu"]`, `aria-haspopup="menu"`, `aria-expanded` | Must preserve exactly | Direct menu open/close state |
 | Renderer submenu | `blocklyThemeMenuButton[aria-controls="blocklyThemeSubMenu"]`, `aria-haspopup`, `aria-expanded`; renderer items use `role="menuitemradio"`/`aria-checked` | Must preserve exactly | Selection and menu semantics |
 | Command palette | trigger controls `commandPalette`; dialog labelled by `commandPaletteTitle`; input controls `commandPaletteList`; list uses `role="listbox"`, generated buttons use `role="option"`/`aria-selected` | Must preserve exactly | Keyboard/focus and screen-reader model |
-| Right-panel tabs | `codeTarget*` buttons use `role="tab"`, `aria-controls`, `aria-selected`; panels use `role="tabpanel"`, `aria-labelledby` | Must preserve exactly | Roving focus and panel identity |
-| Bottom tabs | runtime `bottomTab-*`/`bottomPanel-*` with `role="tab"`/`tabpanel`, `aria-controls`, `aria-labelledby`, `aria-selected` | Must preserve exactly | Built dynamically by `initVisualizationPanel` |
+| Primary inspector tabs | `codeTargetCode`, `codeTargetInspector`, and `codeTargetOutline` use `role="tab"`, `aria-controls`, `aria-selected`; their panels use `role="tabpanel"`, `aria-labelledby` | Must preserve exactly | Roving focus and Code/Types/Outline identity |
+| Types tabs | `typeTargetOverview` controls/labels `blockInspectorPane`; retained `codeTargetFormal` controls/labels `codeOutput` | Must preserve exactly | Nested roving focus and static-versus-formal type view identity |
+| Primary bottom tabs | runtime Problems/Output tabs plus `bottomTab-semantics`/`semanticsViews` use `role="tab"`/`tabpanel`, `aria-controls`, `aria-labelledby`, `aria-selected` | Must preserve exactly | Roving focus among Problems, Output, and Semantics |
+| Semantics tabs | runtime `bottomTab-structure`, `-value`, `-machine`, `-stepper` control/label their `bottomPanel-*` hosts | Must preserve exactly | Nested roving focus and specific semantic/runtime view identity |
 | Dialog labels | Save, example-load, About, and Settings dialogs reference their title IDs; Settings returns focus to its invoker | Must preserve exactly | Native dialog accessible name and keyboard return path |
 | Resizers | `sidebarResizeHandle`, `resizeHandle`: vertical separator; `vizResizer`: horizontal separator; all focusable with value min/max/now | Must preserve exactly | Keyboard resize and announced value |
 | Toggle state | activity/theme buttons and panel/maximize controls update `aria-pressed`; renderer items update `aria-checked` | Must preserve exactly | State is not conveyed by color alone |
@@ -127,7 +140,9 @@ Purely decorative classes such as `brand-copy`, `code-tab-icon`, `viz-tab-icon`,
 | `document` in `workbench.ts` | Delegated `click` for `[data-activity]`, `[data-command-target]`, `[data-panel-command]`, `[data-bottom-tab]`, `[data-perspective]`, `[data-theme-mode]`; global `keydown` for shortcuts/Escape | Must preserve exactly as behavior | Moving an action outside the document is impossible, but changing attributes silently disables it; duplicate handlers can double-fire |
 | Each `.app-menu` | Trigger `click`/ArrowDown and popup ArrowUp/ArrowDown | May rename after updating references and tests | Menu focus/open behavior depends on trigger/popup descendants |
 | `.code-tabs` | `keydown` ArrowLeft/Right/Home/End | May rename after updating references and tests | Moving tabs outside the root loses keyboard navigation |
-| `.viz-tabs` | `keydown` ArrowLeft/Right/Home/End | Must preserve exactly | Same for bottom tabs |
+| `.type-tabs` | `keydown` ArrowLeft/Right/Home/End | May rename after updating references and tests | Same for the nested Types tabs |
+| `.viz-tabs` | `keydown` ArrowLeft/Right/Home/End | Must preserve exactly | Same for primary bottom tabs |
+| `.semantics-tabs` | `keydown` ArrowLeft/Right/Home/End | Must preserve exactly | Same for nested semantic/runtime tabs |
 | `document` in example/renderer installers | Outside-click close and Escape close | Must preserve exactly as behavior | Rebinding can interfere with general menu closure |
 | `document` in context fallback | Capture-phase `pointerdown` and Escape | Must preserve exactly as behavior | Required to dismiss the fallback menu safely |
 | Blockly injection SVG/div | `contextmenu` capture for fallback | Must preserve exactly as behavior | Target replacement requires reinstalling bridge |
@@ -157,11 +172,13 @@ Do not change these implementations until browser tests cover desktop, 1240px ov
 | --- | --- | --- | --- | --- | --- |
 | `edit` | `blocks`, visible | visible, not maximized | hidden; stored tab set to `problems` | `perspective=edit` | Must preserve exactly |
 | `debug` | `blocks`, visible | visible, not maximized | visible on `stepper` | `perspective=debug` | Must preserve exactly |
-| `types` | `blocks`, visible | visible, not maximized | visible on `types` | `perspective=types` | Must preserve exactly |
+| `types` | `blocks`, visible | visible, not maximized on Inspector → Types | visible on `problems` | `perspective=types` | Must preserve exactly |
 | `presentation` | retains activity identity but sidebar hidden | hidden | hidden | `#app.presentation-mode`; previous full layout retained in memory | Must preserve exactly |
 | `custom` | current manual state | current manual state | current manual state | persisted whenever a panel is manually changed; also Presentation restore target | Must preserve exactly |
 
 `perspectiveSelect`, `statusPerspective`, `presentationMode`, `.activity-button[data-activity]`, `[data-sidebar-view]`, `toolbox-hidden`, `code-hidden`, `code-maximized`, `#vizDock[data-open]`, and active bottom-tab state all participate in applying or rendering a perspective.
+
+The `bottomTab` storage field deliberately retains the prior seven-value vocabulary. `structure`, `value`, `machine`, and `stepper` restore the matching nested Semantics tab. Legacy `types` is still parsed by `layoutState.ts`; the workbench normalizes it to right-side Types and bottom Problems rather than exposing a duplicate visible Types panel.
 
 ## Persisted UI-state keys
 
@@ -188,7 +205,8 @@ The CSS custom properties `--ide-primary-sidebar-width`, `--ide-code-panel-width
 | `.menu-open .topbar-actions` | Must preserve exactly | Compact header drawer |
 | `.viz-dock[data-open='true']`, `.viz-dock[data-maximized='true']` | Must preserve exactly | Bottom panel and phone drawer |
 | `.viz-host[data-active='true']`, `.stepper-host[data-active='true']`, `.machine-host[data-active='true']` | Must preserve exactly | Active bottom content |
-| `.activity-button[aria-pressed='true']`, `.code-tab[aria-selected='true']`, `.viz-tab[aria-selected='true']`, `.settings-option[aria-checked='true']`, `.icon-button[aria-pressed='true']` | Must preserve exactly | Accessible selected/toggled state styling |
+| `.semantics-region`, `.semantics-body`, `.types-pane`, `.types-pane-body` | May rename after updating references and tests | Establish containing blocks for nested absolute hosts and nested inspector panels |
+| `.activity-button[aria-pressed='true']`, `.code-tab[aria-selected='true']`, `.type-tab[aria-selected='true']`, `.viz-tab[aria-selected='true']`, `.settings-option[aria-checked='true']`, `.icon-button[aria-pressed='true']` | Must preserve exactly | Accessible selected/toggled state styling |
 | `[data-state='pending'\|'error'\|'ok'\|'stale'\|'done'\|'sync'\|'diverged']`, `[data-tone='success'\|'warning'\|'error']` | Must preserve exactly | Semantic feedback |
 | `.printing-derivation …` and `@media print` | Must preserve exactly | Derivation-only printing |
 | `.resizing-code-panel`, `.resizing-sidebar` | Must preserve exactly | Resize cursor/selection behavior |
@@ -202,6 +220,6 @@ The most immediately destructive removals are:
 1. Any directly queried ID in the first table, especially the startup `requireElement` set.
 2. `[data-command-target]`, `[data-panel-command]`, `[data-activity]`, `[data-bottom-tab]`, `[data-code-target]`, `[data-perspective]`, `[data-blockly-renderer]`, and `[data-example-id]`.
 3. `toolbox-hidden`, `code-hidden`, `code-maximized`, `presentation-mode`, `menu-open`, and `#vizDock[data-open]/[data-maximized]`.
-4. `.viz-tab[data-kind]`/`.viz-host[data-kind]`, `.code-tabs`, `.viz-tabs`, and `.activity-button[data-activity]`.
+4. `.viz-tab[data-kind]`/`.viz-host[data-kind]`, `.code-tabs`, `.type-tabs`, `.viz-tabs`, `.semantics-tabs`, and `.activity-button[data-activity]`.
 5. The ARIA-linked tab/panel and dialog-title IDs, runtime `bottomTab-*`/`bottomPanel-*`, and separator roles/value attributes.
 6. `.workspace-panel`, `.blocklySvg`, `.blockly-canvas`, `.toolbox-block-card[data-block-type]`, and Blockly’s `[data-id]`, because custom block drag/drop and context lookup depend on them.

@@ -187,9 +187,9 @@
 
         <div id="resizeHandle" class="resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize code and inspector region" title="Drag to resize code region" tabindex="0"></div>
 
-        <aside id="codePanel" class="code-panel inspector-region" aria-label="Generated output">
+        <aside id="codePanel" class="code-panel inspector-region" aria-label="Program inspector">
           <div class="panel-header code-header">
-            <span>Code &amp; Inspector</span>
+            <span>Inspector</span>
             <div class="code-header-actions">
               <button id="synchronizeCode" class="quiet-button labeled-button" type="button" aria-label="Synchronize code from workspace" title="Synchronize from Workspace"><svg class="app-icon" aria-hidden="true"><use href="#icon-sync"></use></svg><span>Sync</span></button>
               <button id="printDerivation" class="quiet-button labeled-button" type="button" aria-label="Print derivation" title="Print Derivation" hidden><svg class="app-icon" aria-hidden="true"><use href="#icon-print"></use></svg><span>Print</span></button>
@@ -201,21 +201,17 @@
               <button id="toggleCodePanel" class="icon-button panel-hide-button" type="button" aria-label="Hide code and inspector" title="Hide Code / Inspector"><svg class="app-icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
             </div>
           </div>
-          <div class="code-tabs" role="tablist" aria-label="Generated output target">
+          <div class="code-tabs" role="tablist" aria-label="Program inspector views">
             <button id="codeTargetCode" class="code-tab" type="button" role="tab" data-code-target="code" aria-controls="lambdaEditorPane" aria-selected="true">
-              <span class="code-tab-label">Lambda</span>
+              <span class="code-tab-label">Code</span>
             </button>
-            <button id="codeTargetFormal" class="code-tab" type="button" role="tab" data-code-target="formal" aria-controls="codeOutput" aria-selected="false">
-              <span class="code-tab-label">Derivation</span>
-            </button>
-            <button id="codeTargetInspector" class="code-tab" type="button" role="tab" data-code-target="inspector" aria-controls="blockInspectorPane" aria-selected="false">
-              <span class="code-tab-label">Inspector</span>
+            <button id="codeTargetInspector" class="code-tab" type="button" role="tab" data-code-target="inspector" aria-controls="typesPane" aria-selected="false">
+              <span class="code-tab-label">Types</span>
             </button>
             <button id="codeTargetOutline" class="code-tab" type="button" role="tab" data-code-target="outline" aria-controls="outlinePane" aria-selected="false">
               <span class="code-tab-label">Outline</span>
             </button>
           </div>
-          <div id="codeOutput" class="code-output" role="tabpanel" aria-labelledby="codeTargetFormal">-- Generated output appears here</div>
           <div id="lambdaEditorPane" class="lambda-editor-pane" role="tabpanel" aria-labelledby="codeTargetCode">
             <div class="lambda-editor-stack">
               <div id="lambdaEditorGutter" class="lambda-editor-gutter" aria-hidden="true"></div>
@@ -224,18 +220,32 @@
             </div>
             <div id="lambdaEditorStatus" class="lambda-editor-status" role="status" aria-live="polite"></div>
           </div>
-          <div id="blockInspectorPane" class="block-inspector-pane" role="tabpanel" aria-labelledby="codeTargetInspector" hidden>
-            <div id="blockInspectorEmpty" class="inspector-empty"><svg class="app-icon" aria-hidden="true"><use href="#icon-workspace"></use></svg><strong>No block selected</strong><span>Select a block to inspect its term, inferred type, and diagnostics.</span></div>
-            <div id="blockInspectorContent" class="inspector-content" hidden>
-              <div class="inspector-heading"><span id="inspectorBlockKind">Block</span><code id="inspectorBlockId"></code></div>
-              <dl class="inspector-properties">
-                <div><dt>Term</dt><dd><code id="inspectorBlockTerm"></code></dd></div>
-                <div><dt>Inferred type</dt><dd><code id="inspectorBlockType"></code></dd></div>
-                <div><dt>Status</dt><dd id="inspectorBlockStatus"></dd></div>
-              </dl>
-              <div id="inspectorBlockIssues" class="inspector-issues" hidden></div>
+          <section id="typesPane" class="types-pane" role="tabpanel" aria-labelledby="codeTargetInspector" hidden>
+            <div class="type-tabs" role="tablist" aria-label="Type views">
+              <button id="typeTargetOverview" class="type-tab" type="button" role="tab" data-type-target="overview" aria-controls="blockInspectorPane" aria-selected="true">Inferred types</button>
+              <button id="codeTargetFormal" class="type-tab" type="button" role="tab" data-code-target="formal" aria-controls="codeOutput" aria-selected="false">Typing derivation</button>
             </div>
-          </div>
+            <div class="types-pane-body">
+              <div id="blockInspectorPane" class="block-inspector-pane" role="tabpanel" aria-labelledby="typeTargetOverview">
+                <div id="typesPanelSummary" class="utility-summary"></div>
+                <div id="typesList" class="type-list"></div>
+                <section class="selected-type-section" aria-labelledby="selectedTypeHeading">
+                  <h3 id="selectedTypeHeading">Selected block</h3>
+                  <div id="blockInspectorEmpty" class="inspector-empty"><strong>No block selected</strong><span>Select a block to see its term, inferred type, and diagnostics.</span></div>
+                  <div id="blockInspectorContent" class="inspector-content" hidden>
+                    <div class="inspector-heading"><span id="inspectorBlockKind">Block</span><code id="inspectorBlockId"></code></div>
+                    <dl class="inspector-properties">
+                      <div><dt>Term</dt><dd><code id="inspectorBlockTerm"></code></dd></div>
+                      <div><dt>Inferred type</dt><dd><code id="inspectorBlockType"></code></dd></div>
+                      <div><dt>Status</dt><dd id="inspectorBlockStatus"></dd></div>
+                    </dl>
+                    <div id="inspectorBlockIssues" class="inspector-issues" hidden></div>
+                  </div>
+                </section>
+              </div>
+              <div id="codeOutput" class="code-output" role="tabpanel" aria-labelledby="codeTargetFormal" hidden>-- Generated output appears here</div>
+            </div>
+          </section>
           <div id="outlinePane" class="outline-pane" role="tabpanel" aria-labelledby="codeTargetOutline" hidden>
             <div class="outline-toolbar"><span>Program structure</span></div>
             <div id="programOutline" class="program-outline" role="tree" aria-label="Lambda program block outline"></div>
@@ -298,29 +308,18 @@
         </div>
       </dialog>
 
-      <section id="vizDock" class="viz-dock bottom-tools-region" aria-label="Program visualization" data-open="false">
-        <div id="vizResizer" class="viz-resizer" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize visualization panel" title="Drag to resize"></div>
+      <section id="vizDock" class="viz-dock bottom-tools-region" aria-label="Problems, output, and semantics" data-open="false">
+        <div id="vizResizer" class="viz-resizer" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize bottom panel" title="Drag to resize"></div>
         <div class="viz-panel">
           <div class="viz-header">
             <div class="viz-tabs" role="tablist" aria-label="Bottom tools">
               <button class="viz-tab" data-kind="problems" role="tab" type="button" aria-selected="false"><svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-alert"></use></svg><span class="viz-tab-label">Problems</span><span id="bottomProblemCount" class="tab-count" hidden>0</span></button>
               <button class="viz-tab" data-kind="output" role="tab" type="button" aria-selected="false"><svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-code"></use></svg><span class="viz-tab-label">Output</span></button>
-              <button class="viz-tab" data-kind="types" role="tab" type="button" aria-selected="false"><svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-blocks"></use></svg><span class="viz-tab-label">Types</span></button>
-              <button class="viz-tab" data-kind="structure" role="tab" type="button" aria-selected="false">
-                <svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-trace"></use></svg><span class="viz-tab-label">CbS Trace</span>
-              </button>
-              <button class="viz-tab" data-kind="value" role="tab" type="button" aria-selected="false">
-                <svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-trace"></use></svg><span class="viz-tab-label">CbV Trace</span>
-              </button>
-              <button class="viz-tab" data-kind="machine" role="tab" type="button" aria-selected="false">
-                <svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-machine"></use></svg><span class="viz-tab-label">CEK</span>
-              </button>
-              <button class="viz-tab" data-kind="stepper" role="tab" type="button" aria-selected="false" title="Substitution rewriting and the CEK machine in lockstep">
-                <svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-lockstep"></use></svg><span class="viz-tab-label">Lockstep</span>
-              </button>
+              <button id="bottomTab-semantics" class="viz-tab" role="tab" type="button" aria-controls="semanticsViews" aria-selected="false"><svg class="app-icon viz-tab-icon" aria-hidden="true"><use href="#icon-trace"></use></svg><span class="viz-tab-label">Semantics</span></button>
+              <button class="viz-tab" data-kind="types" role="tab" type="button" aria-selected="false" hidden>Types compatibility route</button>
             </div>
             <div id="vizDockInfo" class="viz-info" aria-live="polite"></div>
-            <div class="viz-tools" aria-label="Visualization tools">
+            <div class="viz-tools" aria-label="Bottom panel actions">
               <button id="vizRerun" class="icon-button" type="button" title="Re-run visualization" aria-label="Re-run visualization"><svg class="app-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg></button>
               <button id="vizArrange" class="icon-button" type="button" title="Arrange reduction steps" aria-label="Arrange reduction steps"><svg class="app-icon" aria-hidden="true"><use href="#icon-arrange"></use></svg></button>
               <button id="vizMaximize" class="icon-button" type="button" title="Maximize bottom panel" aria-label="Maximize bottom panel" aria-pressed="false"><svg class="app-icon" aria-hidden="true"><use href="#icon-fit"></use></svg></button>
@@ -330,58 +329,68 @@
           <div class="viz-body">
             <div class="viz-host utility-host" data-kind="problems"><div id="problemsPanelSummary" class="utility-summary"></div><div id="problemsList" class="utility-list"></div></div>
             <div class="viz-host utility-host output-host" data-kind="output"><div id="outputLog" class="output-log" role="log" aria-live="polite"></div></div>
-            <div class="viz-host utility-host" data-kind="types"><div id="typesPanelSummary" class="utility-summary"></div><div id="typesList" class="type-list"></div></div>
-            <div class="viz-host" data-kind="structure"></div>
-            <div class="viz-host" data-kind="value"></div>
-            <div class="viz-host stepper-host" data-kind="stepper">
-              <div class="stepper-controls" aria-label="Lockstep controls">
-                <div class="stepper-strategy" role="group" aria-label="Stepper strategy">
-                  <button id="stepperStrategyStructure" class="small-button stepper-strategy-button is-active" type="button" title="Step under Call-by-Structure">CbS</button>
-                  <button id="stepperStrategyValue" class="small-button stepper-strategy-button" type="button" title="Step under Call-by-Value">CbV</button>
+            <div class="viz-host" data-kind="types" hidden></div>
+            <section id="semanticsViews" class="semantics-region" role="tabpanel" aria-labelledby="bottomTab-semantics" hidden>
+              <div class="semantics-tabs" role="tablist" aria-label="Semantic and runtime views">
+                <button class="viz-tab semantics-tab" data-kind="structure" role="tab" type="button" aria-selected="false"><span class="viz-tab-label">Call-by-Structure</span></button>
+                <button class="viz-tab semantics-tab" data-kind="value" role="tab" type="button" aria-selected="false"><span class="viz-tab-label">Call-by-Value</span></button>
+                <button class="viz-tab semantics-tab" data-kind="machine" role="tab" type="button" aria-selected="false"><span class="viz-tab-label">CEK machine</span></button>
+                <button class="viz-tab semantics-tab" data-kind="stepper" role="tab" type="button" aria-selected="false" title="Substitution rewriting and the CEK machine in lockstep"><span class="viz-tab-label">Lockstep</span></button>
+              </div>
+              <div class="semantics-body">
+                <div class="viz-host" data-kind="structure"></div>
+                <div class="viz-host" data-kind="value"></div>
+                <div class="viz-host stepper-host" data-kind="stepper">
+                  <div class="stepper-controls" aria-label="Lockstep controls">
+                    <div class="stepper-strategy" role="group" aria-label="Stepper strategy">
+                      <button id="stepperStrategyStructure" class="small-button stepper-strategy-button is-active" type="button" title="Step under Call-by-Structure">CbS</button>
+                      <button id="stepperStrategyValue" class="small-button stepper-strategy-button" type="button" title="Step under Call-by-Value">CbV</button>
+                    </div>
+                    <button id="stepperLoad" class="small-button labeled-button" type="button" title="Load the program from the workspace"><svg class="app-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg><span>Load</span></button>
+                    <button id="stepperBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-back"></use></svg></button>
+                    <button id="stepperStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-forward"></use></svg></button>
+                    <button id="stepperPlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg></button>
+                    <div id="stepperStatus" class="stepper-status" aria-live="polite">Load a program to step its reduction.</div>
+                    <div id="stepperAgree" class="stepper-agree" aria-live="polite"></div>
+                  </div>
+                  <div class="stepper-body">
+                    <div id="stepperWorkspace" class="stepper-workspace"></div>
+                    <aside class="stepper-machine" aria-label="CEK machine in lockstep">
+                      <div class="machine-caption">CEK machine</div>
+                      <div id="stepperMachineStatus" class="machine-line"></div>
+                      <div class="machine-section-title">Environment</div>
+                      <div id="stepperMachineEnv" class="machine-list"></div>
+                      <div class="machine-section-title">Kontinuation stack</div>
+                      <div id="stepperMachineKont" class="machine-list"></div>
+                    </aside>
+                  </div>
                 </div>
-                <button id="stepperLoad" class="small-button labeled-button" type="button" title="Load the program from the workspace"><svg class="app-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg><span>Load</span></button>
-                <button id="stepperBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-back"></use></svg></button>
-                <button id="stepperStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-forward"></use></svg></button>
-                <button id="stepperPlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg></button>
-                <div id="stepperStatus" class="stepper-status" aria-live="polite">Load a program to step its reduction.</div>
-                <div id="stepperAgree" class="stepper-agree" aria-live="polite"></div>
+                <div class="viz-host machine-host" data-kind="machine">
+                  <div class="stepper-controls" aria-label="CEK machine controls">
+                    <button id="machineLoad" class="small-button labeled-button" type="button" title="Load the program into the machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg><span>Load</span></button>
+                    <button id="machineBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous machine step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-back"></use></svg></button>
+                    <button id="machineStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next machine step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-forward"></use></svg></button>
+                    <button id="machinePlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause machine" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg></button>
+                    <div id="machineStatus" class="stepper-status" aria-live="polite">Load a program to run it on the CEK machine.</div>
+                  </div>
+                  <div class="machine-body">
+                    <section class="machine-panel" aria-label="Machine control">
+                      <div class="machine-section-title">Control</div>
+                      <div id="machineControl" class="machine-line"></div>
+                    </section>
+                    <section class="machine-panel" aria-label="Machine environment">
+                      <div class="machine-section-title">Environment</div>
+                      <div id="machineEnv" class="machine-list"></div>
+                    </section>
+                    <section class="machine-panel" aria-label="Machine Kontinuation stack">
+                      <div class="machine-section-title">Kontinuation</div>
+                      <div id="machineKont" class="machine-list"></div>
+                    </section>
+                  </div>
+                </div>
+                <div id="vizEmpty" class="viz-empty">Choose a semantic view. Reduction traces require an application block.</div>
               </div>
-              <div class="stepper-body">
-                <div id="stepperWorkspace" class="stepper-workspace"></div>
-                <aside class="stepper-machine" aria-label="CEK machine in lockstep">
-                  <div class="machine-caption">CEK machine</div>
-                  <div id="stepperMachineStatus" class="machine-line"></div>
-                  <div class="machine-section-title">Environment</div>
-                  <div id="stepperMachineEnv" class="machine-list"></div>
-                  <div class="machine-section-title">Kontinuation stack</div>
-                  <div id="stepperMachineKont" class="machine-list"></div>
-                </aside>
-              </div>
-            </div>
-            <div class="viz-host machine-host" data-kind="machine">
-              <div class="stepper-controls" aria-label="CEK machine controls">
-                <button id="machineLoad" class="small-button labeled-button" type="button" title="Load the program into the machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg><span>Load</span></button>
-                <button id="machineBack" class="small-button icon-only" type="button" title="Previous step" aria-label="Previous machine step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-back"></use></svg></button>
-                <button id="machineStep" class="small-button icon-only" type="button" title="Next step" aria-label="Next machine step" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-forward"></use></svg></button>
-                <button id="machinePlay" class="small-button icon-only" type="button" title="Play / pause" aria-label="Play or pause machine" disabled><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg></button>
-                <div id="machineStatus" class="stepper-status" aria-live="polite">Load a program to run it on the CEK machine.</div>
-              </div>
-              <div class="machine-body">
-                <section class="machine-panel" aria-label="Machine control">
-                  <div class="machine-section-title">Control</div>
-                  <div id="machineControl" class="machine-line"></div>
-                </section>
-                <section class="machine-panel" aria-label="Machine environment">
-                  <div class="machine-section-title">Environment</div>
-                  <div id="machineEnv" class="machine-list"></div>
-                </section>
-                <section class="machine-panel" aria-label="Machine Kontinuation stack">
-                  <div class="machine-section-title">Kontinuation</div>
-                  <div id="machineKont" class="machine-list"></div>
-                </section>
-              </div>
-            </div>
-            <div id="vizEmpty" class="viz-empty">Right-click an application block and choose Call-by-Structure or Call-by-Value, or open the Lockstep tab.</div>
+            </section>
           </div>
         </div>
       </section>

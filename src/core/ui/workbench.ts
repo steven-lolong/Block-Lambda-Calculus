@@ -177,8 +177,9 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   const paletteList = byId<HTMLElement>('commandPaletteList');
   const settingsDialog = byId<HTMLDialogElement>('settingsDialog');
   const themeToggle = byId<HTMLInputElement>('themeToggle');
+  const initialLayout = readIdeLayoutState();
   let activeActivity: ActivitySection = 'blocks';
-  let activePerspective = readIdeLayoutState().perspective;
+  let activePerspective = initialLayout.perspective;
   let priorPerspective: IdePerspective = activePerspective === 'presentation' ? 'edit' : activePerspective;
   let presentationRestore: ReturnType<typeof readIdeLayoutState> | null = null;
   let settingsReturnFocus: HTMLElement | null = null;
@@ -251,17 +252,34 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     requestIdeLayoutResize();
   };
 
+  const showInspectorTarget = (
+    targetId: 'codeTargetCode' | 'codeTargetInspector' | 'codeTargetFormal' | 'codeTargetOutline',
+    persist = false
+  ): void => {
+    options.panels.setCodeVisible(true, persist);
+    byId<HTMLButtonElement>(targetId)?.click();
+    requestIdeLayoutResize();
+  };
+
   const applyPerspective = (perspective: IdePerspective): void => {
     if (perspective === 'custom') {
       if (activePerspective === 'presentation' && presentationRestore) {
         const restore = presentationRestore;
+        const restoringLegacyTypes = restore.bottomTab === 'types';
+        const restoredBottomTab = restore.bottomTab === 'types' ? 'problems' : restore.bottomTab;
         setActivity(restore.activity, false);
         options.panels.setToolboxVisible(restore.sidebarVisible, false);
-        options.panels.setCodeVisible(restore.codeVisible, false);
-        options.panels.setCodeMaximized(restore.codeVisible && restore.codeMaximized, false);
-        activateBottomTab(restore.bottomTab, false);
+        options.panels.setCodeVisible(restore.codeVisible || restoringLegacyTypes, false);
+        options.panels.setCodeMaximized((restore.codeVisible || restoringLegacyTypes) && restore.codeMaximized, false);
+        activateBottomTab(restoredBottomTab, false);
+        if (restoringLegacyTypes) showInspectorTarget('codeTargetInspector');
         setVisualizationOpen(restore.bottomVisible, false);
-        updateIdeLayoutState({ ...restore, perspective: 'custom' });
+        updateIdeLayoutState({
+          ...restore,
+          codeVisible: restore.codeVisible || restoringLegacyTypes,
+          bottomTab: restoredBottomTab,
+          perspective: 'custom'
+        });
         presentationRestore = null;
         renderPerspective('custom');
         requestIdeLayoutResize();
@@ -284,7 +302,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       : perspective === 'debug'
         ? { activity: 'blocks' as const, sidebar: true, code: true, bottom: true, tab: 'stepper' as const }
         : perspective === 'types'
-          ? { activity: 'blocks' as const, sidebar: true, code: true, bottom: true, tab: 'types' as const }
+          ? { activity: 'blocks' as const, sidebar: true, code: true, bottom: true, tab: 'problems' as const }
           : { activity: activeActivity, sidebar: false, code: false, bottom: false, tab: readIdeLayoutState().bottomTab };
 
     setActivity(preset.activity, false);
@@ -292,6 +310,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     options.panels.setToolboxVisible(preset.sidebar, false);
     options.panels.setCodeVisible(preset.code, false);
     activateBottomTab(preset.tab, false);
+    if (perspective === 'types') showInspectorTarget('codeTargetInspector');
     setVisualizationOpen(preset.bottom, false);
     renderPerspective(perspective);
     updateIdeLayoutState({
@@ -314,6 +333,11 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   };
 
   const openBottomTab = (kind: BottomTab): void => {
+    if (kind === 'types') {
+      showInspectorTarget('codeTargetInspector', true);
+      markCustomPerspective();
+      return;
+    }
     activateBottomTab(kind);
     markCustomPerspective();
   };
@@ -374,7 +398,10 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     { label: 'View: Show Blocks', keywords: 'toolbox sidebar', action: () => setActivity('blocks') },
     { label: 'File: Show Menu', keywords: 'project files workspace', action: () => byId<HTMLButtonElement>('clearWorkspace')?.closest<HTMLElement>('.app-menu')?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.click() },
     { label: 'View: Show Problems', keywords: 'diagnostics errors', action: () => openBottomTab('problems') },
-    { label: 'View: Show Inferred Types', keywords: 'analysis', action: () => openBottomTab('types') },
+    { label: 'View: Show Code', keywords: 'lambda editor source', action: () => { showInspectorTarget('codeTargetCode', true); markCustomPerspective(); } },
+    { label: 'View: Show Inferred Types', keywords: 'analysis selected block', action: () => openBottomTab('types') },
+    { label: 'View: Show Typing Derivation', keywords: 'formal analysis', action: () => { showInspectorTarget('codeTargetFormal', true); markCustomPerspective(); } },
+    { label: 'View: Show Outline', keywords: 'program structure', action: () => { showInspectorTarget('codeTargetOutline', true); markCustomPerspective(); } },
     { label: 'View: Show Output', keywords: 'log messages', action: () => openBottomTab('output') },
     { label: 'Run: Call-by-Structure Trace', keywords: 'evaluate reduction', action: () => openBottomTab('structure') },
     { label: 'Run: Call-by-Value Trace', keywords: 'evaluate reduction', action: () => openBottomTab('value') },
@@ -643,6 +670,13 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
   renderPerspective(activePerspective);
   syncThemeControls();
   renderPalette();
+  const restoringLegacyTypes = initialLayout.bottomTab === 'types';
+  if (restoringLegacyTypes) updateIdeLayoutState({ bottomTab: 'problems' });
+  if (activePerspective === 'types') {
+    window.setTimeout(() => showInspectorTarget('codeTargetInspector'), 0);
+  } else if (restoringLegacyTypes && activePerspective !== 'presentation') {
+    window.setTimeout(() => showInspectorTarget('codeTargetInspector', true), 0);
+  }
 
   return {
     appendOutput,
