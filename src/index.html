@@ -42,6 +42,9 @@
       <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></symbol>
       <symbol id="icon-arrange" viewBox="0 0 24 24"><path d="M6 5h12M6 12h12M6 19h12" /></symbol>
       <symbol id="icon-trace" viewBox="0 0 24 24"><path d="M5 7h9M14 7l-3-3M14 7l-3 3M19 17h-9M10 17l3-3M10 17l3 3" /></symbol>
+      <symbol id="icon-panel-bottom" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 15h16" /></symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" /></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z" /></symbol>
     </defs></svg>
     <div id="app" class="app-shell">
       <h1 class="visually-hidden">Block Lambda Calculus workbench</h1>
@@ -51,7 +54,6 @@
           <img class="brand-mark brand-mark-dark" src="assets/images/logo-dark.svg" alt="" />
           <span class="brand-copy">
             <strong>Block Lambda</strong>
-            <span id="topbarFileName" title="Untitled workspace" aria-live="polite">Untitled workspace</span>
           </span>
         </a>
 
@@ -89,7 +91,6 @@
                 <button class="example-menu-item" type="button" role="menuitem" data-example-id="gcd-euclid"><span class="example-menu-title">GCD (Euclid)</span><span class="example-menu-description">mod via ÷ ⇒ 6</span></button>
               </div>
             </div>
-            <button class="header-run-button" type="button" data-bottom-tab="machine" aria-label="Run in the CEK machine" title="Run in the CEK machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg><span>Run</span></button>
             <div class="app-menu">
               <button class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="viewMenu"><span>View</span></button>
               <div id="viewMenu" class="app-menu-popup" role="menu" hidden>
@@ -101,6 +102,14 @@
                 <button class="menu-command" type="button" role="menuitem" data-perspective="debug"><span>Debug Perspective</span></button>
                 <button class="menu-command" type="button" role="menuitem" data-perspective="types"><span>Type Analysis Perspective</span></button>
                 <button id="presentationMode" class="menu-command" type="button" role="menuitem" data-perspective="presentation" aria-pressed="false"><span>Presentation Perspective</span><kbd>F11</kbd></button>
+              </div>
+            </div>
+            <div class="renderer-menu-wrapper">
+              <button id="blocklyThemeMenuButton" class="app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Renderer</span></button>
+              <div id="blocklyThemeSubMenu" class="app-menu-popup" role="menu" aria-label="Block renderer" hidden>
+                <button class="settings-option" type="button" role="menuitemradio" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" role="menuitemradio" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
+                <button class="settings-option" type="button" role="menuitemradio" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
               </div>
             </div>
             <div class="app-menu">
@@ -124,6 +133,11 @@
             </div>
           </nav>
         </div>
+
+        <button id="themeToggleButton" class="icon-button theme-toggle-button" type="button" aria-pressed="false" aria-label="Switch to dark theme" title="Switch to dark theme">
+          <svg class="app-icon theme-icon-light" aria-hidden="true"><use href="#icon-sun"></use></svg>
+          <svg class="app-icon theme-icon-dark" aria-hidden="true"><use href="#icon-moon"></use></svg>
+        </button>
       </header>
 
       <main class="ide-grid" aria-label="Block Lambda IDE">
@@ -167,8 +181,10 @@
               <button id="zoomOut" class="icon-button" type="button" aria-label="Zoom out" title="Zoom Out"><svg class="app-icon" aria-hidden="true"><use href="#icon-zoom-out"></use></svg></button>
               <button id="zoomIn" class="icon-button" type="button" aria-label="Zoom in" title="Zoom In"><svg class="app-icon" aria-hidden="true"><use href="#icon-zoom-in"></use></svg></button>
               <button id="zoomFit" class="icon-button" type="button" aria-label="Fit blocks in workspace" title="Zoom to Fit"><svg class="app-icon" aria-hidden="true"><use href="#icon-fit"></use></svg></button>
-              <button id="showCodeFromWorkspace" class="icon-button workspace-restore-button" type="button" hidden aria-label="Show code and inspector" title="Show Code / Inspector"><svg class="app-icon" aria-hidden="true"><use href="#icon-code"></use></svg></button>
+              <span class="control-separator"></span>
+              <button id="workspaceToggleBottom" class="icon-button" type="button" data-panel-command="bottom" aria-pressed="false" aria-label="Toggle bottom panel" title="Toggle Bottom Panel"><svg class="app-icon" aria-hidden="true"><use href="#icon-panel-bottom"></use></svg></button>
               <button class="workspace-run-button" type="button" data-bottom-tab="machine" aria-label="Run in the CEK machine" title="Run in the CEK machine"><svg class="app-icon" aria-hidden="true"><use href="#icon-play"></use></svg><span>Run</span></button>
+              <button id="showCodeFromWorkspace" class="icon-button workspace-restore-button" type="button" hidden aria-label="Show code and inspector" title="Show Code / Inspector"><svg class="app-icon" aria-hidden="true"><use href="#icon-code"></use></svg></button>
               <span id="zoomLabel" class="visually-hidden" title="Blockly zoom level">92%</span>
             </div>
           </div>
@@ -269,15 +285,6 @@
               <div class="segmented-control" role="group" aria-label="Color theme">
                 <button type="button" data-theme-mode="light">Light</button>
                 <button type="button" data-theme-mode="dark">Dark</button>
-              </div>
-            </section>
-            <section class="settings-section">
-              <h3>Block appearance</h3>
-              <button id="blocklyThemeMenuButton" class="settings-disclosure" type="button" aria-expanded="false" aria-controls="blocklyThemeSubMenu"><span>Choose block renderer</span><svg class="app-icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg></button>
-              <div id="blocklyThemeSubMenu" class="settings-options" role="radiogroup" aria-label="Block renderer" hidden>
-                <button class="settings-option" type="button" role="radio" data-blockly-renderer="tude" aria-checked="false"><span><strong>Tude</strong><small>Square project renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-                <button class="settings-option" type="button" role="radio" data-blockly-renderer="zelos" aria-checked="false"><span><strong>Zelos</strong><small>Rounded Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
-                <button class="settings-option" type="button" role="radio" data-blockly-renderer="thrasos" aria-checked="false"><span><strong>Thrasos</strong><small>Classic Blockly renderer</small></span><svg class="app-icon option-check" aria-hidden="true"><use href="#icon-check"></use></svg></button>
               </div>
             </section>
             <section class="settings-section">
@@ -391,6 +398,7 @@
 
       <footer class="statusbar ide-status-bar" aria-label="IDE status">
         <div class="statusbar-left">
+          <span id="topbarFileName" class="status-item" title="Untitled workspace" aria-live="polite">Untitled workspace</span>
           <span class="status-item">Blocks <strong id="blockCount">0</strong></span>
           <button class="status-item status-button" type="button" data-activity="problems" title="Show Problems"><svg id="statusProblemIcon" class="app-icon" aria-hidden="true"><use href="#icon-check"></use></svg><span id="statusProblemCount">0 problems</span></button>
         </div>

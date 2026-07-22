@@ -35,10 +35,11 @@ test('all supported viewports keep shell controls, drawers, and resize state usa
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
       if (viewport.width >= 1280) {
-        for (const name of ['File', 'Examples', 'View', 'More']) {
+        for (const name of ['File', 'Examples', 'View', 'Renderer', 'More']) {
           await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
         }
-        await expect(page.locator('.header-run-button')).toBeVisible();
+        await expect(page.locator('.workspace-run-button')).toBeVisible();
+        await expect(page.locator('#themeToggleButton')).toBeVisible();
         await expect(page.locator('#sidebarResizeHandle')).toHaveAttribute('aria-disabled', 'false');
         await expect(page.locator('#resizeHandle')).toHaveAttribute('aria-disabled', 'false');
       } else {
@@ -73,9 +74,9 @@ test('all supported viewports keep shell controls, drawers, and resize state usa
 
         await page.keyboard.press('Control+j');
         await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
-        await expect(page.locator('#vizResizer')).toHaveCSS('display', 'none');
-        await expect(page.locator('#vizResizer')).toHaveAttribute('aria-disabled', 'true');
-        await expect(page.locator('#vizResizer')).toHaveAttribute('tabindex', '-1');
+        await expect(page.locator('#vizResizer')).not.toHaveCSS('display', 'none');
+        await expect(page.locator('#vizResizer')).toHaveAttribute('aria-disabled', 'false');
+        await expect(page.locator('#vizResizer')).toHaveAttribute('tabindex', '0');
         await page.locator('#vizMaximize').click();
         await expect(page.locator('#vizDock')).toHaveAttribute('data-maximized', 'true');
         await page.locator('#vizMaximize').click();
@@ -255,4 +256,26 @@ test('bottom-panel tools stay reachable through the palette where the phone layo
 
   await runPaletteCommand(page, 'Run: Re-run Active Semantic View');
   await runPaletteCommand(page, 'Run: Arrange Reduction Steps');
+});
+
+test('the bottom-panel resizer works at tablet and phone widths', async ({ page }) => {
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 390, height: 844 }]) {
+    await loadAtViewport(page, viewport);
+    await page.keyboard.press('Control+j');
+    await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
+
+    const resizer = page.locator('#vizResizer');
+    await expect(resizer).not.toHaveCSS('display', 'none');
+    await expect(resizer).toHaveAttribute('aria-disabled', 'false');
+
+    const heightBefore = await page.locator('#vizDock').evaluate((element) => element.getBoundingClientRect().height);
+    const box = await resizer.boundingBox();
+    if (!box) throw new Error('Expected the bottom-panel resizer to have layout bounds.');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y - 80, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(() => page.locator('#vizDock').evaluate((element) => element.getBoundingClientRect().height))
+      .not.toBe(heightBefore);
+  }
 });

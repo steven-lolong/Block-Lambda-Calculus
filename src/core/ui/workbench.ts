@@ -486,6 +486,14 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
       button.classList.toggle('is-active', selected);
       button.setAttribute('aria-pressed', String(selected));
     }
+    const themeToggleButton = byId<HTMLButtonElement>('themeToggleButton');
+    if (themeToggleButton) {
+      const isDark = current === 'dark';
+      const label = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+      themeToggleButton.setAttribute('aria-pressed', String(isDark));
+      themeToggleButton.setAttribute('aria-label', label);
+      themeToggleButton.title = label;
+    }
   };
 
   const appendOutput = (message: string, tone: OutputTone = 'info'): void => {
@@ -621,14 +629,6 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     if (event.key === 'Escape') {
       if (settingsDialog?.open) {
         event.preventDefault();
-        const rendererMenu = byId<HTMLElement>('blocklyThemeSubMenu');
-        if (rendererMenu && !rendererMenu.hidden) {
-          rendererMenu.hidden = true;
-          const rendererButton = byId<HTMLButtonElement>('blocklyThemeMenuButton');
-          rendererButton?.setAttribute('aria-expanded', 'false');
-          restoreFocus(rendererButton);
-          return;
-        }
         closeSettings();
         return;
       }
@@ -644,6 +644,15 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
         const examplesButton = byId<HTMLButtonElement>('examplesMenuButton');
         examplesButton?.setAttribute('aria-expanded', 'false');
         restoreFocus(examplesButton);
+        return;
+      }
+      const rendererMenu = byId<HTMLElement>('blocklyThemeSubMenu');
+      if (rendererMenu && !rendererMenu.hidden) {
+        event.preventDefault();
+        rendererMenu.hidden = true;
+        const rendererButton = byId<HTMLButtonElement>('blocklyThemeMenuButton');
+        rendererButton?.setAttribute('aria-expanded', 'false');
+        restoreFocus(rendererButton);
         return;
       }
       const hasOpenMenu = Array.from(document.querySelectorAll<HTMLElement>('.app-menu-popup'))
@@ -754,6 +763,7 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     settingsReturnFocus = null;
   });
   byId<HTMLButtonElement>('synchronizeCode')?.addEventListener('click', options.synchronizeCode);
+  byId<HTMLButtonElement>('themeToggleButton')?.addEventListener('click', toggleTheme);
   perspectiveSelect?.addEventListener('change', () => applyPerspective(perspectiveSelect.value as IdePerspective));
   window.addEventListener('block-lambda:theme-changed', syncThemeControls);
   window.addEventListener('block-lambda:layout-state-changed', () => renderPerspective(readIdeLayoutState().perspective));

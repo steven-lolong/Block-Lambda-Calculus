@@ -197,6 +197,59 @@ test('theme and autosave interval are configurable and persisted', async ({ page
   await expect(page.locator('#autosaveInterval')).toHaveValue('20');
 });
 
+test('the header theme toggle switches theme and reflects state', async ({ page }) => {
+  const initialTheme = await page.locator('html').getAttribute('data-theme');
+  const expectedNext = initialTheme === 'dark' ? 'light' : 'dark';
+  await expect(page.locator('#themeToggleButton')).toHaveAttribute('aria-pressed', String(initialTheme === 'dark'));
+
+  await page.locator('#themeToggleButton').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', expectedNext);
+  await expect(page.locator('#themeToggleButton')).toHaveAttribute('aria-pressed', String(expectedNext === 'dark'));
+
+  await page.locator('#themeToggleButton').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', initialTheme ?? 'dark');
+});
+
+test('the header Renderer menu switches the Blockly renderer', async ({ page }) => {
+  const rendererMenu = page.getByRole('button', { name: 'Renderer', exact: true });
+  await rendererMenu.click();
+  await expect(page.locator('#blocklyThemeSubMenu')).toBeVisible();
+
+  await page.locator('button[data-blockly-renderer="zelos"]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-blockly-renderer', 'zelos');
+  await expect(page.locator('button[data-blockly-renderer="zelos"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#blocklyThemeSubMenu')).toBeHidden();
+  await expect(page.locator('#blocklyDiv .blocklySvg')).toBeVisible();
+
+  await rendererMenu.click();
+  await page.locator('button[data-blockly-renderer="tude"]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-blockly-renderer', 'tude');
+});
+
+test('the workspace bottom-panel toggle opens and closes the dock and stays in sync with the View menu', async ({ page }) => {
+  await expect(page.locator('#workspaceToggleBottom')).toHaveAttribute('aria-pressed', 'false');
+
+  await page.locator('#workspaceToggleBottom').click();
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
+  await expect(page.locator('#workspaceToggleBottom')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#toggleVizDock')).toHaveAttribute('aria-pressed', 'true');
+
+  await page.locator('#workspaceToggleBottom').click();
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'false');
+  await expect(page.locator('#workspaceToggleBottom')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#toggleVizDock')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('the workspace file name is shown in the status bar and not in the header', async ({ page }) => {
+  await expect(page.locator('.topbar #topbarFileName')).toHaveCount(0);
+  await expect(page.locator('.statusbar #topbarFileName')).toHaveText('Untitled workspace');
+
+  await page.getByRole('button', { name: 'Examples', exact: true }).click();
+  await page.locator('[data-example-id="currying-closures"]').click();
+  await page.locator('#exampleLoadDialog button[value="replace"]').click();
+  await expect(page.locator('.statusbar #topbarFileName')).toHaveText('example-currying-closures.blc');
+});
+
 test('mobile header and panel drawers remain operable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();

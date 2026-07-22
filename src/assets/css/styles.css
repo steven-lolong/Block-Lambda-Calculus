@@ -126,14 +126,13 @@ html[data-theme='light'] .brand-mark-dark { display: none; }
 }
 
 .app-menu,
-.example-menu-wrapper { position: relative; }
+.example-menu-wrapper,
+.renderer-menu-wrapper { position: relative; }
 
 .app-menu-trigger,
-.header-run-button,
 .workspace-run-button,
 .menu-command,
-.settings-option,
-.settings-disclosure {
+.settings-option {
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -158,7 +157,6 @@ html[data-theme='light'] .brand-mark-dark { display: none; }
   background: var(--surface-hover);
 }
 
-.header-run-button,
 .workspace-run-button {
   height: var(--control-height-md);
   display: inline-flex;
@@ -172,8 +170,6 @@ html[data-theme='light'] .brand-mark-dark { display: none; }
   font-weight: var(--font-weight-semibold);
 }
 
-.header-run-button:hover,
-.header-run-button:focus-visible,
 .workspace-run-button:hover,
 .workspace-run-button:focus-visible { background: var(--accent-primary-hover); }
 
@@ -322,6 +318,10 @@ svg:not(.blocklySvg, .icon-sprite) {
 
 .menu-toggle { display: none; }
 .menu-toggle-label { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
+
+.theme-icon-dark { display: none; }
+html[data-theme='dark'] .theme-icon-light { display: none; }
+html[data-theme='dark'] .theme-icon-dark { display: block; }
 
 /* Main workbench -------------------------------------------------------- */
 .ide-grid {
@@ -567,10 +567,6 @@ svg:not(.blocklySvg, .icon-sprite) {
 .option-check { display: none; color: var(--accent-primary-hover); }
 .settings-option[aria-checked='true'] .option-check { display: block; }
 
-.settings-disclosure { width: 100%; min-height: var(--control-height-md); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--text-secondary); font-size: var(--font-size-md); text-align: left; }
-.settings-disclosure:hover { color: var(--text-primary); background: var(--surface-hover); }
-.settings-disclosure[aria-expanded='true'] svg { transform: rotate(180deg); }
-.settings-options { margin-top: var(--space-2); border-top: 1px solid var(--border-default); }
 .settings-range { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-4); padding: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-md); }
 .settings-range .autosave-slider { grid-column: 1 / -1; width: 100%; }
 .settings-range .autosave-interval-label { color: var(--text-primary); font-family: var(--font-mono); text-align: right; }
@@ -1050,6 +1046,7 @@ svg:not(.blocklySvg, .icon-sprite) {
 .statusbar-right { min-width: 0; height: 100%; display: flex; align-items: center; }
 .statusbar-right { margin-left: auto; }
 .status-item { height: 100%; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; white-space: nowrap; }
+#topbarFileName { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .status-button { color: inherit; border: 0; background: transparent; cursor: pointer; }
 .status-button:hover { background: var(--surface-status-hover); }
 .statusbar .status-dot { background: var(--state-status-ready); }
@@ -1211,6 +1208,10 @@ html[data-theme='light'] .about-logo-dark { display: none; }
   .viz-dock { margin-left: var(--ide-activity-bar-width); }
   .brand-copy > span { display: none; }
   .brand { min-width: 124px; }
+
+  /* A taller drag target for the bottom-panel resizer, easier to grab with
+     a finger at tablet and phone widths. */
+  .viz-dock[data-open='true'] { grid-template-rows: 14px minmax(0, 1fr); }
 }
 
 @media (max-width: 900px) {
@@ -1275,9 +1276,8 @@ html[data-theme='light'] .about-logo-dark { display: none; }
     height: min(var(--ide-bottom-panel-height), 58vh);
     margin-left: 0;
     box-shadow: var(--shadow-mobile-panel);
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: 14px minmax(0, 1fr);
   }
-  .viz-resizer { display: none; }
   .viz-panel { grid-template-rows: 40px minmax(0, 1fr); }
   .semantics-region { grid-template-rows: 40px minmax(0, 1fr); }
   .semantics-tab { height: 40px; }
