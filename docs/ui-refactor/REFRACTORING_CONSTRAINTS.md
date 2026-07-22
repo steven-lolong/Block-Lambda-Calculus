@@ -4,13 +4,13 @@
 
 This document is the contract for a visual and information-architecture refactor. It does not authorize a language rewrite, changes to Blockly serialization, or changes to runtime semantics.
 
-The checked-out repository is **Block Lambda Calculus**, a block-based simply typed/Hindley–Milner-style Lambda Calculus workbench. It is not currently a Block-MiniJava repository: production names, block types, file types, examples, type inference, and runtime tools all use Lambda terminology. The desired quiet, domain-specific workbench direction applies, but a future implementation must not relabel Lambda behavior as MiniJava or invent MiniJava grammar. Before implementation begins, confirm whether this repository is the intended target or whether the work belongs on a MiniJava branch/repository. Until that is resolved, the checked-in Lambda grammar and semantics are authoritative.
+**Resolved:** this repository (Block Lambda Calculus) was the intended target. The refactor below has been implemented on `ui-domain-update` against the checked-in Lambda grammar and semantics — production names, block types, file types, examples, type inference, and runtime tools all use Lambda terminology, and no MiniJava relabeling occurred. The MiniJava-conditional language in this document (goal 1, sections 4 and 9) is retained as a historical record of the brief's original phrasing; it no longer describes an open question.
 
 The audit basis is the source under `src/`, not the generated webpack artifacts under `docs/`. `docs/index.html` and `docs/block_lambda.js` are build output and must not be edited by hand.
 
 ## 1. Refactoring goals
 
-1. Preserve all existing Block-MiniJava functionality in the intended product. In this checkout, preserve all existing Block Lambda functionality until an authoritative MiniJava implementation is present.
+1. Preserve all existing Block Lambda functionality (this checkout's authoritative product; see the resolved status note above — the brief's original Block-MiniJava phrasing did not apply here).
 2. Remove the generic “AI-generated IDE” appearance: excessive visual decoration, duplicated controls, arbitrary icons, unnecessary colors, and imitation of VS Code.
 3. Give each command one clear primary location. Secondary access through keyboard shortcuts and the command palette remains intentional, not visual duplication.
 4. Express the product through its language: grammar-aware blocks, semantic tools, typing views, code view, runtime visualization, and program structure.
@@ -72,16 +72,14 @@ The completed shell should use the following primary locations:
 
 ### Mandatory names supplied with the refactor brief
 
-The brief explicitly requires the IDs `run-program`, `viz-dock`, `toolbox-column`, and `perspective-select` to remain stable. **No exact matches exist in this checkout.** The closest current contracts are:
+The brief's original phrasing named the IDs `run-program`, `viz-dock`, `toolbox-column`, and `perspective-select`; those exact kebab-case IDs do not exist in this checkout and were not introduced — this repo kept its own camelCase/source contracts, per the resolved status note above. The closest current contracts are:
 
 | Brief ID | Current source equivalent | Constraint |
 | --- | --- | --- |
-| `run-program` | No single equivalent; Run is dispatched through `[data-bottom-tab]`, especially `machine` | Do not invent or silently map this ID until the intended MiniJava source/branch is confirmed. Preserve all current run routes. |
+| `run-program` | No single equivalent; Run is dispatched through `[data-bottom-tab]`, especially `machine` | Preserve all current run routes; do not rename to the brief's ID. |
 | `viz-dock` | `#vizDock` and `.viz-dock` | Preserve both current selectors. If a compatibility alias is later required, add it deliberately; an element cannot have two IDs. |
 | `toolbox-column` | `#toolboxPanel`, `.toolbox-panel`, `.primary-side-panel` | Preserve the current panel and toolbox wiring. |
 | `perspective-select` | `#perspectiveSelect` | Preserve the current camelCase ID and its change handler. |
-
-The absence of these exact IDs is a release-blocking branch/contract question for a MiniJava implementation, not permission to rename current DOM elements during a visual refactor.
 
 ### High-risk static IDs used by production TypeScript
 
@@ -253,7 +251,7 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 ### Compatibility and responsive behavior
 
 - No production ID, behaviorally significant `data-*` value, state class/attribute, custom event, storage key, keyboard shortcut, event handler, or ARIA relationship listed here is lost.
-- The branch mismatch and the absent brief IDs (`run-program`, `viz-dock`, `toolbox-column`, `perspective-select`) are resolved explicitly before release; current camelCase/source contracts are not silently renamed.
+- The absent brief IDs (`run-program`, `viz-dock`, `toolbox-column`, `perspective-select`) are not introduced; current camelCase/source contracts are kept, per the resolved status note above.
 - Desktop resizers work by pointer and keyboard, update ARIA values, respect bounds, and persist.
 - Compact drawers remain mutually exclusive; Escape dismisses a compact drawer and restores focus to its trigger; phone code restoration scrolls/focuses correctly; the phone bottom drawer and both maximization modes restore correctly; persisted layout and the intended active inspector/bottom tabs survive reload and breakpoint changes.
 - Blockly resizes correctly after panel changes, theme changes, transitions, viewport/orientation changes, and restoration from persisted state.
@@ -270,8 +268,8 @@ Use a neutral application shell and one primary product accent. Keep six or seve
 
 ## 9. Known risks and required test work
 
-1. **Product mismatch:** this checkout is Lambda Calculus while the brief names Block-MiniJava. Relabelling without the correct grammar/runtime would violate the primary preservation goal.
-2. **Selector mismatch:** the four explicitly mandated kebab-case IDs are absent; current TypeScript is coupled to camelCase IDs and delegated `data-*` routing.
+1. **Product naming (resolved):** this checkout is Lambda Calculus; the brief's original Block-MiniJava phrasing did not apply and no relabelling occurred, per the resolved status note above.
+2. **Selector naming (resolved):** the four kebab-case IDs from the brief's original phrasing were not introduced; current TypeScript remains coupled to camelCase IDs and delegated `data-*` routing.
 3. **Responsive regression sensitivity:** browser coverage now protects the approved viewport matrix and drawer/resizer contracts, but runtime Blockly geometry remains sensitive to later DOM/CSS changes and needs the same visual review at every breakpoint.
 4. **Distributed command wiring:** commands are currently spread across direct ID listeners, delegated `data-*` listeners, context-menu registry entries, and an incomplete palette array. Consolidation must preserve handlers while establishing a complete command registry/reachability test.
 5. **CSS/DOM coupling:** layout and state depend on exact class/data selectors and CSS custom properties. Markup movement can appear correct at one breakpoint while breaking overlay mutual exclusion or Blockly resize elsewhere.

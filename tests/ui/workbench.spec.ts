@@ -264,6 +264,24 @@ test('code editing and code-to-block synchronization remain functional', async (
   await expect(page.locator('#lambdaEditor')).toHaveValue(/\\y\. y/);
 });
 
+test('a failing clipboard copy reports on the button instead of rejecting', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('Write permission denied.')) }
+    });
+  });
+
+  await openInspectorView(page, 'code');
+  await page.locator('#copyCode').click();
+  await expect(page.locator('#copyCode')).toHaveAttribute('aria-label', /Could not copy/);
+  await expect(page.locator('#copyCode use')).toHaveAttribute('href', '#icon-alert');
+  await expect(page.locator('#copyCode')).toHaveAttribute('aria-label', 'Copy generated output');
+  expect(pageErrors).toEqual([]);
+});
+
 test('Code, Types, Outline, Problems, Output, and every semantics view remain reachable once', async ({ page }) => {
   await openInspectorView(page, 'outline');
   await expect(page.locator('#outlinePane')).toBeVisible();

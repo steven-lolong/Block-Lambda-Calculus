@@ -426,6 +426,10 @@ export function initWorkbench(options: WorkbenchOptions): WorkbenchController {
     { label: 'Run: Call-by-Value Trace', keywords: 'evaluate reduction', action: () => openBottomTab('value') },
     { label: 'Run: CEK Machine', keywords: 'debug execution', action: () => openBottomTab('machine') },
     { label: 'Run: Lockstep Debugger', keywords: 'cek rewrite', action: () => openBottomTab('stepper') },
+    // The bottom-panel tool buttons are hidden in the phone drawer; the palette
+    // keeps them reachable at every viewport.
+    { label: 'Run: Re-run Active Semantic View', keywords: 'refresh recompute trace machine stepper', action: () => trigger('vizRerun') },
+    { label: 'Run: Arrange Reduction Steps', keywords: 'layout tidy trace', action: () => trigger('vizArrange') },
     { label: 'Perspective: Edit', action: () => applyPerspective('edit') },
     { label: 'Perspective: Debug', action: () => applyPerspective('debug') },
     { label: 'Perspective: Type Analysis', action: () => applyPerspective('types') },

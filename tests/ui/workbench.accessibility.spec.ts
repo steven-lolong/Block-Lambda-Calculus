@@ -185,9 +185,12 @@ test('lightweight accessibility contract holds in desktop and mobile layouts', a
         ids.set(element.id, (ids.get(element.id) ?? 0) + 1);
       }
       const duplicates = [...ids].filter(([, count]) => count > 1).map(([id]) => id);
+      // `innerText` reflects what is actually rendered, so a label hidden by a
+      // responsive `display: none` rule no longer counts as an accessible name.
+      // `textContent` would still see it and let an unnamed control pass.
       const unnamedButtons = [...document.querySelectorAll<HTMLButtonElement>('button')]
         .filter(visible)
-        .filter((button) => !button.getAttribute('aria-label') && !button.getAttribute('aria-labelledby') && !button.textContent?.trim() && !button.title)
+        .filter((button) => !button.getAttribute('aria-label') && !button.getAttribute('aria-labelledby') && !button.innerText.trim() && !button.title)
         .map((button) => button.id || button.className);
       const tabs = [...document.querySelectorAll<HTMLElement>('[role="tab"]')]
         .filter(visible)
@@ -224,4 +227,32 @@ test('lightweight accessibility contract holds in desktop and mobile layouts', a
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect.poll(() => page.locator('#menuToggle').evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration))).toBeLessThanOrEqual(0.01);
+});
+
+test('primary bottom tabs keep accessible names where the phone layout hides their labels', async ({ page }) => {
+  await loadAtViewport(page, { width: 390, height: 844 });
+  await page.keyboard.press('Control+j');
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
+
+  // At <=620px `.viz-tab-label` is hidden for every unselected primary tab, so
+  // the rendered text cannot be the accessible name.
+  for (const id of ['bottomTab-problems', 'bottomTab-output', 'bottomTab-semantics']) {
+    await expect(page.locator(`#${id}`)).toHaveAttribute('aria-label', /\S/);
+  }
+  // The label really is unrendered here, so `aria-label` is what names the tab.
+  await expect
+    .poll(() => page.locator('#bottomTab-output').evaluate((element) => (element as HTMLElement).innerText.trim()))
+    .toBe('');
+  await expect(page.getByRole('tab', { name: 'Output', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Semantics', exact: true })).toBeVisible();
+});
+
+test('bottom-panel tools stay reachable through the palette where the phone layout hides them', async ({ page }) => {
+  await loadAtViewport(page, { width: 390, height: 844 });
+  await page.keyboard.press('Control+j');
+  await expect(page.locator('#vizRerun')).toBeHidden();
+  await expect(page.locator('#vizArrange')).toBeHidden();
+
+  await runPaletteCommand(page, 'Run: Re-run Active Semantic View');
+  await runPaletteCommand(page, 'Run: Arrange Reduction Steps');
 });

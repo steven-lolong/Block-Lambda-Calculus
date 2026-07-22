@@ -409,16 +409,26 @@ export function setupPanelControls(
   copyCode?.addEventListener('click', async () => {
     const code = codeOutput instanceof HTMLElement ? (codeOutput.dataset.rawCode ?? codeOutput.textContent ?? '') : '';
     const copyIcon = copyCode.querySelector<SVGUseElement>('svg use');
-    const setCopyButtonState = (icon: 'check' | 'copy', label: string) => {
+    const setCopyButtonState = (icon: 'check' | 'copy' | 'alert', label: string) => {
       copyIcon?.setAttribute('href', `#icon-${icon}`);
       copyCode.setAttribute('aria-label', label);
       copyCode.title = label;
     };
-    await navigator.clipboard.writeText(code);
-    setCopyButtonState('check', 'Copied generated output');
+    // The clipboard rejects on denied permission, an unfocused document, and
+    // insecure contexts. Report the failure on the button instead of leaving an
+    // unhandled rejection and a control that looks like it succeeded.
+    let revertDelay = 1200;
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopyButtonState('check', 'Copied generated output');
+    } catch (error) {
+      console.error('[Block Lambda] could not copy the generated output', error);
+      setCopyButtonState('alert', 'Could not copy — clipboard unavailable');
+      revertDelay = 2400;
+    }
     window.setTimeout(() => {
       setCopyButtonState('copy', 'Copy generated output');
-    }, 1200);
+    }, revertDelay);
   });
 
   const savedThemeMode = readThemeMode();
