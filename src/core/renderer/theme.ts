@@ -122,10 +122,12 @@ function blockStylesFor(mode: LambdaThemeMode): Record<string, LambdaBlockPalett
 export const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
   name: 'blockLambdaLightTheme',
   base: Blockly.Themes.Classic,
+  // Matches Block-based-MNL's Kolintang renderer label style
+  // (FIELD_TEXT_FONTSIZE/FONTWEIGHT/FONTFAMILY in core/renderer/kolintang/constants.ts).
   fontStyle: {
-    family: 'Inter, Geist, system-ui, sans-serif',
-    weight: '600',
-    size: 9.75
+    family: 'sans-serif',
+    weight: 'normal',
+    size: 11
   },
   blockStyles: blockStylesFor('light'),
   componentStyles: {
@@ -147,10 +149,12 @@ export const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
 export const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
   name: 'blockLambdaDarkTheme',
   base: Blockly.Themes.Classic,
+  // Matches Block-based-MNL's Kolintang renderer label style
+  // (FIELD_TEXT_FONTSIZE/FONTWEIGHT/FONTFAMILY in core/renderer/kolintang/constants.ts).
   fontStyle: {
-    family: 'Inter, Geist, system-ui, sans-serif',
-    weight: '600',
-    size: 9.75
+    family: 'sans-serif',
+    weight: 'normal',
+    size: 11
   },
   blockStyles: blockStylesFor('dark'),
   componentStyles: {

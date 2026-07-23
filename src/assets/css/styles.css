@@ -228,13 +228,19 @@ kbd {
   pointer-events: none;
 }
 
+/*
+ * Positive selector, not `svg:not(.blocklySvg, .icon-sprite)`: Blockly injects
+ * its own scrollbar (and other chrome) as separate top-level `<svg>` elements
+ * that are siblings of `.blocklySvg`, not descendants of it, so the negative
+ * form matched them too — giving the scrollbar an unwanted `currentColor`
+ * stroke ("border") that tracked text colour instead of the theme's
+ * scrollbar colour. Every actual app icon carries `.app-icon` explicitly
+ * (see toolbox.ts's createIcon()), so scope to that instead.
+ */
 .app-icon {
   width: var(--icon-size-md);
   height: var(--icon-size-md);
   flex: 0 0 auto;
-}
-
-svg:not(.blocklySvg, .icon-sprite) {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -616,7 +622,16 @@ html[data-theme='dark'] .theme-icon-dark { display: block; }
 .blockly-canvas { position: absolute; inset: 0; outline: 0; }
 .blocklyMainBackground { stroke: none; }
 
+/*
+ * Blockly moves the block being dragged into a separate `.blocklyBlockDragSurface`
+ * SVG, a sibling of `.blocklySvg` rather than a descendant of it. Every rule
+ * below that used to be scoped only to `.blocklySvg` therefore stopped
+ * applying — and silently fell back to Blockly's own default text colour —
+ * for exactly the duration of a drag, which is why labels looked wrong (or
+ * unreadable against the block's fill) only while dragging.
+ */
 .blocklySvg text,
+.blocklyBlockDragSurface text,
 .blocklyFlyoutLabelText {
   stroke: none !important;
   stroke-width: 0 !important;
@@ -634,24 +649,28 @@ html[data-theme='dark'] .theme-icon-dark { display: block; }
   -webkit-text-stroke: 0 transparent;
 }
 
-.blocklySvg .blocklyText {
+.blocklySvg .blocklyText,
+.blocklyBlockDragSurface .blocklyText {
   opacity: 1;
   font-synthesis: none;
   text-rendering: auto;
 }
 
-.blocklySvg .blocklyLabelField > .blocklyFieldText {
+.blocklySvg .blocklyLabelField > .blocklyFieldText,
+.blocklyBlockDragSurface .blocklyLabelField > .blocklyFieldText {
   fill: var(--block-text-label) !important;
 }
 
-.blocklySvg .blocklyInputField > .blocklyFieldRect {
+.blocklySvg .blocklyInputField > .blocklyFieldRect,
+.blocklyBlockDragSurface .blocklyInputField > .blocklyFieldRect {
   fill: var(--block-field-surface);
   fill-opacity: 1;
   stroke: var(--block-field-border);
   stroke-width: 1px;
 }
 
-.blocklySvg .blocklyInputField > .blocklyFieldText {
+.blocklySvg .blocklyInputField > .blocklyFieldText,
+.blocklyBlockDragSurface .blocklyInputField > .blocklyFieldText {
   fill: var(--block-field-text) !important;
 }
 
@@ -928,12 +947,10 @@ html[data-theme='dark'] .theme-icon-dark { display: block; }
   min-width: 0;
   min-height: 0;
   display: none;
-  margin-left: var(--ide-activity-bar-width);
   border-top: 1px solid var(--border-default);
   background: var(--surface-panel);
 }
 
-.presentation-mode .viz-dock { margin-left: 0; }
 .viz-dock[data-open='true'] { display: grid; grid-template-rows: 8px minmax(0, 1fr); height: var(--ide-bottom-panel-height); }
 .viz-dock[data-maximized='true'] { height: min(70vh, calc(var(--viewport-height) - var(--ide-header-height) - var(--ide-status-bar-height))); }
 
@@ -1205,7 +1222,6 @@ html[data-theme='light'] .about-logo-dark { display: none; }
 
   .sidebar-resize-handle,
   .resize-handle { display: none; }
-  .viz-dock { margin-left: var(--ide-activity-bar-width); }
   .brand-copy > span { display: none; }
   .brand { min-width: 124px; }
 
@@ -1274,7 +1290,6 @@ html[data-theme='light'] .about-logo-dark { display: none; }
     z-index: var(--layer-menu);
     width: auto;
     height: min(var(--ide-bottom-panel-height), 58vh);
-    margin-left: 0;
     box-shadow: var(--shadow-mobile-panel);
     grid-template-rows: 14px minmax(0, 1fr);
   }

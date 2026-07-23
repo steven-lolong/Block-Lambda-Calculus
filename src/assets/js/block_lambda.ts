@@ -13,7 +13,7 @@ import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../.
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { applyLambdaGrammarCssTokens, darkTheme, lightTheme } from '../../core/renderer/theme';
-import { registerIdeLayoutResizeListener, setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
+import { IDE_WORKSPACE_GRID_COLOUR, registerIdeLayoutResizeListener, setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
 import { initWorkbench, type WorkbenchController } from '../../core/ui/workbench';
@@ -164,7 +164,7 @@ function injectMainWorkspace(rendererName: BlocklyRendererName): Blockly.Workspa
     grid: {
       spacing: 24,
       length: 3,
-      colour: document.documentElement.dataset.theme === 'light' ? '#c8cfd8' : '#3b424d',
+      colour: IDE_WORKSPACE_GRID_COLOUR[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'],
       snap: true
     },
     move: {
