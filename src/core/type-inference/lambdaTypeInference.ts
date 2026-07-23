@@ -8,6 +8,10 @@ export type LambdaTypeIssue = {
 
 export type LambdaInferenceReport = {
   blockTypes: Map<string, string>;
+  /** Structured form of `blockTypes`, fully substitution-resolved — the
+   *  desugar pass (../ir/desugar.ts) converts these into `IRType` so Core/ANF
+   *  carry real types instead of re-parsing the formatted string. */
+  blockTypesStructured: Map<string, Type>;
   blockIssues: Map<string, string[]>;
   topLevelTypes: Map<string, string>;
   issues: LambdaTypeIssue[];
@@ -16,7 +20,7 @@ export type LambdaInferenceReport = {
   summary: string;
 };
 
-type Type = TypeVariable | TypeConstant | TypeFunction;
+export type Type = TypeVariable | TypeConstant | TypeFunction;
 
 type TypeVariable = {
   kind: 'var';
@@ -432,8 +436,10 @@ export function inferLambdaWorkspaceTypes(workspace: Blockly.Workspace): LambdaI
   }
 
   const blockTypes = new Map<string, string>();
+  const blockTypesStructured = new Map<string, Type>();
   for (const [blockId, type] of state.blockTypes) {
     blockTypes.set(blockId, formatType(type, state));
+    blockTypesStructured.set(blockId, applySubstitution(type, state.substitution));
   }
 
   const topLevelTypes = new Map<string, string>();
@@ -446,6 +452,7 @@ export function inferLambdaWorkspaceTypes(workspace: Blockly.Workspace): LambdaI
 
   return {
     blockTypes,
+    blockTypesStructured,
     blockIssues,
     topLevelTypes,
     issues: state.issues.slice(),

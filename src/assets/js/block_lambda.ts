@@ -10,6 +10,9 @@ import { lambdaTermText } from '../../core/generator/lambdaTermText';
 import { LambdaTextParseError, parseLambdaTextToWorkspaceState, type LambdaWorkspaceState } from '../../core/parser/lambdaTextParser';
 import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../core/type-inference/lambdaTypeInference';
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
+import { blockToTerm } from '../../core/semantics/lambdaReduction';
+import { pickProgramBlock } from '../../core/machine/csekMachine';
+import { desugar, makeTypeLookup, prettyPrintCore, prettyPrintAnfProgram, toAnfProgram } from '../../core/ir';
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { applyLambdaGrammarCssTokens, darkTheme, lightTheme } from '../../core/renderer/theme';
@@ -30,11 +33,15 @@ const AUTOSAVE_INTERVAL_STORAGE_KEY = 'block-lambda-autosave-interval-minutes';
 const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
 const BLOCKLY_RENDERER_STORAGE_KEY = 'block-lambda-blockly-renderer';
 const INSPECTOR_TARGET_STORAGE_KEY = 'block-lambda-active-inspector-target';
+const LOWERING_STAGE_STORAGE_KEY = 'block-lambda-lowering-stage';
+const LOWERING_STRATEGY_STORAGE_KEY = 'block-lambda-lowering-strategy';
 const ZELOS_RENDERER_NAME = 'zelos';
 const THRASOS_RENDERER_NAME = 'thrasos';
 
 type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME | typeof THRASOS_RENDERER_NAME;
-type InspectorTarget = 'code' | 'formal' | 'inspector' | 'outline';
+type InspectorTarget = 'code' | 'formal' | 'inspector' | 'outline' | 'lowering';
+type LoweringStage = 'core' | 'anf';
+type LoweringStrategy = 'structure' | 'value';
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -64,7 +71,7 @@ function readBlocklyRendererName(): BlocklyRendererName {
 }
 
 function isInspectorTarget(value: string | null): value is InspectorTarget {
-  return value === 'code' || value === 'formal' || value === 'inspector' || value === 'outline';
+  return value === 'code' || value === 'formal' || value === 'inspector' || value === 'outline' || value === 'lowering';
 }
 
 function readInspectorTarget(): InspectorTarget {
@@ -81,6 +88,50 @@ function persistInspectorTarget(target: InspectorTarget): void {
     window.localStorage.setItem(INSPECTOR_TARGET_STORAGE_KEY, target);
   } catch {
     // The inspector remains usable when local storage is unavailable.
+  }
+}
+
+function isLoweringStage(value: string | null): value is LoweringStage {
+  return value === 'core' || value === 'anf';
+}
+
+function readLoweringStage(): LoweringStage {
+  try {
+    const stored = window.localStorage.getItem(LOWERING_STAGE_STORAGE_KEY);
+    return isLoweringStage(stored) ? stored : 'core';
+  } catch {
+    return 'core';
+  }
+}
+
+function persistLoweringStage(stage: LoweringStage): void {
+  try {
+    window.localStorage.setItem(LOWERING_STAGE_STORAGE_KEY, stage);
+  } catch {
+    // The lowering pane remains usable when local storage is unavailable.
+  }
+}
+
+function isLoweringStrategy(value: string | null): value is LoweringStrategy {
+  return value === 'structure' || value === 'value';
+}
+
+// Call-by-Structure is the language default (README "Semantics & steppers"),
+// matching the Lockstep/CEK tabs' default strategy.
+function readLoweringStrategy(): LoweringStrategy {
+  try {
+    const stored = window.localStorage.getItem(LOWERING_STRATEGY_STORAGE_KEY);
+    return isLoweringStrategy(stored) ? stored : 'structure';
+  } catch {
+    return 'structure';
+  }
+}
+
+function persistLoweringStrategy(strategy: LoweringStrategy): void {
+  try {
+    window.localStorage.setItem(LOWERING_STRATEGY_STORAGE_KEY, strategy);
+  } catch {
+    // The lowering pane remains usable when local storage is unavailable.
   }
 }
 
@@ -127,6 +178,12 @@ const inspectorBlockStatus = requireElement<HTMLElement>('inspectorBlockStatus')
 const inspectorBlockIssues = requireElement<HTMLElement>('inspectorBlockIssues');
 const outlinePane = requireElement<HTMLElement>('outlinePane');
 const programOutline = requireElement<HTMLDivElement>('programOutline');
+const loweringPane = requireElement<HTMLElement>('loweringPane');
+const loweringOutput = requireElement<HTMLElement>('loweringOutput');
+const loweringStageCore = requireElement<HTMLButtonElement>('loweringStageCore');
+const loweringStageAnf = requireElement<HTMLButtonElement>('loweringStageAnf');
+const loweringStrategyStructure = requireElement<HTMLButtonElement>('loweringStrategyStructure');
+const loweringStrategyValue = requireElement<HTMLButtonElement>('loweringStrategyValue');
 const printDerivationButton = requireElement<HTMLButtonElement>('printDerivation');
 const copyCodeButton = requireElement<HTMLButtonElement>('copyCode');
 const synchronizeCodeButton = requireElement<HTMLButtonElement>('synchronizeCode');
@@ -136,6 +193,8 @@ let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 let activeBlocklyRenderer = readBlocklyRendererName();
 let lastTypeReport: LambdaInferenceReport | null = null;
 let activeCodeTarget: InspectorTarget = readInspectorTarget();
+let activeLoweringStage: LoweringStage = readLoweringStage();
+let activeLoweringStrategy: LoweringStrategy = readLoweringStrategy();
 let lambdaImportTimer: number | undefined;
 let applyingCodeEditorText = false;
 let suppressCodeEditorSyncUntil = 0;
@@ -369,6 +428,7 @@ function renderCodeTargetTabs(): void {
   const showingInspector = activeCodeTarget === 'inspector';
   const showingOutline = activeCodeTarget === 'outline';
   const showingFormal = activeCodeTarget === 'formal';
+  const showingLowering = activeCodeTarget === 'lowering';
   const showingTypes = showingInspector || showingFormal;
   for (const button of codeTargetButtons) {
     const selected = button.id === 'codeTargetInspector'
@@ -384,9 +444,48 @@ function renderCodeTargetTabs(): void {
   lambdaEditorPane.hidden = !showingCodeEditor;
   blockInspectorPane.hidden = !showingInspector;
   outlinePane.hidden = !showingOutline;
+  loweringPane.hidden = !showingLowering;
   synchronizeCodeButton.hidden = !showingCodeEditor;
   copyCodeButton.hidden = !(showingCodeEditor || showingFormal);
   printDerivationButton.hidden = !showingFormal;
+}
+
+function renderLoweringToolbar(): void {
+  const showingCore = activeLoweringStage === 'core';
+  loweringStageCore.setAttribute('aria-selected', String(showingCore));
+  loweringStageCore.tabIndex = showingCore ? 0 : -1;
+  loweringStageAnf.setAttribute('aria-selected', String(!showingCore));
+  loweringStageAnf.tabIndex = showingCore ? -1 : 0;
+
+  const usingStructure = activeLoweringStrategy === 'structure';
+  loweringStrategyStructure.classList.toggle('is-active', usingStructure);
+  loweringStrategyStructure.setAttribute('aria-pressed', String(usingStructure));
+  loweringStrategyValue.classList.toggle('is-active', !usingStructure);
+  loweringStrategyValue.setAttribute('aria-pressed', String(!usingStructure));
+  // The strategy only affects the ANF pane — Core has no evaluation order yet.
+  loweringStrategyStructure.disabled = showingCore;
+  loweringStrategyValue.disabled = showingCore;
+}
+
+// Reuses `report` (already computed by refreshCode) instead of calling
+// desugarWorkspace, which would rerun Hindley-Milner inference a second time.
+function renderLowering(report: LambdaInferenceReport): void {
+  renderLoweringToolbar();
+
+  if (workspace.getAllBlocks(false).length === 0) {
+    loweringOutput.textContent = 'The workspace has no blocks.';
+    return;
+  }
+
+  try {
+    const core = desugar(blockToTerm(pickProgramBlock(workspace)), makeTypeLookup(report));
+    const formalization = activeLoweringStage === 'core'
+      ? prettyPrintCore(core)
+      : prettyPrintAnfProgram(toAnfProgram(core, activeLoweringStrategy));
+    loweringOutput.innerHTML = formalization.html;
+  } catch (error) {
+    loweringOutput.textContent = `Could not lower the program: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
 function renderGeneratedOutput(report: LambdaInferenceReport): void {
@@ -399,6 +498,11 @@ function renderGeneratedOutput(report: LambdaInferenceReport): void {
 
   if (activeCodeTarget === 'outline') {
     renderOutline();
+    return;
+  }
+
+  if (activeCodeTarget === 'lowering') {
+    renderLowering(report);
     return;
   }
 
@@ -492,7 +596,9 @@ function activateCodeTarget(target: InspectorTarget): void {
       ? 'Showing inferred types and selected-block type details.'
       : target === 'outline'
         ? 'Showing the program outline.'
-        : 'Editing Lambda code.');
+        : target === 'lowering'
+          ? 'Showing the lowering pipeline (Core and ANF).'
+          : 'Editing Lambda code.');
 }
 
 function synchronizeCodeFromWorkspace(): void {
@@ -1062,13 +1168,34 @@ installBlocklyThemeMenu();
 
 for (const button of codeTargetButtons) {
   button.addEventListener('click', () => {
-    const target = button.dataset.codeTarget;
-    if (target !== 'code' && target !== 'formal' && target !== 'inspector' && target !== 'outline') return;
+    const target = button.dataset.codeTarget ?? null;
+    if (!isInspectorTarget(target)) return;
     activateCodeTarget(target);
   });
 }
 
 typeTargetOverview.addEventListener('click', () => activateCodeTarget('inspector'));
+
+loweringStageCore.addEventListener('click', () => {
+  activeLoweringStage = 'core';
+  persistLoweringStage(activeLoweringStage);
+  renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+});
+loweringStageAnf.addEventListener('click', () => {
+  activeLoweringStage = 'anf';
+  persistLoweringStage(activeLoweringStage);
+  renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+});
+loweringStrategyStructure.addEventListener('click', () => {
+  activeLoweringStrategy = 'structure';
+  persistLoweringStrategy(activeLoweringStrategy);
+  renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+});
+loweringStrategyValue.addEventListener('click', () => {
+  activeLoweringStrategy = 'value';
+  persistLoweringStrategy(activeLoweringStrategy);
+  renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+});
 
 document.querySelector<HTMLElement>('.code-tabs')?.addEventListener('keydown', (event) => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
@@ -1087,6 +1214,21 @@ document.querySelector<HTMLElement>('.code-tabs')?.addEventListener('keydown', (
 document.querySelector<HTMLElement>('.type-tabs')?.addEventListener('keydown', (event) => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
   const buttons = [typeTargetOverview, requireElement<HTMLButtonElement>('codeTargetFormal')];
+  const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? buttons.length - 1
+      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  buttons[nextIndex].focus();
+  buttons[nextIndex].click();
+});
+
+document.querySelector<HTMLElement>('.lowering-toolbar .type-tabs')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+  const buttons = [loweringStageCore, loweringStageAnf];
   const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
   if (currentIndex < 0) return;
   event.preventDefault();
@@ -1152,6 +1294,7 @@ function createStarterProgram(): void {
 createStarterProgram();
 updateAutosaveIntervalUi();
 renderCodeTargetTabs();
+renderLoweringToolbar();
 setWorkspaceTitle();
 const initialReport = runLambdaInferenceToFixpoint(workspace, 'initial-load');
 refreshCode(initialReport);
