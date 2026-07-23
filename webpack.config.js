@@ -7,7 +7,12 @@ module.exports = {
   output: {
     filename: 'block_lambda.js',
     path: path.resolve(__dirname, 'docs'),
-    clean: true
+    // `docs/` is both the published build output and the home of the checked-in
+    // `docs/ui-refactor/` design records. Keep those out of the clean sweep, or
+    // every build silently deletes tracked documentation.
+    clean: {
+      keep: /^ui-refactor[\\/]/
+    }
   },
   resolve: {
     extensions: ['.ts', '.js']

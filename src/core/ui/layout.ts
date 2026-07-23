@@ -126,8 +126,12 @@ function initializeLayoutResizeCoordinator(resizeRoot: HTMLElement): void {
   });
 }
 
-function isPhoneLayout(): boolean {
+export function isPhoneIdeLayout(): boolean {
   return window.matchMedia('(max-width: 780px)').matches;
+}
+
+export function isPhoneDrawerLayout(): boolean {
+  return window.matchMedia('(max-width: 620px)').matches;
 }
 
 export function isCompactIdeLayout(): boolean {
@@ -323,13 +327,13 @@ export function setupPanelControls(
       window.setTimeout(() => {
         codePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         codePanel.focus({ preventScroll: true });
-      }, isPhoneLayout() ? 80 : 0);
+      }, isPhoneIdeLayout() ? 80 : 0);
     }
   };
 
   const toggleCodeVisibility = () => {
     const hidden = app?.classList.contains('code-hidden') ?? false;
-    setCodeVisibility(hidden, true, hidden && isPhoneLayout());
+    setCodeVisibility(hidden, true, hidden && isPhoneIdeLayout());
   };
 
   const setCodeMaximized = (maximized: boolean, persist = true) => {
@@ -355,7 +359,7 @@ export function setupPanelControls(
     setCodeVisibility(true, true, true);
   });
   showCodeFromWorkspace?.addEventListener('pointerup', (event) => {
-    if (!isPhoneLayout()) return;
+    if (!isPhoneIdeLayout()) return;
     event.preventDefault();
     event.stopPropagation();
     setCodeVisibility(true, true, true);
@@ -404,18 +408,27 @@ export function setupPanelControls(
 
   copyCode?.addEventListener('click', async () => {
     const code = codeOutput instanceof HTMLElement ? (codeOutput.dataset.rawCode ?? codeOutput.textContent ?? '') : '';
-    const copyIcon = copyCode.querySelector<HTMLElement>('[aria-hidden="true"]');
-    const setCopyButtonState = (icon: string, label: string) => {
-      if (copyIcon) copyIcon.textContent = icon;
-      else copyCode.textContent = icon;
+    const copyIcon = copyCode.querySelector<SVGUseElement>('svg use');
+    const setCopyButtonState = (icon: 'check' | 'copy' | 'alert', label: string) => {
+      copyIcon?.setAttribute('href', `#icon-${icon}`);
       copyCode.setAttribute('aria-label', label);
       copyCode.title = label;
     };
-    await navigator.clipboard.writeText(code);
-    setCopyButtonState('✓', 'Copied generated output');
+    // The clipboard rejects on denied permission, an unfocused document, and
+    // insecure contexts. Report the failure on the button instead of leaving an
+    // unhandled rejection and a control that looks like it succeeded.
+    let revertDelay = 1200;
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopyButtonState('check', 'Copied generated output');
+    } catch (error) {
+      console.error('[Block Lambda] could not copy the generated output', error);
+      setCopyButtonState('alert', 'Could not copy — clipboard unavailable');
+      revertDelay = 2400;
+    }
     window.setTimeout(() => {
-      setCopyButtonState('⧉', 'Copy generated output');
-    }, 1200);
+      setCopyButtonState('copy', 'Copy generated output');
+    }, revertDelay);
   });
 
   const savedThemeMode = readThemeMode();
@@ -433,14 +446,6 @@ export function setupPanelControls(
   renderToolboxToggleState();
   renderCodeToggleState();
   renderCodeMaximizeState();
-
-  compactLayout.addEventListener('change', () => {
-    applyStoredPanelVisibility();
-    renderToolboxToggleState();
-    renderCodeToggleState();
-    renderCodeMaximizeState();
-    updateLayout();
-  });
 
   if (codePanel instanceof HTMLElement) {
     codePanel.tabIndex = -1;
@@ -470,6 +475,7 @@ export function setupPanelControls(
   };
 
   resizeHandle?.addEventListener('pointerdown', (event) => {
+    if (isCompactIdeLayout()) return;
     dragging = true;
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     document.body.classList.add('resizing-code-panel');
@@ -480,6 +486,7 @@ export function setupPanelControls(
   window.addEventListener('pointerup', stopDragging);
 
   resizeHandle?.addEventListener('keydown', (event) => {
+    if (isCompactIdeLayout()) return;
     const direction = event.key === 'ArrowLeft' ? 1 : event.key === 'ArrowRight' ? -1 : 0;
     if (!direction || !codePanel) return;
     event.preventDefault();
@@ -512,7 +519,17 @@ export function setupPanelControls(
     updateLayout();
   };
 
+  const syncDesktopResizerAvailability = () => {
+    const drawer = isCompactIdeLayout();
+    for (const handle of [resizeHandle, sidebarResizeHandle]) {
+      if (!handle) continue;
+      handle.tabIndex = drawer ? -1 : 0;
+      handle.setAttribute('aria-disabled', String(drawer));
+    }
+  };
+
   sidebarResizeHandle?.addEventListener('pointerdown', (event) => {
+    if (isCompactIdeLayout()) return;
     draggingSidebar = true;
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     document.body.classList.add('resizing-sidebar');
@@ -523,6 +540,7 @@ export function setupPanelControls(
   });
   window.addEventListener('pointerup', stopSidebarDragging);
   sidebarResizeHandle?.addEventListener('keydown', (event) => {
+    if (isCompactIdeLayout()) return;
     const direction = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
     if (!direction || !toolboxPanel) return;
     event.preventDefault();
@@ -533,12 +551,25 @@ export function setupPanelControls(
     updateLayout();
   });
 
+  compactLayout.addEventListener('change', () => {
+    // A panel that has become an overlay must not retain a desktop resize drag.
+    stopDragging();
+    stopSidebarDragging();
+    syncDesktopResizerAvailability();
+    applyStoredPanelVisibility();
+    renderToolboxToggleState();
+    renderCodeToggleState();
+    renderCodeMaximizeState();
+    updateLayout();
+  });
+
   resizeHandle?.setAttribute('aria-valuemin', String(CODE_PANEL_MIN_WIDTH));
   resizeHandle?.setAttribute('aria-valuemax', String(CODE_PANEL_MAX_WIDTH));
   resizeHandle?.setAttribute('aria-valuenow', String(storedLayout.codeWidth));
   sidebarResizeHandle?.setAttribute('aria-valuemin', String(SIDEBAR_MIN_WIDTH));
   sidebarResizeHandle?.setAttribute('aria-valuemax', String(SIDEBAR_MAX_WIDTH));
   sidebarResizeHandle?.setAttribute('aria-valuenow', String(storedLayout.sidebarWidth));
+  syncDesktopResizerAvailability();
 
   updateLayout();
 
@@ -547,7 +578,7 @@ export function setupPanelControls(
     isCodeVisible: () => !(app?.classList.contains('code-hidden') ?? false),
     isCodeMaximized: () => app?.classList.contains('code-maximized') ?? false,
     setToolboxVisible: setToolboxVisibility,
-    setCodeVisible: (visible, persist = true) => setCodeVisibility(visible, persist, visible && isPhoneLayout()),
+    setCodeVisible: (visible, persist = true) => setCodeVisibility(visible, persist, visible && isPhoneIdeLayout()),
     setCodeMaximized,
     toggleToolbox: toggleToolboxVisibility,
     toggleCode: toggleCodeVisibility,

@@ -455,9 +455,10 @@ export function installExampleMenu(
   menu: HTMLElement,
   onLoadExample: ExampleLoader
 ): void {
-  function closeMenu(): void {
+  function closeMenu(returnFocus = false): void {
     menu.hidden = true;
     button.setAttribute('aria-expanded', 'false');
+    if (returnFocus) window.setTimeout(() => button.focus({ preventScroll: true }), 0);
   }
 
   function openMenu(): void {
@@ -474,6 +475,31 @@ export function installExampleMenu(
     event.preventDefault();
     event.stopPropagation();
     toggleMenu();
+  });
+
+  button.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    openMenu();
+    menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  });
+
+  menu.addEventListener('keydown', (event) => {
+    const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])'));
+    if (items.length === 0) return;
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? items.length - 1
+        : event.key === 'ArrowDown'
+          ? currentIndex + 1
+          : event.key === 'ArrowUp'
+            ? currentIndex - 1
+            : Number.NaN;
+    if (Number.isNaN(nextIndex)) return;
+    event.preventDefault();
+    items[(nextIndex + items.length) % items.length].focus();
   });
 
   menu.querySelectorAll<HTMLButtonElement>('[data-example-id]').forEach((item) => {
@@ -493,6 +519,6 @@ export function installExampleMenu(
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeMenu();
+    if (event.key === 'Escape' && !menu.hidden) closeMenu(true);
   });
 }

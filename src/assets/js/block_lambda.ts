@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import 'blockly/blocks';
+import '../css/tokens.css';
 import '../css/styles.css';
 import '../css/examples.css';
 import { registerLambdaBlocks } from '../../core/blocks/lambdaBlocks';
@@ -11,6 +12,7 @@ import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
+import { applyLambdaGrammarCssTokens, darkTheme, lightTheme } from '../../core/renderer/theme';
 import { registerIdeLayoutResizeListener, setupPanelControls, setupWorkspaceAutoResize } from '../../core/ui/layout';
 import { registerLambdaContextMenus } from '../../core/ui/contextMenus';
 import { disposeVisualizationWorkspaces, initVisualizationPanel, setVisualizationOpen } from '../../core/ui/visualizationPanel';
@@ -27,10 +29,12 @@ const AUTOSAVE_TIME_STORAGE_KEY = 'block-lambda-autosave-time';
 const AUTOSAVE_INTERVAL_STORAGE_KEY = 'block-lambda-autosave-interval-minutes';
 const AUTOSAVE_DEFAULT_INTERVAL_MINUTES = 2;
 const BLOCKLY_RENDERER_STORAGE_KEY = 'block-lambda-blockly-renderer';
+const INSPECTOR_TARGET_STORAGE_KEY = 'block-lambda-active-inspector-target';
 const ZELOS_RENDERER_NAME = 'zelos';
 const THRASOS_RENDERER_NAME = 'thrasos';
 
 type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME | typeof THRASOS_RENDERER_NAME;
+type InspectorTarget = 'code' | 'formal' | 'inspector' | 'outline';
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -59,6 +63,27 @@ function readBlocklyRendererName(): BlocklyRendererName {
   return isBlocklyRendererName(stored) ? stored : TUDE_RENDERER_NAME;
 }
 
+function isInspectorTarget(value: string | null): value is InspectorTarget {
+  return value === 'code' || value === 'formal' || value === 'inspector' || value === 'outline';
+}
+
+function readInspectorTarget(): InspectorTarget {
+  try {
+    const stored = window.localStorage.getItem(INSPECTOR_TARGET_STORAGE_KEY);
+    return isInspectorTarget(stored) ? stored : 'code';
+  } catch {
+    return 'code';
+  }
+}
+
+function persistInspectorTarget(target: InspectorTarget): void {
+  try {
+    window.localStorage.setItem(INSPECTOR_TARGET_STORAGE_KEY, target);
+  } catch {
+    // The inspector remains usable when local storage is unavailable.
+  }
+}
+
 function formatAutosaveInterval(minutes: number): string {
   return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
@@ -84,6 +109,9 @@ const examplesSubMenu = requireElement<HTMLElement>('examplesSubMenu');
 const blocklyThemeMenuButton = requireElement<HTMLButtonElement>('blocklyThemeMenuButton');
 const blocklyThemeSubMenu = requireElement<HTMLElement>('blocklyThemeSubMenu');
 const codeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-code-target]'));
+const primaryCodeTargetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.code-tabs [data-code-target]'));
+const typesPane = requireElement<HTMLElement>('typesPane');
+const typeTargetOverview = requireElement<HTMLButtonElement>('typeTargetOverview');
 const blocklyRendererButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-blockly-renderer]'));
 const topbarFileName = requireElement<HTMLElement>('topbarFileName');
 const projectFileLabel = requireElement<HTMLElement>('projectFileLabel');
@@ -101,12 +129,13 @@ const outlinePane = requireElement<HTMLElement>('outlinePane');
 const programOutline = requireElement<HTMLDivElement>('programOutline');
 const printDerivationButton = requireElement<HTMLButtonElement>('printDerivation');
 const copyCodeButton = requireElement<HTMLButtonElement>('copyCode');
+const synchronizeCodeButton = requireElement<HTMLButtonElement>('synchronizeCode');
 
 let currentWorkspaceFileName = 'block-lambda-workspace.blc';
 let autosaveIntervalMinutes = readAutosaveIntervalMinutes();
 let activeBlocklyRenderer = readBlocklyRendererName();
 let lastTypeReport: LambdaInferenceReport | null = null;
-let activeCodeTarget: 'code' | 'formal' | 'inspector' | 'outline' = 'code';
+let activeCodeTarget: InspectorTarget = readInspectorTarget();
 let lambdaImportTimer: number | undefined;
 let applyingCodeEditorText = false;
 let suppressCodeEditorSyncUntil = 0;
@@ -121,128 +150,7 @@ function applyBlocklyRendererStyle(rendererName: BlocklyRendererName): void {
 }
 
 applyBlocklyRendererStyle(activeBlocklyRenderer);
-
-const lightTheme = Blockly.Theme.defineTheme('blockLambdaLightTheme', {
-  name: 'blockLambdaLightTheme',
-  base: Blockly.Themes.Classic,
-  fontStyle: {
-    family: 'Inter, Geist, system-ui, sans-serif',
-    weight: '600',
-    size: 9.75
-  },
-  blockStyles: {
-    lambda_term: {
-      colourPrimary: '#6341a1',
-      colourSecondary: '#4f3481',
-      colourTertiary: '#7c5ab5'
-    },
-    lambda_binding: {
-      colourPrimary: '#245ca8',
-      colourSecondary: '#1d4986',
-      colourTertiary: '#4277bb'
-    },
-    lambda_grouping: {
-      colourPrimary: '#116b64',
-      colourSecondary: '#0e5650',
-      colourTertiary: '#33847c'
-    },
-    lambda_literal: {
-      colourPrimary: '#7a510d',
-      colourSecondary: '#62410a',
-      colourTertiary: '#976b25'
-    },
-    lambda_operator: {
-      colourPrimary: '#146b68',
-      colourSecondary: '#105653',
-      colourTertiary: '#368481'
-    },
-    lambda_control: {
-      colourPrimary: '#87336f',
-      colourSecondary: '#6c2959',
-      colourTertiary: '#a34f8c'
-    },
-    lambda_meta: {
-      colourPrimary: '#46505f',
-      colourSecondary: '#38404c',
-      colourTertiary: '#606b7a'
-    }
-  },
-  componentStyles: {
-    workspaceBackgroundColour: '#f7f8fa',
-    toolboxBackgroundColour: '#f5f7f9',
-    toolboxForegroundColour: '#20242b',
-    flyoutBackgroundColour: '#ffffff',
-    flyoutForegroundColour: '#20242b',
-    flyoutOpacity: 1,
-    scrollbarColour: '#929aa5',
-    scrollbarOpacity: 0.62,
-    insertionMarkerColour: '#8839ef',
-    insertionMarkerOpacity: 0.30,
-    cursorColour: '#8839ef',
-    markerColour: '#179299'
-  }
-});
-
-const darkTheme = Blockly.Theme.defineTheme('blockLambdaDarkTheme', {
-  name: 'blockLambdaDarkTheme',
-  base: Blockly.Themes.Classic,
-  fontStyle: {
-    family: 'Inter, Geist, system-ui, sans-serif',
-    weight: '600',
-    size: 9.75
-  },
-  blockStyles: {
-    lambda_term: {
-      colourPrimary: '#7650b5',
-      colourSecondary: '#5e4091',
-      colourTertiary: '#906fc6'
-    },
-    lambda_binding: {
-      colourPrimary: '#2e68b7',
-      colourSecondary: '#255392',
-      colourTertiary: '#4b82c8'
-    },
-    lambda_grouping: {
-      colourPrimary: '#17776e',
-      colourSecondary: '#125f58',
-      colourTertiary: '#399087'
-    },
-    lambda_literal: {
-      colourPrimary: '#8b5d16',
-      colourSecondary: '#6f4a12',
-      colourTertiary: '#a57631'
-    },
-    lambda_operator: {
-      colourPrimary: '#18746e',
-      colourSecondary: '#135d58',
-      colourTertiary: '#3a8d88'
-    },
-    lambda_control: {
-      colourPrimary: '#963f82',
-      colourSecondary: '#783268',
-      colourTertiary: '#ae5c9b'
-    },
-    lambda_meta: {
-      colourPrimary: '#505a69',
-      colourSecondary: '#404854',
-      colourTertiary: '#6b7686'
-    }
-  },
-  componentStyles: {
-    workspaceBackgroundColour: '#171a20',
-    toolboxBackgroundColour: '#1a1d24',
-    toolboxForegroundColour: '#f1f3f5',
-    flyoutBackgroundColour: '#1d2027',
-    flyoutForegroundColour: '#f1f3f5',
-    flyoutOpacity: 1,
-    scrollbarColour: '#59616c',
-    scrollbarOpacity: 0.72,
-    insertionMarkerColour: '#c6a0f6',
-    insertionMarkerOpacity: 0.34,
-    cursorColour: '#91d7e3',
-    markerColour: '#8bd5ca'
-  }
-});
+applyLambdaGrammarCssTokens(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 
 function currentBlocklyTheme(): Blockly.Theme {
   return document.documentElement.dataset.theme === 'dark' ? darkTheme : lightTheme;
@@ -461,16 +369,23 @@ function renderCodeTargetTabs(): void {
   const showingInspector = activeCodeTarget === 'inspector';
   const showingOutline = activeCodeTarget === 'outline';
   const showingFormal = activeCodeTarget === 'formal';
+  const showingTypes = showingInspector || showingFormal;
   for (const button of codeTargetButtons) {
-    const selected = button.dataset.codeTarget === activeCodeTarget;
+    const selected = button.id === 'codeTargetInspector'
+      ? showingTypes
+      : button.dataset.codeTarget === activeCodeTarget;
     button.setAttribute('aria-selected', String(selected));
     button.tabIndex = selected ? 0 : -1;
   }
-  codeOutput.hidden = showingCodeEditor || showingInspector || showingOutline;
+  typeTargetOverview.setAttribute('aria-selected', String(showingInspector));
+  typeTargetOverview.tabIndex = showingInspector ? 0 : -1;
+  typesPane.hidden = !showingTypes;
+  codeOutput.hidden = !showingFormal;
   lambdaEditorPane.hidden = !showingCodeEditor;
   blockInspectorPane.hidden = !showingInspector;
   outlinePane.hidden = !showingOutline;
-  copyCodeButton.hidden = showingInspector || showingOutline;
+  synchronizeCodeButton.hidden = !showingCodeEditor;
+  copyCodeButton.hidden = !(showingCodeEditor || showingFormal);
   printDerivationButton.hidden = !showingFormal;
 }
 
@@ -555,9 +470,35 @@ function resetLambdaEditorSyncGuard(): void {
   suppressCodeEditorSyncUntil = 0;
 }
 
+function activateCodeTarget(target: InspectorTarget): void {
+  activeCodeTarget = target;
+  persistInspectorTarget(target);
+  if (target === 'code') {
+    syncLambdaEditorFromWorkspace();
+    window.setTimeout(() => lambdaEditor.focus(), 0);
+  } else {
+    if (lambdaImportTimer !== undefined) {
+      window.clearTimeout(lambdaImportTimer);
+      lambdaImportTimer = undefined;
+    }
+    if (target === 'inspector') renderBlockInspector();
+    if (target === 'outline') renderOutline();
+  }
+  renderCodeTargetTabs();
+  refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+  setStatus(target === 'formal'
+    ? 'Showing the typing derivation.'
+    : target === 'inspector'
+      ? 'Showing inferred types and selected-block type details.'
+      : target === 'outline'
+        ? 'Showing the program outline.'
+        : 'Editing Lambda code.');
+}
+
 function synchronizeCodeFromWorkspace(): void {
   resetLambdaEditorSyncGuard();
   activeCodeTarget = 'code';
+  persistInspectorTarget(activeCodeTarget);
   syncLambdaEditorFromWorkspace();
   renderCodeTargetTabs();
   window.setTimeout(() => lambdaEditor.focus(), 0);
@@ -910,9 +851,10 @@ function renderBlocklyRendererMenu(): void {
   blocklyThemeMenuButton.title = `Blockly theme: ${blocklyRendererLabel(activeBlocklyRenderer)}`;
 }
 
-function closeBlocklyThemeMenu(): void {
+function closeBlocklyThemeMenu(returnFocus = false): void {
   blocklyThemeSubMenu.hidden = true;
   blocklyThemeMenuButton.setAttribute('aria-expanded', 'false');
+  if (returnFocus) window.setTimeout(() => blocklyThemeMenuButton.focus({ preventScroll: true }), 0);
 }
 
 function toggleBlocklyThemeMenu(): void {
@@ -969,6 +911,12 @@ function installBlocklyThemeMenu(): void {
     event.stopPropagation();
     toggleBlocklyThemeMenu();
   });
+  blocklyThemeMenuButton.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    if (blocklyThemeSubMenu.hidden) toggleBlocklyThemeMenu();
+    blocklyThemeSubMenu.querySelector<HTMLButtonElement>('[data-blockly-renderer]')?.focus();
+  });
 
   for (const button of blocklyRendererButtons) {
     button.addEventListener('click', (event) => {
@@ -979,6 +927,21 @@ function installBlocklyThemeMenu(): void {
     });
   }
 
+  blocklyThemeSubMenu.addEventListener('keydown', (event) => {
+    if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+    const buttons = blocklyRendererButtons.filter((button) => !button.disabled);
+    const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    if (buttons.length === 0 || currentIndex < 0) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? buttons.length - 1
+        : (currentIndex + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[nextIndex].focus();
+    buttons[nextIndex].click();
+  });
+
   document.addEventListener('click', (event) => {
     const target = event.target;
     if (!(target instanceof Node)) return;
@@ -986,7 +949,7 @@ function installBlocklyThemeMenu(): void {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeBlocklyThemeMenu();
+    if (event.key === 'Escape' && !blocklyThemeSubMenu.hidden) closeBlocklyThemeMenu(true);
   });
 
   renderBlocklyRendererMenu();
@@ -1101,42 +1064,39 @@ for (const button of codeTargetButtons) {
   button.addEventListener('click', () => {
     const target = button.dataset.codeTarget;
     if (target !== 'code' && target !== 'formal' && target !== 'inspector' && target !== 'outline') return;
-    activeCodeTarget = target;
-    if (target === 'code') {
-      syncLambdaEditorFromWorkspace();
-      window.setTimeout(() => lambdaEditor.focus(), 0);
-    } else {
-      if (lambdaImportTimer !== undefined) {
-        window.clearTimeout(lambdaImportTimer);
-        lambdaImportTimer = undefined;
-      }
-      if (target === 'inspector') renderBlockInspector();
-      if (target === 'outline') renderOutline();
-    }
-    renderCodeTargetTabs();
-    refreshCode(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
-    setStatus(target === 'formal'
-      ? 'Showing formal derivation.'
-      : target === 'inspector'
-        ? 'Showing the selected block inspector.'
-        : target === 'outline'
-          ? 'Showing the program outline.'
-          : 'Editing Lambda code.');
+    activateCodeTarget(target);
   });
 }
 
+typeTargetOverview.addEventListener('click', () => activateCodeTarget('inspector'));
+
 document.querySelector<HTMLElement>('.code-tabs')?.addEventListener('keydown', (event) => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
-  const currentIndex = codeTargetButtons.indexOf(document.activeElement as HTMLButtonElement);
+  const currentIndex = primaryCodeTargetButtons.indexOf(document.activeElement as HTMLButtonElement);
   if (currentIndex < 0) return;
   event.preventDefault();
   const nextIndex = event.key === 'Home'
     ? 0
     : event.key === 'End'
-      ? codeTargetButtons.length - 1
-      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + codeTargetButtons.length) % codeTargetButtons.length;
-  codeTargetButtons[nextIndex].focus();
-  codeTargetButtons[nextIndex].click();
+      ? primaryCodeTargetButtons.length - 1
+      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + primaryCodeTargetButtons.length) % primaryCodeTargetButtons.length;
+  primaryCodeTargetButtons[nextIndex].focus();
+  primaryCodeTargetButtons[nextIndex].click();
+});
+
+document.querySelector<HTMLElement>('.type-tabs')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+  const buttons = [typeTargetOverview, requireElement<HTMLButtonElement>('codeTargetFormal')];
+  const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? buttons.length - 1
+      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  buttons[nextIndex].focus();
+  buttons[nextIndex].click();
 });
 
 printDerivationButton.addEventListener('click', printDerivation);
@@ -1162,7 +1122,10 @@ window.addEventListener('block-lambda:refresh-code', () => {
   const report = runLambdaInferenceToFixpoint(workspace, 'external-refresh');
   refreshCode(report);
 });
-window.addEventListener('block-lambda:theme-changed', disposeVisualizationWorkspaces);
+window.addEventListener('block-lambda:theme-changed', () => {
+  applyLambdaGrammarCssTokens(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+  disposeVisualizationWorkspaces();
+});
 
 function createStarterProgram(): void {
   if (workspace.getAllBlocks(false).length > 0) return;

@@ -4,10 +4,9 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 
 ## Features
 
-- Web-based block IDE with a **workbench shell** (see *Workbench* below):
-  an activity bar, a primary sidebar (Blocks / Project / Problems / Run and
-  Debug / Settings), the middle Blockly workspace, a right generated
-  text-code + inspector panel, a bottom tool panel, and a status bar.
+- Web-based block IDE with a workbench shell: Header menus, Blocks toolbox,
+  Blockly workspace, Code/Types/Outline inspector, Problems/Output/Semantics
+  bottom panel, Settings, and status bar.
 - Uses Blockly 12.
 - Custom **Tude** Blockly renderer:
   - based on the same renderer family as Zelos,
@@ -43,11 +42,10 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - generated-code type comments for top-level terms,
   - native Blockly comment icons on Lambda blocks with pretty-printed type and value information.
 - Generated Lambda Calculus text code with syntax highlighting.
-- Workbench IDE shell with polished neon-glass colors.
-- Catppuccin Macchiato-inspired color system with soft, eye-catching accents.
-- Responsive application menu (icon-labelled) with grouped file, example,
-  workspace, and theme actions; when the menu text is hidden the donut menu
-  carries a **Menu** label.
+- Neutral dark and light workbench themes with a single product accent and
+  grammatical block color families.
+- Responsive header menus, panel drawers, keyboard resizers, and persisted
+  layout.
 - Searchable custom toolbox.
 - Theme-aware Blockly colors with the Tude square-corner block shape style.
 - Manual `.blc` workspace save/load plus local autosave recovery.
@@ -56,32 +54,23 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
 
 ## Workbench
 
-The IDE shell is a workbench (`src/core/ui/workbench.ts`) layered over the
-existing panel controls — it adds entry points and layout presets, not new
-language behavior.
+The workbench (`src/core/ui/workbench.ts`) organizes existing language tools
+without changing Lambda behavior.
 
-- **Activity bar + primary sidebar**: `Blocks`, `Project`, `Problems`,
-  `Run and Debug`, `Settings`. The Problems badge shows the live inference
-  issue count.
-- **Bottom panel tabs**: `problems`, `output`, `types`, `structure`, `value`,
-  `machine`, `stepper`.
-- **Perspectives**: `Edit`, `Debug`, `Type Analysis`, `Presentation`, and
-  `Custom` — presets over the sidebar/code/bottom toggles. Touching a panel by
-  hand marks the perspective `Custom` rather than lying about the preset.
-  Presentation is **F11**; leaving it restores the prior perspective.
-- **Command palette** (**Ctrl+Shift+P** or **F1**): a native `<dialog>` over the
-  command list (File / Edit / Build / View / Run / Perspective), with keyword
-  matching and arrow-key navigation.
-- **Persisted layout** (`src/core/ui/layoutState.ts`): the
-  `block-lambda-ide-layout-v2` key holds the activity, sidebar/code/bottom
-  visibility and sizes, bottom tab, and perspective. Every field is validated
-  against its allowed set on read, so a stale or malformed payload falls back to
-  `DEFAULT_IDE_LAYOUT` instead of breaking boot.
-- **Status bar**: autosave indicator and interval, block count, active file
-  name, perspective, tip text, version, theme-aware logo.
-- **Keyboard**: `Ctrl+N` new, `Ctrl+O` open, `Ctrl+S` save, `Ctrl+B` sidebar,
-  `Ctrl+Alt+C` code/inspector, `Ctrl+J` bottom panel, `Ctrl+Shift+B` refresh
-  generated output, `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo, `F11` presentation.
+- **Header**: File, Examples, Run, View, and More menus. **Settings** contains
+  theme, renderer, perspective, and autosave controls.
+- **Blocks**: searchable, categorized toolbox with click and drag insertion.
+- **Inspector**: Code, Types (including typing derivation), and Outline.
+- **Bottom panel**: Problems, Output, and Semantics. Semantics contains
+  Call-by-Structure, Call-by-Value, CEK machine, and Lockstep views.
+- **Perspectives**: Edit, Debug, Type Analysis, Presentation, and Custom.
+  Presentation is **F11** and restores the previous layout when closed.
+- **Persistence**: layout, theme, renderer, autosave interval, inspector view,
+  and active bottom view are restored defensively from browser storage.
+- **Keyboard**: `Ctrl+N` new, `Ctrl+O` open, `Ctrl+S` save, `Ctrl+B` Blocks,
+  `Ctrl+Alt+C` Code/Inspector, `Ctrl+J` bottom panel, `Ctrl+Shift+B` refresh,
+  `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo, **F1** command palette, and **F11**
+  presentation.
 
 ## Semantics & steppers
 
@@ -296,19 +285,5 @@ The recursive evaluator reduces the application to `120`.
 
 ## Notes
 
-The toolbox is implemented as a custom collapsible left panel. Clicking or dragging a block in the toolbox creates the corresponding Blockly block in the center workspace. The UI uses a neon-glass dark-first design, and the Blockly workspace uses the custom `tude` renderer so Lambda blocks keep Blockly connections while using square, text-like block geometry.
-
-## UI Design Update
-
-The IDE moved from the earlier fixed three-column shell to the **workbench**
-described above, and applies a more polished color and menu system:
-
-- Catppuccin Macchiato-inspired palette with soft violet, blue, teal, green, amber, and rose accents.
-- Cleaner icon-based application menu grouped by File, Examples, Workspace, and Theme actions.
-- Activity bar + primary sidebar (Blocks / Project / Problems / Run and Debug / Settings), replacing the always-on left column.
-- Left toolbox with search, color-coded categories, and drag/click block insertion.
-- Middle Workspace panel; the active file name now lives in the status bar rather than on the main logo.
-- Right generated-code panel with line numbers and theme-aware syntax highlighting.
-- Bottom tool panel with problems, output, types, and the reduction/machine tabs.
-- Bottom status bar with autosave indicator, user-configurable autosave interval, block count, active file name, perspective, tip text, version, and theme-aware logo.
-- Blockly now uses the custom `tude` renderer for square-corner, text-like blocks while preserving the existing Block Lambda theme colors.
+The custom Tude renderer keeps Blockly connections while using square,
+text-like Lambda block geometry. The toolbox supports click and drag insertion.

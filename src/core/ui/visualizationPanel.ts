@@ -30,8 +30,10 @@ import { TUDE_RENDERER_NAME } from '../renderer/tude';
 
 type VizKind = ReductionKind;
 /** The reduction-trace tabs, the lockstep stepper, and the CEK machine tab. */
-type UtilityKind = 'problems' | 'output' | 'types';
+type UtilityKind = 'problems' | 'output';
 type TabKind = BottomTab;
+type ActiveTabKind = Exclude<TabKind, 'types'>;
+type SemanticKind = VizKind | 'machine' | 'stepper';
 
 type VisualizationOptions = {
   lightTheme: Blockly.Theme;
@@ -49,9 +51,13 @@ interface View {
 }
 
 const KINDS: VizKind[] = ['structure', 'value'];
-const UTILITY_KINDS = new Set<TabKind>(['problems', 'output', 'types']);
+const UTILITY_KINDS = new Set<TabKind>(['problems', 'output']);
+const SEMANTIC_KINDS: SemanticKind[] = ['structure', 'value', 'machine', 'stepper'];
 function isUtilityKind(kind: TabKind): kind is UtilityKind {
-  return kind === 'problems' || kind === 'output' || kind === 'types';
+  return kind === 'problems' || kind === 'output';
+}
+function isSemanticKind(kind: TabKind): kind is SemanticKind {
+  return kind === 'structure' || kind === 'value' || kind === 'machine' || kind === 'stepper';
 }
 const TITLE: Record<VizKind, string> = {
   structure: 'Call-by-Structure',
@@ -109,7 +115,8 @@ const STEPPER_TITLE: Record<ReductionKind, string> = {
   value: 'Call-by-Value'
 };
 
-let active: TabKind = 'problems';
+let active: ActiveTabKind = 'problems';
+let activeSemantic: SemanticKind = 'machine';
 let options: VisualizationOptions | null = null;
 
 function byId<T extends HTMLElement>(id: string): T | null {
@@ -179,32 +186,40 @@ function makeWorkspaceBlocksMovable(workspace: Blockly.WorkspaceSvg): void {
 
 const TABS: TabKind[] = ['problems', 'output', 'types', 'structure', 'value', 'machine', 'stepper'];
 
-function setActive(kind: TabKind): void {
+function setActive(kind: TabKind, persist = true): void {
+  const normalized: ActiveTabKind = kind === 'types' ? 'problems' : kind;
   const wasMachine = active === 'machine';
-  active = kind;
+  active = normalized;
+  if (isSemanticKind(active)) activeSemantic = active;
   for (const candidate of TABS) {
     const host = hostOf(candidate);
     const tab = tabOf(candidate);
-    if (host) host.dataset.active = String(candidate === kind);
+    if (host) host.dataset.active = String(candidate === active);
     if (tab) {
-      tab.setAttribute('aria-selected', String(candidate === kind));
-      tab.tabIndex = candidate === kind ? 0 : -1;
+      tab.setAttribute('aria-selected', String(candidate === active));
+      tab.tabIndex = candidate === active ? 0 : -1;
     }
   }
-  if (wasMachine !== (kind === 'machine')) setCsekTabVisible(kind === 'machine');
+  const semanticsActive = isSemanticKind(active);
+  const semanticsTab = byId<HTMLButtonElement>('bottomTab-semantics');
+  const semanticsViews = byId<HTMLElement>('semanticsViews');
+  semanticsTab?.setAttribute('aria-selected', String(semanticsActive));
+  if (semanticsTab) semanticsTab.tabIndex = semanticsActive ? 0 : -1;
+  if (semanticsViews) semanticsViews.hidden = !semanticsActive;
+  if (wasMachine !== (active === 'machine')) setCsekTabVisible(active === 'machine');
   const empty = byId<HTMLDivElement>('vizEmpty');
   if (empty) {
-    if (isUtilityKind(kind) || kind === 'stepper' || kind === 'machine') empty.hidden = true;
-    else empty.hidden = !!views[kind].block && !views[kind].lastError;
+    if (isUtilityKind(active) || active === 'stepper' || active === 'machine') empty.hidden = true;
+    else empty.hidden = !!views[active].block && !views[active].lastError;
   }
-  const utility = isUtilityKind(kind);
+  const utility = isUtilityKind(active);
   const rerun = byId<HTMLButtonElement>('vizRerun');
   const arrange = byId<HTMLButtonElement>('vizArrange');
   if (rerun) rerun.hidden = utility;
-  if (arrange) arrange.hidden = utility || kind === 'machine';
-  updateIdeLayoutState({ bottomTab: kind });
+  if (arrange) arrange.hidden = utility || active === 'machine';
+  if (persist) updateIdeLayoutState({ bottomTab: active });
   updateInfo();
-  if (kind === 'stepper') resizeStepper(0);
+  if (active === 'stepper') resizeStepper(0);
   else resizeActive(0);
 }
 
@@ -219,12 +234,8 @@ function updateInfo(): void {
     info.textContent = 'Workbench and generator messages';
     return;
   }
-  if (active === 'types') {
-    info.textContent = 'Inferred top-level types';
-    return;
-  }
   if (active === 'stepper') {
-    info.textContent = stepper.frames.length ? `Lockstep · ${STEPPER_TITLE[stepper.kind]} rewriting ⇄ CEK machine` : '';
+    info.textContent = stepper.frames.length ? `Lockstep · ${STEPPER_TITLE[stepper.kind]} rewriting with the CEK machine` : '';
     return;
   }
   if (active === 'machine') {
@@ -266,7 +277,9 @@ export function setVisualizationOpen(open: boolean, persist = true): void {
   if (!panel) return;
   const visibilityChanged = panel.dataset.open !== String(open);
   panel.dataset.open = String(open);
-  byId<HTMLButtonElement>('toggleVizDock')?.setAttribute('aria-pressed', String(open));
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-panel-command="bottom"]')) {
+    button.setAttribute('aria-pressed', String(open));
+  }
   if (persist && visibilityChanged) {
     updateIdeLayoutState({ bottomVisible: open, perspective: 'custom' });
     window.dispatchEvent(new CustomEvent('block-lambda:layout-state-changed'));
@@ -551,12 +564,12 @@ function renderStepperAgree(): void {
     const machineValue = entry.machine.result ? formatMachineValue(entry.machine.result) : '—';
     const same = machineValue === stepper.finalValue;
     agree.textContent = same
-      ? `⇄ in sync — ${entry.syncCount} salient rules matched, same value`
+      ? `In sync — ${entry.syncCount} salient rules matched, same value`
       : `⚠ same rules but DIFFERENT final values (machine: ${machineValue})`;
     agree.dataset.state = same ? 'sync' : 'diverged';
     return;
   }
-  agree.textContent = `⇄ in sync — ${entry.syncCount} salient rules matched`;
+  agree.textContent = `In sync — ${entry.syncCount} salient rules matched`;
   agree.dataset.state = 'sync';
 }
 
@@ -566,12 +579,12 @@ function renderStepperStatus(): void {
   status.removeAttribute('data-state');
   if (stepper.frames.length === 0) {
     status.textContent = pickProgramBlock()
-      ? 'Press ⟲ Load to step this program.'
-      : 'Add a term to the workspace, then press ⟲ Load.';
+      ? 'Load a program to step it.'
+      : 'Add a term to the workspace, then load it.';
     return;
   }
   if (stepper.stale) {
-    status.textContent = 'Program changed — press ⟲ Load to restart.';
+    status.textContent = 'Program changed — load it again to restart.';
     status.dataset.state = 'stale';
     return;
   }
@@ -584,7 +597,7 @@ function renderStepperStatus(): void {
     return;
   }
   if (atEnd) {
-    status.textContent = `✓ value after ${total} step(s): ${stepper.finalValue}`;
+    status.textContent = `Value after ${total} step(s): ${stepper.finalValue}`;
     status.dataset.state = 'done';
     return;
   }
@@ -601,7 +614,7 @@ function renderStepperButtons(): void {
   if (step) step.disabled = !loaded || atEnd;
   if (play) {
     play.disabled = !loaded || (atEnd && stepper.playTimer === null);
-    play.textContent = stepper.playTimer === null ? '⏵' : '⏸';
+    play.querySelector('use')?.setAttribute('href', stepper.playTimer === null ? '#icon-play' : '#icon-pause');
   }
 }
 
@@ -686,6 +699,9 @@ function initResizer(): void {
     applyHeight((dock()?.getBoundingClientRect().height ?? 320) + step);
   });
 
+  // Resizing is enabled at every viewport, including the phone drawer.
+  resizer.tabIndex = 0;
+  resizer.setAttribute('aria-disabled', 'false');
   resizer.setAttribute('aria-valuemin', '180');
   resizer.setAttribute('aria-valuemax', String(Math.round(window.innerHeight * 0.72)));
   resizer.setAttribute('aria-valuenow', String(readIdeLayoutState().bottomHeight));
@@ -728,9 +744,25 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     else renderStepperFrame();
   });
   tabOf('machine')?.addEventListener('click', () => setActive('machine'));
+  byId<HTMLButtonElement>('bottomTab-semantics')?.addEventListener('click', () => setActive(activeSemantic));
   document.querySelector<HTMLElement>('.viz-tabs')?.addEventListener('keydown', (event) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
-    const tabs = TABS.map(tabOf).filter((tab): tab is HTMLElement => !!tab);
+    const tabs = [tabOf('problems'), tabOf('output'), byId<HTMLElement>('bottomTab-semantics')]
+      .filter((tab): tab is HTMLElement => !!tab);
+    const currentIndex = tabs.indexOf(document.activeElement as HTMLElement);
+    if (currentIndex < 0) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tabs.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[nextIndex].focus();
+    tabs[nextIndex].click();
+  });
+  document.querySelector<HTMLElement>('.semantics-tabs')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+    const tabs = SEMANTIC_KINDS.map(tabOf).filter((tab): tab is HTMLElement => !!tab);
     const currentIndex = tabs.indexOf(document.activeElement as HTMLElement);
     if (currentIndex < 0) return;
     event.preventDefault();
@@ -770,7 +802,6 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     Blockly.svgResize(view.workspace);
   });
   byId<HTMLButtonElement>('vizCollapse')?.addEventListener('click', () => setVisualizationOpen(false));
-  byId<HTMLButtonElement>('toggleVizDock')?.addEventListener('click', () => setVisualizationOpen(!isVisualizationOpen()));
   byId<HTMLButtonElement>('vizMaximize')?.addEventListener('click', () => {
     const panel = dock();
     if (!panel) return;
@@ -789,7 +820,8 @@ export function initVisualizationPanel(initOptions: VisualizationOptions): void 
     if (isVisualizationOpen()) resizeActive(80);
   });
   initCsekPanel(() => options?.getMainWorkspace?.() ?? null);
-  setActive(storedLayout.bottomTab);
+  if (isSemanticKind(storedLayout.bottomTab)) activeSemantic = storedLayout.bottomTab;
+  setActive(storedLayout.bottomTab, false);
   setVisualizationOpen(storedLayout.bottomVisible, false);
   renderStepperButtons();
 }

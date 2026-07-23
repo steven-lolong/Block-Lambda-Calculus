@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import { isValidLambdaName } from '../parser/lambdaTextParser';
+import { getLambdaBlockStyle } from '../renderer/theme';
 
 // Restrict names to identifiers the Lambda text parser can read back,
 // so every block program stays convertible to text and back.
@@ -19,7 +20,7 @@ export function registerLambdaBlocks(): void {
         .appendField('bound')
         .appendField(nameField('x'), 'NAME');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_term');
+      this.setStyle(getLambdaBlockStyle('lambda_variable'));
       this.setTooltip('A lambda-calculus variable. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -35,7 +36,7 @@ export function registerLambdaBlocks(): void {
         .setCheck('LambdaTerm')
         .appendField('body');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_binding');
+      this.setStyle(getLambdaBlockStyle('lambda_abstraction'));
       this.setTooltip('Lambda abstraction: λx. body. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -53,7 +54,7 @@ export function registerLambdaBlocks(): void {
         .appendField('over');
       this.setOutput(true, 'LambdaTerm');
       this.setInputsInline(false);
-      this.setStyle('lambda_term');
+      this.setStyle(getLambdaBlockStyle('lambda_application'));
       this.setTooltip('Function application: f x. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -65,7 +66,7 @@ export function registerLambdaBlocks(): void {
         .setCheck('LambdaTerm')
         .appendField('grouping');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_grouping');
+      this.setStyle(getLambdaBlockStyle('lambda_parentheses'));
       this.setTooltip('Explicit grouping for a lambda term. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -83,7 +84,7 @@ export function registerLambdaBlocks(): void {
         .setCheck('LambdaTerm')
         .appendField('in');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_binding');
+      this.setStyle(getLambdaBlockStyle('lambda_let'));
       this.setTooltip('Let binding: let id = value in body. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -101,7 +102,7 @@ export function registerLambdaBlocks(): void {
         .setCheck('LambdaTerm')
         .appendField('in');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_binding');
+      this.setStyle(getLambdaBlockStyle('lambda_letrec'));
       this.setTooltip('Recursive let binding: letrec f = value in body. Use it for recursive functions such as factorial.');
       this.setHelpUrl('');
     }
@@ -113,7 +114,7 @@ export function registerLambdaBlocks(): void {
         .appendField('number')
         .appendField(new Blockly.FieldNumber(0), 'VALUE');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_literal');
+      this.setStyle(getLambdaBlockStyle('lambda_number'));
       this.setTooltip('A numeric literal for examples and encodings. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -128,7 +129,7 @@ export function registerLambdaBlocks(): void {
           ['false', 'false']
         ]), 'VALUE');
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_literal');
+      this.setStyle(getLambdaBlockStyle('lambda_boolean'));
       this.setTooltip('A boolean literal for examples and encodings. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -151,7 +152,7 @@ export function registerLambdaBlocks(): void {
         .appendField('number');
       this.setInputsInline(true);
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_operator');
+      this.setStyle(getLambdaBlockStyle('lambda_number_operator'));
       this.setTooltip('Numeric operator: left op right. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -175,7 +176,7 @@ export function registerLambdaBlocks(): void {
         .appendField('number');
       this.setInputsInline(true);
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_operator');
+      this.setStyle(getLambdaBlockStyle('lambda_number_comparison'));
       this.setTooltip('Numeric comparison: left =/</≤/>/≥ right, yielding a boolean. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -197,7 +198,7 @@ export function registerLambdaBlocks(): void {
         .appendField('boolean');
       this.setInputsInline(true);
       this.setOutput(true, 'LambdaTerm');
-      this.setStyle('lambda_operator');
+      this.setStyle(getLambdaBlockStyle('lambda_boolean_operator'));
       this.setTooltip('Boolean operator: left and/or/equal right (booleans only). Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -218,7 +219,7 @@ export function registerLambdaBlocks(): void {
         .appendField('else');
       this.setOutput(true, 'LambdaTerm');
       this.setInputsInline(false);
-      this.setStyle('lambda_control');
+      this.setStyle(getLambdaBlockStyle('lambda_if'));
       this.setTooltip('Conditional expression: if condition then true-branch else false-branch. Open the Blockly comment icon to see the inferred type and value.');
       this.setHelpUrl('');
     }
@@ -228,7 +229,7 @@ export function registerLambdaBlocks(): void {
     init: function () {
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput('Reduction step'), 'TEXT');
-      this.setStyle('lambda_meta');
+      this.setStyle(getLambdaBlockStyle('lambda_viz_description'));
       this.setTooltip('Reduction visualization label.');
       this.setHelpUrl('');
     }

@@ -67,19 +67,6 @@ function ensureFallbackContextMenu(): HTMLDivElement {
   fallbackMenu.className = 'block-lambda-context-menu';
   fallbackMenu.hidden = true;
   fallbackMenu.setAttribute('role', 'menu');
-  Object.assign(fallbackMenu.style, {
-    position: 'fixed',
-    left: '0px',
-    top: '0px',
-    zIndex: '100000',
-    minWidth: '230px',
-    padding: '4px',
-    border: '1px solid var(--ide-border-strong)',
-    borderRadius: 'var(--radius-overlay)',
-    background: 'var(--ide-surface-raised)',
-    boxShadow: 'var(--overlay-shadow)',
-    backdropFilter: 'none'
-  });
   document.body.appendChild(fallbackMenu);
 
   document.addEventListener('pointerdown', (event) => {
@@ -109,25 +96,6 @@ function appendFallbackMenuButton(
   item.className = 'block-lambda-context-menu-item';
   item.setAttribute('role', 'menuitem');
   item.textContent = label;
-  Object.assign(item.style, {
-    display: 'block',
-    width: '100%',
-    padding: '7px 8px',
-    color: 'var(--ide-text)',
-    border: '0',
-    borderRadius: 'var(--radius-control)',
-    background: 'transparent',
-    cursor: 'pointer',
-    font: '500 12px var(--font-ui)',
-    textAlign: 'left',
-    whiteSpace: 'nowrap'
-  });
-  item.addEventListener('pointerenter', () => {
-    item.style.background = 'var(--ide-active-bg)';
-  });
-  item.addEventListener('pointerleave', () => {
-    item.style.background = 'transparent';
-  });
   item.addEventListener('click', () => {
     hideFallbackContextMenu();
     runContextAction(action, block);
