@@ -9,7 +9,7 @@ export interface BlockOrder {
 
 type TermBase = { sourceId?: string; sourceAliases?: string[] };
 
-type Term = TermBase & (
+export type Term = TermBase & (
   | { kind: 'var'; name: string }
   | { kind: 'abs'; param: string; body: Term }
   | { kind: 'app'; func: Term; arg: Term }
@@ -91,7 +91,9 @@ function isLambdaTermBlock(block: Blockly.Block): boolean {
   return Boolean(block.outputConnection) && block.type.startsWith('lambda_') && block.type !== 'lambda_viz_description';
 }
 
-function blockToTerm(block: Blockly.Block | null): Term {
+/** Block tree -> Term, with block provenance. Shared entry point for the
+ *  substitution stepper and the ir/ desugar pass (../ir/desugar.ts). */
+export function blockToTerm(block: Blockly.Block | null): Term {
   if (!block) return { kind: 'hole', label: '□' };
   const sourceId = block.id;
   switch (block.type) {

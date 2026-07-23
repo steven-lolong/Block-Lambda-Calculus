@@ -219,6 +219,9 @@
             <button id="codeTargetOutline" class="code-tab" type="button" role="tab" data-code-target="outline" aria-controls="outlinePane" aria-selected="false">
               <span class="code-tab-label">Outline</span>
             </button>
+            <button id="codeTargetLowering" class="code-tab" type="button" role="tab" data-code-target="lowering" aria-controls="loweringPane" aria-selected="false">
+              <span class="code-tab-label">Lowering</span>
+            </button>
           </div>
           <div id="lambdaEditorPane" class="lambda-editor-pane" role="tabpanel" aria-labelledby="codeTargetCode">
             <div class="lambda-editor-stack">
@@ -258,6 +261,19 @@
             <div class="outline-toolbar"><span>Program structure</span></div>
             <div id="programOutline" class="program-outline" role="tree" aria-label="Lambda program block outline"></div>
           </div>
+          <section id="loweringPane" class="lowering-pane" role="tabpanel" aria-labelledby="codeTargetLowering" hidden>
+            <div class="lowering-toolbar">
+              <div class="type-tabs" role="tablist" aria-label="Lowering stages">
+                <button id="loweringStageCore" class="type-tab" type="button" role="tab" data-lowering-stage="core" aria-controls="loweringOutput" aria-selected="true">Core</button>
+                <button id="loweringStageAnf" class="type-tab" type="button" role="tab" data-lowering-stage="anf" aria-controls="loweringOutput" aria-selected="false">ANF</button>
+              </div>
+              <div class="lowering-strategy" role="group" aria-label="Evaluation strategy for ANF">
+                <button id="loweringStrategyStructure" class="small-button lowering-strategy-button is-active" type="button" data-lowering-strategy="structure" title="Normalize under Call-by-Structure">CbS</button>
+                <button id="loweringStrategyValue" class="small-button lowering-strategy-button" type="button" data-lowering-strategy="value" title="Normalize under Call-by-Value">CbV</button>
+              </div>
+            </div>
+            <div id="loweringOutput" class="code-output lowering-output" role="tabpanel" aria-labelledby="loweringStageCore">-- Lowering output appears here</div>
+          </section>
         </aside>
       </main>
 
