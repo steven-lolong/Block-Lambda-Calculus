@@ -8,6 +8,8 @@
  */
 import type { CoreTerm } from './core';
 import type { AnfAtom, AnfBinding, AnfComp, AnfExpr, AnfProgram } from './anf';
+import type { ClosAtom, ClosBinding, ClosCode, ClosComp, ClosExpr, ClosProgram } from './clos';
+import type { FirAtom, FirBinding, FirComp, FirExpr, FirFunc, FirProgram } from './fir';
 import type { IRType } from './types';
 
 export interface IRFormalization {
@@ -31,9 +33,9 @@ function escapeHtml(value: string): string {
  * the Types tab's instead of exposing raw inference ids. Stateful, so one is
  * created per top-level pretty-print call.
  */
-type TypeFormatter = (type: IRType) => string;
+export type TypeFormatter = (type: IRType) => string;
 
-function makeTypeFormatter(): TypeFormatter {
+export function makeTypeFormatter(): TypeFormatter {
   const names = new Map<number, string>();
   const nameOf = (id: number): string => {
     const existing = names.get(id);
@@ -54,6 +56,18 @@ function makeTypeFormatter(): TypeFormatter {
       case 'tfun': {
         const from = type.from.kind === 'tfun' ? `(${format(type.from)})` : format(type.from);
         return `${from} -> ${format(type.to)}`;
+      }
+      case 'tprod':
+        return `⟨${type.items.map(format).join(', ')}⟩`;
+      case 'tcode':
+        return `(${format(type.env)}, ${format(type.param)}) -> ${format(type.result)}`;
+      case 'texists':
+        return `∃'g. ${format(type.body)}`;
+      case 'tclos': {
+        const from = type.from.kind === 'tfun' || type.from.kind === 'tclos'
+          ? `(${format(type.from)})`
+          : format(type.from);
+        return `${from} ⇒ ${format(type.to)}`;
       }
     }
   };
@@ -208,6 +222,147 @@ export function prettyPrintAnfProgram(prog: AnfProgram): IRFormalization {
   const header = `-- Strategy: ${prog.strategy}\n`;
   const body = anfExprText(prog.body);
   const text = header + body;
+  const html = `<code class="ir-listing">${escapeHtml(text)}</code>`;
+  return { html, text };
+}
+
+/* ============================================================================
+   Closure IR pretty-printer
+   ============================================================================ */
+
+function closAtomText(atom: ClosAtom): string {
+  switch (atom.kind) {
+    case 'var':
+      return atom.name;
+    case 'num':
+      return String(atom.value);
+    case 'bool':
+      return atom.value ? 'true' : 'false';
+    case 'proj':
+      return `proj(${atom.env}, ${atom.index})`;
+    case 'force':
+      return `force ${atom.name}`;
+    case 'hole':
+      return '□';
+    case 'clos':
+      return `clos(${closCodeText(atom.code)}, ⟨${atom.env.map(closAtomText).join(', ')}⟩)`;
+  }
+}
+
+function closCodeText(code: ClosCode): string {
+  return `λ(${code.envParam}, ${code.param}). ${closExprText(code.body)}`;
+}
+
+function closCompText(comp: ClosComp): string {
+  switch (comp.kind) {
+    case 'callclos':
+      return `callclos(${closAtomText(comp.clos)}, ${closAtomText(comp.arg)})`;
+    case 'prim':
+      return `(${closAtomText(comp.left)} ${comp.op} ${closAtomText(comp.right)})`;
+    case 'if':
+      return `if ${closAtomText(comp.cond)} then ${closExprText(comp.then)} else ${closExprText(comp.else)}`;
+  }
+}
+
+function closBindingText(binding: ClosBinding): string {
+  switch (binding.kind) {
+    case 'atom':
+      return closAtomText(binding.atom);
+    case 'comp':
+      return closCompText(binding.comp);
+    case 'susp':
+      return `thunk{ ${closExprText(binding.body)} }`;
+  }
+}
+
+function closExprText(expr: ClosExpr): string {
+  switch (expr.kind) {
+    case 'ret':
+      return closAtomText(expr.atom);
+    case 'tail':
+      return closCompText(expr.comp);
+    case 'let':
+      return `let ${expr.name} = ${closBindingText(expr.rhs)} in ${closExprText(expr.body)}`;
+    case 'letrec':
+      return `letrec ${expr.name} = ${closBindingText(expr.rhs)} in ${closExprText(expr.body)}`;
+  }
+}
+
+export function prettyPrintClosProgram(prog: ClosProgram): IRFormalization {
+  const header = `-- Strategy: ${prog.strategy}\n`;
+  const body = closExprText(prog.body);
+  const text = header + body;
+  const html = `<code class="ir-listing">${escapeHtml(text)}</code>`;
+  return { html, text };
+}
+
+/* ============================================================================
+   First-order IR pretty-printer
+   ============================================================================ */
+
+function firAtomText(atom: FirAtom): string {
+  switch (atom.kind) {
+    case 'var':
+      return atom.name;
+    case 'num':
+      return String(atom.value);
+    case 'bool':
+      return atom.value ? 'true' : 'false';
+    case 'proj':
+      return `proj(${atom.env}, ${atom.index})`;
+    case 'force':
+      return `force ${atom.name}`;
+    case 'hole':
+      return '□';
+    case 'clos':
+      return `clos(${atom.code}, ⟨${atom.env.map(firAtomText).join(', ')}⟩)`;
+  }
+}
+
+function firCompText(comp: FirComp): string {
+  switch (comp.kind) {
+    case 'callclos':
+      return `callclos(${firAtomText(comp.clos)}, ${firAtomText(comp.arg)})`;
+    case 'prim':
+      return `(${firAtomText(comp.left)} ${comp.op} ${firAtomText(comp.right)})`;
+    case 'if':
+      return `if ${firAtomText(comp.cond)} then ${firExprText(comp.then)} else ${firExprText(comp.else)}`;
+  }
+}
+
+function firBindingText(binding: FirBinding): string {
+  switch (binding.kind) {
+    case 'atom':
+      return firAtomText(binding.atom);
+    case 'comp':
+      return firCompText(binding.comp);
+    case 'susp':
+      return `thunk{ ${firExprText(binding.body)} }`;
+  }
+}
+
+function firExprText(expr: FirExpr): string {
+  switch (expr.kind) {
+    case 'ret':
+      return firAtomText(expr.atom);
+    case 'tail':
+      return firCompText(expr.comp);
+    case 'let':
+      return `let ${expr.name} = ${firBindingText(expr.rhs)} in ${firExprText(expr.body)}`;
+    case 'letrec':
+      return `letrec ${expr.name} = ${firBindingText(expr.rhs)} in ${firExprText(expr.body)}`;
+  }
+}
+
+function firFuncText(func: FirFunc): string {
+  return `${func.label}(${func.envParam}, ${func.param}) =\n  ${firExprText(func.body)}`;
+}
+
+export function prettyPrintFirProgram(prog: FirProgram): IRFormalization {
+  const header = `-- Strategy: ${prog.strategy}\n`;
+  const functionsText = prog.functions.map(firFuncText).join('\n\n');
+  const mainText = `main =\n  ${firExprText(prog.main)}`;
+  const text = header + (functionsText ? `${functionsText}\n\n` : '') + mainText;
   const html = `<code class="ir-listing">${escapeHtml(text)}</code>`;
   return { html, text };
 }
