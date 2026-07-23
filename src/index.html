@@ -266,8 +266,10 @@
               <div class="type-tabs" role="tablist" aria-label="Lowering stages">
                 <button id="loweringStageCore" class="type-tab" type="button" role="tab" data-lowering-stage="core" aria-controls="loweringOutput" aria-selected="true">Core</button>
                 <button id="loweringStageAnf" class="type-tab" type="button" role="tab" data-lowering-stage="anf" aria-controls="loweringOutput" aria-selected="false">ANF</button>
+                <button id="loweringStageClos" class="type-tab" type="button" role="tab" data-lowering-stage="clos" aria-controls="loweringOutput" aria-selected="false">Closures</button>
+                <button id="loweringStageFir" class="type-tab" type="button" role="tab" data-lowering-stage="fir" aria-controls="loweringOutput" aria-selected="false">First-order</button>
               </div>
-              <div class="lowering-strategy" role="group" aria-label="Evaluation strategy for ANF">
+              <div class="lowering-strategy" role="group" aria-label="Evaluation strategy">
                 <button id="loweringStrategyStructure" class="small-button lowering-strategy-button is-active" type="button" data-lowering-strategy="structure" title="Normalize under Call-by-Structure">CbS</button>
                 <button id="loweringStrategyValue" class="small-button lowering-strategy-button" type="button" data-lowering-strategy="value" title="Normalize under Call-by-Value">CbV</button>
               </div>

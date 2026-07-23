@@ -829,6 +829,29 @@ html[data-theme='dark'] .theme-icon-dark { display: block; }
 .lowering-strategy { display: inline-flex; gap: 1px; margin: 0 8px; padding: 2px; border: 1px solid var(--border-default); border-radius: var(--radius-control); }
 .lowering-strategy-button.is-active { color: var(--accent-primary-hover); background: var(--surface-selection); }
 .lowering-output { min-width: 0; min-height: 0; }
+
+/* Closures tab (capture-map cards) --------------------------------------- */
+.lowering-output.is-cards { white-space: normal; color: var(--text-primary); font-family: var(--font-ui); font-size: var(--font-size-md); }
+.closures-summary { margin-bottom: 10px; color: var(--text-secondary); font-size: var(--font-size-sm); }
+.closures-empty { padding: 18px 0; color: var(--text-secondary); font-size: var(--font-size-md); font-style: italic; }
+.closure-card-list { display: flex; flex-direction: column; gap: 10px; }
+.closure-card { padding: 9px 11px; border: 1px solid var(--border-default); border-radius: var(--radius-control); background: var(--surface-panel); }
+.closure-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); margin-bottom: 7px; }
+.closure-card-title { color: var(--text-primary); font-weight: var(--font-weight-semibold); }
+.closure-card-type { min-width: 0; overflow: hidden; color: var(--state-info); font-family: var(--font-mono); font-size: var(--font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.closure-card-jump { margin-left: auto; padding: 0 8px; color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-control); background: transparent; cursor: pointer; font-size: var(--font-size-xs); }
+.closure-card-jump:hover, .closure-card-jump:focus-visible { color: var(--accent-primary-hover); background: var(--surface-hover); }
+.closure-card-captures { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--space-4); }
+.closure-card-captures-label { padding-top: 3px; color: var(--text-secondary); font-size: var(--font-size-sm); }
+.closure-closed-badge { padding: 3px 0; color: var(--text-muted); font-size: var(--font-size-sm); font-style: italic; }
+.capture-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.capture-chip { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 8px; color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 999px; background: var(--surface-code); cursor: pointer; font-family: var(--font-mono); font-size: var(--font-size-xs); }
+.capture-chip:hover, .capture-chip:focus-visible { border-color: var(--accent-primary); background: var(--surface-selection); outline: none; }
+.capture-chip:disabled { cursor: default; opacity: .6; }
+.capture-chip-name { color: var(--accent-primary-hover); font-weight: var(--font-weight-semibold); }
+.capture-chip-type { color: var(--state-info); }
+.capture-chip-uses { color: var(--text-muted); }
+.closure-card:hover, .closure-card:focus-within { border-color: var(--accent-primary); }
 .formal-root + .formal-root { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-default); }
 .formal-root h3 { margin: 0 0 9px; color: var(--text-secondary); font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); line-height: var(--line-height-normal); }
 .formal-premises { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 9px; margin-bottom: 6px; }

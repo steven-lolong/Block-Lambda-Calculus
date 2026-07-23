@@ -12,7 +12,17 @@ import { annotateLambdaWorkspaceTypes, type LambdaInferenceReport } from '../../
 import { installLambdaInferenceDriver, runLambdaInferenceToFixpoint } from '../../core/type-inference/inferenceDriver';
 import { blockToTerm } from '../../core/semantics/lambdaReduction';
 import { pickProgramBlock } from '../../core/machine/csekMachine';
-import { desugar, makeTypeLookup, prettyPrintCore, prettyPrintAnfProgram, toAnfProgram } from '../../core/ir';
+import {
+  desugar,
+  makeTypeLookup,
+  prettyPrintCore,
+  prettyPrintAnfProgram,
+  prettyPrintFirProgram,
+  toAnfProgram,
+  closureConvert,
+  toFir
+} from '../../core/ir';
+import { initClosuresPanel, renderClosureCardsInto, clearClosuresHighlight } from '../../core/ui/closuresPanel';
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { applyLambdaGrammarCssTokens, darkTheme, lightTheme } from '../../core/renderer/theme';
@@ -40,7 +50,7 @@ const THRASOS_RENDERER_NAME = 'thrasos';
 
 type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME | typeof THRASOS_RENDERER_NAME;
 type InspectorTarget = 'code' | 'formal' | 'inspector' | 'outline' | 'lowering';
-type LoweringStage = 'core' | 'anf';
+type LoweringStage = 'core' | 'anf' | 'clos' | 'fir';
 type LoweringStrategy = 'structure' | 'value';
 
 function requireElement<T extends HTMLElement>(id: string): T {
@@ -92,7 +102,7 @@ function persistInspectorTarget(target: InspectorTarget): void {
 }
 
 function isLoweringStage(value: string | null): value is LoweringStage {
-  return value === 'core' || value === 'anf';
+  return value === 'core' || value === 'anf' || value === 'clos' || value === 'fir';
 }
 
 function readLoweringStage(): LoweringStage {
@@ -182,6 +192,9 @@ const loweringPane = requireElement<HTMLElement>('loweringPane');
 const loweringOutput = requireElement<HTMLElement>('loweringOutput');
 const loweringStageCore = requireElement<HTMLButtonElement>('loweringStageCore');
 const loweringStageAnf = requireElement<HTMLButtonElement>('loweringStageAnf');
+const loweringStageClos = requireElement<HTMLButtonElement>('loweringStageClos');
+const loweringStageFir = requireElement<HTMLButtonElement>('loweringStageFir');
+const loweringStageButtons = [loweringStageCore, loweringStageAnf, loweringStageClos, loweringStageFir];
 const loweringStrategyStructure = requireElement<HTMLButtonElement>('loweringStrategyStructure');
 const loweringStrategyValue = requireElement<HTMLButtonElement>('loweringStrategyValue');
 const printDerivationButton = requireElement<HTMLButtonElement>('printDerivation');
@@ -451,18 +464,19 @@ function renderCodeTargetTabs(): void {
 }
 
 function renderLoweringToolbar(): void {
-  const showingCore = activeLoweringStage === 'core';
-  loweringStageCore.setAttribute('aria-selected', String(showingCore));
-  loweringStageCore.tabIndex = showingCore ? 0 : -1;
-  loweringStageAnf.setAttribute('aria-selected', String(!showingCore));
-  loweringStageAnf.tabIndex = showingCore ? -1 : 0;
+  for (const button of loweringStageButtons) {
+    const selected = button.dataset.loweringStage === activeLoweringStage;
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  }
 
   const usingStructure = activeLoweringStrategy === 'structure';
   loweringStrategyStructure.classList.toggle('is-active', usingStructure);
   loweringStrategyStructure.setAttribute('aria-pressed', String(usingStructure));
   loweringStrategyValue.classList.toggle('is-active', !usingStructure);
   loweringStrategyValue.setAttribute('aria-pressed', String(!usingStructure));
-  // The strategy only affects the ANF pane — Core has no evaluation order yet.
+  // The strategy affects every stage but Core, which has no evaluation order yet.
+  const showingCore = activeLoweringStage === 'core';
   loweringStrategyStructure.disabled = showingCore;
   loweringStrategyValue.disabled = showingCore;
 }
@@ -471,6 +485,8 @@ function renderLoweringToolbar(): void {
 // desugarWorkspace, which would rerun Hindley-Milner inference a second time.
 function renderLowering(report: LambdaInferenceReport): void {
   renderLoweringToolbar();
+  loweringOutput.classList.remove('is-cards');
+  clearClosuresHighlight();
 
   if (workspace.getAllBlocks(false).length === 0) {
     loweringOutput.textContent = 'The workspace has no blocks.';
@@ -479,10 +495,26 @@ function renderLowering(report: LambdaInferenceReport): void {
 
   try {
     const core = desugar(blockToTerm(pickProgramBlock(workspace)), makeTypeLookup(report));
-    const formalization = activeLoweringStage === 'core'
-      ? prettyPrintCore(core)
-      : prettyPrintAnfProgram(toAnfProgram(core, activeLoweringStrategy));
-    loweringOutput.innerHTML = formalization.html;
+
+    if (activeLoweringStage === 'core') {
+      loweringOutput.innerHTML = prettyPrintCore(core).html;
+      return;
+    }
+
+    const anf = toAnfProgram(core, activeLoweringStrategy);
+    if (activeLoweringStage === 'anf') {
+      loweringOutput.innerHTML = prettyPrintAnfProgram(anf).html;
+      return;
+    }
+
+    const clos = closureConvert(anf);
+    if (activeLoweringStage === 'clos') {
+      loweringOutput.classList.add('is-cards');
+      renderClosureCardsInto(loweringOutput, clos);
+      return;
+    }
+
+    loweringOutput.innerHTML = prettyPrintFirProgram(toFir(anf)).html;
   } catch (error) {
     loweringOutput.textContent = `Could not lower the program: ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -1176,16 +1208,15 @@ for (const button of codeTargetButtons) {
 
 typeTargetOverview.addEventListener('click', () => activateCodeTarget('inspector'));
 
-loweringStageCore.addEventListener('click', () => {
-  activeLoweringStage = 'core';
-  persistLoweringStage(activeLoweringStage);
-  renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
-});
-loweringStageAnf.addEventListener('click', () => {
-  activeLoweringStage = 'anf';
-  persistLoweringStage(activeLoweringStage);
-  renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
-});
+for (const button of loweringStageButtons) {
+  button.addEventListener('click', () => {
+    const stage = button.dataset.loweringStage ?? null;
+    if (!isLoweringStage(stage)) return;
+    activeLoweringStage = stage;
+    persistLoweringStage(activeLoweringStage);
+    renderLowering(lastTypeReport ?? annotateLambdaWorkspaceTypes(workspace));
+  });
+}
 loweringStrategyStructure.addEventListener('click', () => {
   activeLoweringStrategy = 'structure';
   persistLoweringStrategy(activeLoweringStrategy);
@@ -1228,17 +1259,16 @@ document.querySelector<HTMLElement>('.type-tabs')?.addEventListener('keydown', (
 
 document.querySelector<HTMLElement>('.lowering-toolbar .type-tabs')?.addEventListener('keydown', (event) => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
-  const buttons = [loweringStageCore, loweringStageAnf];
-  const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  const currentIndex = loweringStageButtons.indexOf(document.activeElement as HTMLButtonElement);
   if (currentIndex < 0) return;
   event.preventDefault();
   const nextIndex = event.key === 'Home'
     ? 0
     : event.key === 'End'
-      ? buttons.length - 1
-      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
-  buttons[nextIndex].focus();
-  buttons[nextIndex].click();
+      ? loweringStageButtons.length - 1
+      : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + loweringStageButtons.length) % loweringStageButtons.length;
+  loweringStageButtons[nextIndex].focus();
+  loweringStageButtons[nextIndex].click();
 });
 
 printDerivationButton.addEventListener('click', printDerivation);
@@ -1259,6 +1289,7 @@ autosaveInterval.addEventListener('input', () => {
 
 installCurrentWorkspaceInferenceDriver();
 installCurrentWorkspaceInspector();
+initClosuresPanel(() => workspace);
 
 window.addEventListener('block-lambda:refresh-code', () => {
   const report = runLambdaInferenceToFixpoint(workspace, 'external-refresh');
