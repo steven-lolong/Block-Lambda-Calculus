@@ -228,13 +228,19 @@ kbd {
   pointer-events: none;
 }
 
+/*
+ * Positive selector, not `svg:not(.blocklySvg, .icon-sprite)`: Blockly injects
+ * its own scrollbar (and other chrome) as separate top-level `<svg>` elements
+ * that are siblings of `.blocklySvg`, not descendants of it, so the negative
+ * form matched them too — giving the scrollbar an unwanted `currentColor`
+ * stroke ("border") that tracked text colour instead of the theme's
+ * scrollbar colour. Every actual app icon carries `.app-icon` explicitly
+ * (see toolbox.ts's createIcon()), so scope to that instead.
+ */
 .app-icon {
   width: var(--icon-size-md);
   height: var(--icon-size-md);
   flex: 0 0 auto;
-}
-
-svg:not(.blocklySvg, .icon-sprite) {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;

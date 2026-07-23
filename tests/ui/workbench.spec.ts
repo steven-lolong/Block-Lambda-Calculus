@@ -220,6 +220,20 @@ async function blocklyGridStroke(page: import('@playwright/test').Page): Promise
   });
 }
 
+test('the Blockly scrollbar has no stray border from the global icon-stroke rule', async ({ page }) => {
+  // Blockly injects its scrollbars as top-level <svg> siblings of .blocklySvg,
+  // not descendants of it, so a `svg:not(.blocklySvg, ...)` selector used to
+  // catch them too and paint an unwanted `currentColor` stroke ("border")
+  // that tracked text colour instead of the theme's scrollbar colour.
+  const strokes = await page.evaluate(() => Array.from(document.querySelectorAll('[class*="Scrollbar"]'))
+    .map((el) => getComputedStyle(el).stroke));
+  expect(strokes.length).toBeGreaterThan(0);
+  expect(strokes.every((stroke) => stroke === 'none')).toBe(true);
+
+  // App icons must still get their intended themed stroke.
+  await expect(page.locator('#workspaceUndo svg.app-icon')).toHaveCSS('stroke', /rgb/);
+});
+
 test('the Blockly workspace grid colour follows the theme toggle instead of staying fixed at injection time', async ({ page }) => {
   await setTheme(page, 'dark');
   const darkGrid = await blocklyGridStroke(page);
