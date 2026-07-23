@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { registerIdeLayoutResizeListener } from './layout';
+import { IDE_WORKSPACE_GRID_COLOUR, registerIdeLayoutResizeListener } from './layout';
 import { readIdeLayoutState, updateIdeLayoutState, type BottomTab } from './layoutState';
 import {
   arrangeBlocksVertically,
@@ -156,7 +156,12 @@ function injectInto(host: HTMLElement): Blockly.WorkspaceSvg {
     theme: currentTheme(),
     trashcan: false,
     comments: true,
-    grid: { spacing: 20, length: 3, snap: true },
+    grid: {
+      spacing: 20,
+      length: 3,
+      colour: IDE_WORKSPACE_GRID_COLOUR[document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'],
+      snap: true
+    },
     // Same wheel behavior as the main workspace: with BOTH wheels enabled,
     // Blockly scrolls on plain wheel and zooms on ctrl+wheel.
     move: { scrollbars: { horizontal: true, vertical: true }, drag: true, wheel: true },

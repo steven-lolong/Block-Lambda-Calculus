@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { cssLength, layoutStorageKey, loadWorkbench, openBottomTab, openInspectorView, openSettings, toggleBottomPanel } from './workbenchTestUtils';
+import { cssLength, layoutStorageKey, loadWorkbench, openBottomTab, openInspectorView, openSettings, setTheme, toggleBottomPanel } from './workbenchTestUtils';
 
 test.beforeEach(async ({ page }) => {
   await loadWorkbench(page);
@@ -208,6 +208,60 @@ test('the header theme toggle switches theme and reflects state', async ({ page 
 
   await page.locator('#themeToggleButton').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', initialTheme ?? 'dark');
+});
+
+async function blocklyGridStroke(page: import('@playwright/test').Page): Promise<string | null | undefined> {
+  return page.evaluate(() => {
+    const bgRect = document.querySelector('.blocklyMainBackground');
+    const fill = bgRect ? getComputedStyle(bgRect).fill : null;
+    const match = fill?.match(/url\("?#([^)"]+)"?\)/);
+    const pattern = match && document.getElementById(match[1]);
+    return pattern?.querySelector('line')?.getAttribute('stroke');
+  });
+}
+
+test('the Blockly workspace grid colour follows the theme toggle instead of staying fixed at injection time', async ({ page }) => {
+  await setTheme(page, 'dark');
+  const darkGrid = await blocklyGridStroke(page);
+  await setTheme(page, 'light');
+  const lightGrid = await blocklyGridStroke(page);
+  expect(lightGrid).not.toBe(darkGrid);
+  await setTheme(page, 'dark');
+  expect(await blocklyGridStroke(page)).toBe(darkGrid);
+});
+
+test('a dragged block keeps its intended label and field colours (not Blockly defaults)', async ({ page }) => {
+  const block = page.locator('#blocklyDiv .blocklyDraggable').first();
+  const box = await block.boundingBox();
+  if (!box) throw new Error('Expected a block in the rendered workspace.');
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 150, box.y + 100, { steps: 10 });
+
+  // Blockly moves the dragged block into a separate `.blocklyBlockDragSurface`
+  // SVG (not a descendant of `.blocklySvg`), so the field-text colour rules
+  // must be duplicated for that surface or the label reverts to Blockly's
+  // default grey-blue for the duration of the drag.
+  const fieldTextFill = await page.evaluate(() => {
+    const dragging = document.querySelector('.blocklyDragging');
+    const input = dragging?.querySelector('.blocklyEditableText .blocklyText, .blocklyInputField .blocklyText');
+    return input ? getComputedStyle(input).fill : null;
+  });
+  expect(fieldTextFill).toBe('rgb(17, 19, 24)');
+
+  await page.mouse.up();
+});
+
+test('the bottom panel spans the full shell width, flush with the activity bar', async ({ page }) => {
+  await toggleBottomPanel(page);
+  await expect(page.locator('#vizDock')).toHaveAttribute('data-open', 'true');
+  const rects = await page.evaluate(() => ({
+    activityBar: document.querySelector('.activity-bar')?.getBoundingClientRect(),
+    vizDock: document.querySelector('#vizDock')?.getBoundingClientRect()
+  }));
+  expect(rects.vizDock?.left).toBe(0);
+  expect(rects.vizDock?.left).toBe(rects.activityBar?.left);
 });
 
 test('the header Renderer menu switches the Blockly renderer', async ({ page }) => {

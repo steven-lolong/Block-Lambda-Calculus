@@ -30,6 +30,14 @@ export type PanelController = {
 };
 
 const THEME_STORAGE_KEY = 'block-lambda-theme-mode';
+// Blockly's grid pattern colour is a workspace-injection option, not something
+// `workspace.setTheme()` touches — so without re-applying it explicitly here,
+// every workspace's grid dots stay stuck at whatever theme was active when
+// that workspace was first injected, ignoring later day/night toggles.
+export const IDE_WORKSPACE_GRID_COLOUR: Record<IdeThemeMode, string> = {
+  light: '#c8cfd8',
+  dark: '#3b424d'
+};
 const CODE_PANEL_MIN_WIDTH = 320;
 const CODE_PANEL_MAX_WIDTH = 760;
 const WORKSPACE_PANEL_MIN_WIDTH = 340;
@@ -54,6 +62,15 @@ function updateBrowserThemeColor(resolvedTheme: IdeThemeMode): void {
   }
 }
 
+function applyWorkspaceGridColour(workspace: Blockly.WorkspaceSvg, mode: IdeThemeMode): void {
+  const grid = workspace.getGrid();
+  const pattern = grid && document.getElementById(grid.getPatternId());
+  if (!pattern) return;
+  for (const line of Array.from(pattern.querySelectorAll('line'))) {
+    line.setAttribute('stroke', IDE_WORKSPACE_GRID_COLOUR[mode]);
+  }
+}
+
 function applyTheme(
   workspace: Blockly.WorkspaceSvg,
   mode: IdeThemeMode,
@@ -65,6 +82,7 @@ function applyTheme(
   document.documentElement.dataset.theme = mode;
   if (themeToggle) themeToggle.checked = mode === 'dark';
   workspace.setTheme(mode === 'dark' ? darkTheme : lightTheme);
+  applyWorkspaceGridColour(workspace, mode);
   updateBrowserThemeColor(mode);
   onResize();
   window.setTimeout(onResize, 80);
