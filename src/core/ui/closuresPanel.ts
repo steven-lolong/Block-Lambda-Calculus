@@ -1,63 +1,22 @@
-import * as Blockly from 'blockly';
 import { buildClosureCards, type ClosProgram, type ClosureCapture, type ClosureCard, type IRType } from '../ir';
 import { makeTypeFormatter, type TypeFormatter } from '../ir/prettyPrinters';
+import { createBlockHighlighter, uniqueIds, type BlockHighlighter, type GetWorkspace } from './blockHighlight';
 
 /*
  * The Closures tab (Lowering pane, step 2.5): renders one card per closure —
  * its identity, type, and captured-variable set — and cross-highlights the
- * captured blocks in the main workspace on hover/focus. Modeled on
- * csekPanel.ts's block-highlight mechanism, generalized from a single id to a
- * set (a capture can link more than one block: the capture site plus every
- * read inside the closure's own body).
+ * captured blocks in the main workspace on hover/focus (blockHighlight.ts,
+ * extracted here in 3.6 once the CFG panel needed the same mechanism).
  */
 
-type GetWorkspace = () => Blockly.WorkspaceSvg | null;
-
-let getWorkspace: GetWorkspace = () => null;
-let highlightedIds: string[] = [];
+let highlighter: BlockHighlighter = createBlockHighlighter(() => null);
 
 export function initClosuresPanel(workspaceGetter: GetWorkspace): void {
-  getWorkspace = workspaceGetter;
-}
-
-/* ------------------------------------------------------------- highlight */
-
-function setHighlight(ids: string[]): void {
-  const ws = getWorkspace();
-  if (!ws) return;
-  for (const id of highlightedIds) {
-    if (ids.includes(id)) continue;
-    (ws.getBlockById(id) as Blockly.BlockSvg | null)?.setHighlighted(false);
-  }
-  for (const id of ids) {
-    (ws.getBlockById(id) as Blockly.BlockSvg | null)?.setHighlighted(true);
-  }
-  highlightedIds = ids;
+  highlighter = createBlockHighlighter(workspaceGetter);
 }
 
 export function clearClosuresHighlight(): void {
-  setHighlight([]);
-}
-
-function jumpTo(id: string | undefined): void {
-  if (!id) return;
-  const ws = getWorkspace();
-  const block = ws?.getBlockById(id) as Blockly.BlockSvg | null;
-  if (!ws || !block) return;
-  ws.centerOnBlock(id);
-  Blockly.common.setSelected(block);
-}
-
-function linkHover(element: HTMLElement, ids: string[]): void {
-  if (ids.length === 0) return;
-  element.addEventListener('mouseenter', () => setHighlight(ids));
-  element.addEventListener('focus', () => setHighlight(ids));
-  element.addEventListener('mouseleave', clearClosuresHighlight);
-  element.addEventListener('blur', clearClosuresHighlight);
-}
-
-function uniqueIds(ids: string[]): string[] {
-  return Array.from(new Set(ids));
+  highlighter.clearHighlight();
 }
 
 /* ------------------------------------------------------------------ card DOM */
@@ -96,8 +55,8 @@ function makeChip(capture: ClosureCapture, formatType: TypeFormatter): HTMLEleme
   if (capture.blockIds.length === 0) {
     chip.disabled = true;
   } else {
-    linkHover(chip, capture.blockIds);
-    chip.addEventListener('click', () => jumpTo(capture.blockIds[0]));
+    highlighter.linkHover(chip, capture.blockIds);
+    chip.addEventListener('click', () => highlighter.jumpTo(capture.blockIds[0]));
   }
   return chip;
 }
@@ -127,8 +86,8 @@ function makeCard(card: ClosureCard, formatType: TypeFormatter): HTMLElement {
     jump.className = 'closure-card-jump';
     jump.textContent = '↳ block';
     jump.title = "Show this closure's source block";
-    jump.addEventListener('click', () => jumpTo(card.sourceId));
-    linkHover(jump, [card.sourceId]);
+    jump.addEventListener('click', () => highlighter.jumpTo(card.sourceId));
+    highlighter.linkHover(jump, [card.sourceId]);
     head.appendChild(jump);
   }
 
@@ -158,7 +117,7 @@ function makeCard(card: ClosureCard, formatType: TypeFormatter): HTMLElement {
   // Hovering the card body (outside a specific chip) highlights everything
   // this closure touches — the source block plus every capture's blocks.
   const allIds = uniqueIds([...(card.sourceId ? [card.sourceId] : []), ...card.captures.flatMap((c) => c.blockIds)]);
-  linkHover(el, allIds);
+  highlighter.linkHover(el, allIds);
 
   return el;
 }

@@ -42,6 +42,15 @@ A TypeScript + npm + webpack web project for **Block Lambda**, a block-based IDE
   - generated-code type comments for top-level terms,
   - native Blockly comment icons on Lambda blocks with pretty-printed type and value information.
 - Generated Lambda Calculus text code with syntax highlighting.
+- **Inspectable compiler pipeline** — the same program lowered through nine
+  intermediate representations (Term → Core → ANF → Closure IR → First-order IR
+  → CFG → SSA → register assembly → bytecode) and executed on a register
+  bytecode VM. Each stage is a live Inspector tab (Core/ANF/Closures/First-order
+  as listings, **CFG** as a blocks+edges diagram, **Assembly** as a mnemonic
+  listing, **Machine code** as hex with a **Run** button + a correctness badge),
+  and hovering a lowered artifact highlights its source blocks. A single
+  cross-check test proves *substitution ≡ CEK machine ≡ bytecode* for every
+  example. See [`Documentations/Architecture.md`](Documentations/Architecture.md).
 - Neutral dark and light workbench themes with a single product accent and
   grammatical block color families.
 - Responsive header menus, panel drawers, keyboard resizers, and persisted
@@ -129,42 +138,69 @@ form. The `syncCount` counter confirms the two agree on the salient trace.
 ## Tests
 
 `npm test` compiles the headless suites (`tsconfig.test.json`) and runs them
-under node, no browser required:
+under node, no browser required. Every pipeline pass has a **value-preservation
+oracle** — a tiny interpreter for that stage's IR, checked against the
+substitution stepper for every pinned case and every shipped example under
+**both** strategies.
 
 - `tests/roundtrip.ts` — block → text → block round-trips for the
-  parser/generator pair (40 checks).
-- `tests/semantics.ts` — strategy/machine correspondence: for each program,
-  the substitution trace under CbS and CbV and the CEK machine under both
-  strategies must reach the same final value, and the substitution trace's
-  salient rules must match the machine's in order (the lockstep invariant).
-  Also pins CbS's duplicated-work signature (two `prim *` for
-  `(λx. x + x) (3 * 7)` vs one under CbV, in both presentations) and the
-  no-reduction-under-a-binder property shared with MNL.
-- `tests/layoutState.ts` — the persisted workbench layout: defaults, round-trip
-  through the `block-lambda-ide-layout-v2` key, and that malformed or
-  out-of-range payloads (unknown activity, bad bottom tab, non-finite sizes)
-  degrade to `DEFAULT_IDE_LAYOUT` instead of propagating.
+  parser/generator pair.
+- `tests/semantics.ts` — strategy/machine correspondence: substitution under
+  CbS/CbV and the CEK machine under both strategies reach the same final value,
+  and salient rules match in order (the lockstep invariant). Pins CbS's
+  duplicated-work signature (two `prim *` for `(λx. x + x) (3 * 7)` vs one under
+  CbV) and no-reduction-under-a-binder.
+- `tests/anf.ts`, `tests/freeVars.ts`, `tests/closure.ts`, `tests/fir.ts` —
+  each Phase-1/2 lowering pass preserves values.
+- `tests/cfg.ts` — the CFG interpreter matches substitution (explicit control +
+  heap + the two-object closure layout).
+- `tests/ssa.ts` — the SSA verifier accepts every corpus CFG and **rejects**
+  three hand-built malformed ones (it has teeth).
+- `tests/asm.ts` — instruction selection + register allocation preserve values;
+  a hand-built high-pressure function forces spilling correctly.
+- `tests/vm.ts` — the shipped `stepVm` matches substitution; `syncCount` equals
+  the CEK salient-rule count; **exact time travel** (a step never mutates an
+  earlier snapshot); O(1) tail calls; encode/decode round-trips.
+- **`tests/crosscheck.ts`** — the capstone: for every program × strategy,
+  `substitution ≡ CEK ≡ bytecode` (the bytecode run through `decode(encode(…))`).
+  This one test guards the whole compiler.
+- `tests/layoutState.ts` — the persisted workbench layout degrades malformed
+  payloads to `DEFAULT_IDE_LAYOUT`.
+- `tests/blockColors.ts` — grammatical block-color classification.
 
-Individual suites: `npm run test:roundtrip`, `npm run test:semantics`,
-`npm run test:layout`.
+Individual suites: `npm run test:<name>` (e.g. `test:crosscheck`, `test:vm`,
+`test:semantics`). UI panels are verified separately by driving the app in a
+headless browser (Playwright, `npm run test:ui`).
 
 ## Project structure
 
 ```text
 src/
+  index.html            page shell
   assets/
-    images/
-    css/
-    js/
+    images/             logos, favicons, PWA icon
+    css/                tokens.css · styles.css · examples.css
+    js/                 block_lambda.ts (webpack entry)
   core/
-    blocks/
-    examples/
-    generator/
-    renderer/
-    semantics/
-    type-inference/
-    ui/
+    blocks/             custom Lambda Blockly blocks
+    parser/             Lambda text -> workspace state
+    generator/          blocks -> Lambda text / typing derivation
+    type-inference/     Hindley-Milner inference + scheduling driver
+    semantics/          Term model + substitution stepper (reference semantics)
+    machine/            CEK abstract machine (reference semantics)
+    ir/                 the lowering pipeline: Core -> ... -> bytecode + the VM
+    renderer/           Tude renderer, theme, toolbox
+    examples/           built-in example workspaces
+    ui/                 workbench shell, inspector panels, semantics dock
+tests/                  headless test suites (npm test)
+Documentations/         Architecture.md, runbooks, UI-refactor notes
+docs/                   published webpack build output
 ```
+
+**See [`Documentations/Architecture.md`](Documentations/Architecture.md)** for
+the full design: the front-end, the two reference semantics, the nine-stage
+lowering pipeline (Term → Core → ANF → Closure IR → First-order IR → CFG → SSA →
+register assembly → bytecode), the register VM, and a file-by-file module map.
 
 ## Install
 
@@ -248,24 +284,77 @@ The recursive evaluator reduces the application to `120`.
 
 ## Main files
 
+For the complete, explained design see
+[`Documentations/Architecture.md`](Documentations/Architecture.md); the map
+below is the quick index.
+
+### Shell & assets
+
 - `src/index.html` — page shell for the IDE.
-- `src/assets/js/block_lambda.ts` — webpack entry script.
+- `src/assets/js/block_lambda.ts` — webpack entry; wires the workspace, panels,
+  and the Inspector "Lowering" render cascade.
+- `src/assets/css/tokens.css` — design tokens (colors, spacing, fonts).
 - `src/assets/css/styles.css` — full IDE styling.
 - `src/assets/css/examples.css` — examples menu and submenu styling.
+
+### Front-end (author, type, mirror to text)
+
 - `src/core/blocks/lambdaBlocks.ts` — custom Lambda Calculus Blockly blocks.
-- `src/core/examples/lambdaExamples.ts` — built-in example workspace definitions and loader.
-- `src/core/generator/lambdaGenerator.ts` — block-to-text generator with optional type annotations.
-- `src/core/type-inference/lambdaTypeInference.ts` — Hindley-Milner-style type inference for Lambda blocks.
-- `src/core/ui/typeInfoPopup.ts` — Blockly comment report generation for per-block type/value information.
-- `src/core/renderer/tude.ts` — custom Zelos-based square-corner Blockly renderer.
-- `src/core/renderer/toolbox.ts` — collapsible toolbox renderer.
-- `src/core/ui/layout.ts` — hide/show and resize UI behavior.
+- `src/core/parser/lambdaTextParser.ts` — Lambda text → workspace state.
+- `src/core/generator/lambdaGenerator.ts` — block-to-text generator with
+  optional type annotations (`lambdaTermText.ts` is the inline form).
+- `src/core/generator/lambdaFormalGenerator.ts` — typing-derivation renderer.
+- `src/core/type-inference/lambdaTypeInference.ts` — Hindley-Milner-style type
+  inference for Lambda blocks (`inferenceDriver.ts` schedules it incrementally).
+- `src/core/examples/lambdaExamples.ts` — built-in example workspaces and loader.
+
+### Reference semantics (two independent evaluators)
+
+- `src/core/semantics/lambdaReduction.ts` — `Term` model, `blockToTerm`, and the
+  substitution stepper (`computeReductionRun`) — the reference spec.
+- `src/core/machine/csekMachine.ts` — the pure CEK machine (`stepCsekMachine`),
+  environment-machine semantics that walks the block tree.
+
+### Lowering pipeline (`src/core/ir/`) — Term → bytecode
+
+- `provenance.ts`, `types.ts`, `freshNames.ts` — shared infrastructure
+  (block-traceability, the one `IRType`, deterministic fresh names).
+- `core.ts` / `desugar.ts` — Core IR + `Term → Core`.
+- `anf.ts` / `toAnf.ts` — A-normal form + `Core → ANF` (the CbS/CbV split).
+- `freeVars.ts` — free-variable capture analysis.
+- `clos.ts` / `closureConvert.ts` — Closure IR + type-preserving closure
+  conversion (`⟦A→B⟧ = ∃γ. (…) × γ`).
+- `fir.ts` / `liftFunctions.ts` — First-order IR + lambda lifting.
+- `lir.ts` / `toCfg.ts` — CFG over virtual registers + explicit control/heap.
+- `ssa.ts` — dominance-based SSA verifier + φ-node projection.
+- `isa.ts` / `toAsm.ts` — the permanent register ISA + instruction selection
+  and linear-scan register allocation.
+- `encode.ts` — fixed-width bytecode encoder/decoder.
+- `vm.ts` — the register bytecode VM: a pure `stepVm(state)` (exact time travel).
+- `prettyPrinters.ts` — `{ html, text }` printers for every stage.
+- `closureCards.ts` — capture-map model for the Closures tab.
+
+### UI
+
 - `src/core/ui/workbench.ts` — workbench shell: activity bar, perspectives,
-  command palette, bottom tabs, diagnostics rendering, status bar.
-- `src/core/ui/layoutState.ts` — validated, persisted workbench layout state.
-- `src/core/ui/visualizationPanel.ts` — bottom visualization dock and its tabs.
-- `src/core/ui/csekPanel.ts` — CEK machine tab (columns labelled **C** control,
-  **E** environment, **K** kontinuation).
+  command palette, bottom tabs, diagnostics, status bar.
+- `src/core/ui/layout.ts` / `layoutState.ts` — hide/show/resize behavior and
+  validated, persisted layout state.
+- `src/core/ui/visualizationPanel.ts` — bottom Semantics dock (CbS/CbV/CEK/
+  Lockstep tabs); `buildLockstep` renders the three-way correspondence.
+- `src/core/ui/csekPanel.ts` — CEK machine tab (**C** control, **E**
+  environment, **K** kontinuation).
+- `src/core/ui/closuresPanel.ts` — Closures Inspector tab (capture cards).
+- `src/core/ui/cfgPanel.ts` — CFG Inspector tab (blocks + SVG-edge diagram).
+- `src/core/ui/machineCodePanel.ts` — Machine-code tab (hex + Run + correctness
+  badge).
+- `src/core/ui/blockHighlight.ts` — shared block cross-highlighter used by the
+  Closures and CFG panels.
+- `src/core/ui/typeInfoPopup.ts` — per-block type/value comment reports.
+- `src/core/ui/contextMenus.ts`, `evaluationDriver.ts`, `screenshot.ts` —
+  right-click semantics views, change-driven evaluation, canvas export.
+- `src/core/renderer/tude.ts` — custom Zelos-based square-corner renderer;
+  `theme.ts` (grammatical block colors), `toolbox.ts` (searchable toolbox).
 
 ## Logo assets
 

@@ -37,7 +37,7 @@
  * Machine-code tab (3.6) can still map each word back to its source block.
  */
 import type { BasicBlock, CfgFunc, CfgInstr, CfgProgram, VReg } from './lir';
-import { instrDef, instrUses, terminatorTargets, termUses } from './lir';
+import { instrDef, instrUses, reversePostorder, termUses } from './lir';
 import type { CodeEntry, ConstIx, Instr, Reg, Slot, VmProgram, VmValue } from './isa';
 import { REG_COUNT } from './isa';
 import type { Label } from './fir';
@@ -74,26 +74,6 @@ function internConst(pool: ConstPool, v: number | boolean | null): ConstIx {
   pool.values.push(value);
   pool.index.set(key, ix);
   return ix;
-}
-
-/* ------------------------------------------------------------------ layout */
-
-/** Blocks in reverse-postorder from the entry (entry first, unreachable
- *  dropped). Valid because the CFG is acyclic. */
-function reversePostorder(func: CfgFunc): BasicBlock[] {
-  const byId = new Map(func.blocks.map((b) => [b.id, b]));
-  const visited = new Set<string>();
-  const post: string[] = [];
-  const dfs = (id: string): void => {
-    if (visited.has(id)) return;
-    visited.add(id);
-    const bl = byId.get(id);
-    if (!bl) return;
-    for (const s of terminatorTargets(bl.terminator)) dfs(s);
-    post.push(id);
-  };
-  dfs(func.entry);
-  return post.reverse().map((id) => byId.get(id)!);
 }
 
 /* -------------------------------------------------------------- live ranges */
