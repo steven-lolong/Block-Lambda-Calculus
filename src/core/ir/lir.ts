@@ -115,6 +115,28 @@ export function terminatorTargets(term: Terminator): BlockId[] {
   }
 }
 
+/** Blocks in reverse-postorder from the entry (entry first, unreachable
+ *  dropped) — a valid linear schedule/layout order because every `CfgFunc`'s
+ *  block graph is acyclic (recursion is a `callclos`/`tailcallclos` into a
+ *  fresh frame, never a back-edge). Shared by instruction selection (toAsm.ts,
+ *  which needs a schedule) and the CFG diagram (cfgPanel.ts, which needs a
+ *  top-to-bottom layer order) — one graph-order computation, not two. */
+export function reversePostorder(func: CfgFunc): BasicBlock[] {
+  const byId = new Map(func.blocks.map((b) => [b.id, b]));
+  const visited = new Set<string>();
+  const post: string[] = [];
+  const dfs = (id: string): void => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const bl = byId.get(id);
+    if (!bl) return;
+    for (const s of terminatorTargets(bl.terminator)) dfs(s);
+    post.push(id);
+  };
+  dfs(func.entry);
+  return post.reverse().map((id) => byId.get(id)!);
+}
+
 /* ----------------------------------------------------- instruction def / use */
 /* Shared by the SSA verifier (ssa.ts) and the register allocator (toAsm.ts):
  * the single source of truth for which virtual registers each node defines and

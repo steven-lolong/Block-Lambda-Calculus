@@ -18,11 +18,16 @@ import {
   prettyPrintCore,
   prettyPrintAnfProgram,
   prettyPrintFirProgram,
+  prettyPrintVmProgram,
   toAnfProgram,
   closureConvert,
-  toFir
+  toFir,
+  toCfg,
+  selectAndAllocate
 } from '../../core/ir';
 import { initClosuresPanel, renderClosureCardsInto, clearClosuresHighlight } from '../../core/ui/closuresPanel';
+import { initCfgPanel, renderCfgDiagramInto, clearCfgHighlight } from '../../core/ui/cfgPanel';
+import { renderMachineCodeInto } from '../../core/ui/machineCodePanel';
 import { TUDE_RENDERER_NAME, registerTudeRenderer } from '../../core/renderer/tude';
 import { renderToolbox } from '../../core/renderer/toolbox';
 import { applyLambdaGrammarCssTokens, darkTheme, lightTheme } from '../../core/renderer/theme';
@@ -50,7 +55,7 @@ const THRASOS_RENDERER_NAME = 'thrasos';
 
 type BlocklyRendererName = typeof TUDE_RENDERER_NAME | typeof ZELOS_RENDERER_NAME | typeof THRASOS_RENDERER_NAME;
 type InspectorTarget = 'code' | 'formal' | 'inspector' | 'outline' | 'lowering';
-type LoweringStage = 'core' | 'anf' | 'clos' | 'fir';
+type LoweringStage = 'core' | 'anf' | 'clos' | 'fir' | 'cfg' | 'asm' | 'machine';
 type LoweringStrategy = 'structure' | 'value';
 
 function requireElement<T extends HTMLElement>(id: string): T {
@@ -102,7 +107,8 @@ function persistInspectorTarget(target: InspectorTarget): void {
 }
 
 function isLoweringStage(value: string | null): value is LoweringStage {
-  return value === 'core' || value === 'anf' || value === 'clos' || value === 'fir';
+  return value === 'core' || value === 'anf' || value === 'clos' || value === 'fir'
+    || value === 'cfg' || value === 'asm' || value === 'machine';
 }
 
 function readLoweringStage(): LoweringStage {
@@ -194,7 +200,13 @@ const loweringStageCore = requireElement<HTMLButtonElement>('loweringStageCore')
 const loweringStageAnf = requireElement<HTMLButtonElement>('loweringStageAnf');
 const loweringStageClos = requireElement<HTMLButtonElement>('loweringStageClos');
 const loweringStageFir = requireElement<HTMLButtonElement>('loweringStageFir');
-const loweringStageButtons = [loweringStageCore, loweringStageAnf, loweringStageClos, loweringStageFir];
+const loweringStageCfg = requireElement<HTMLButtonElement>('loweringStageCfg');
+const loweringStageAsm = requireElement<HTMLButtonElement>('loweringStageAsm');
+const loweringStageMachine = requireElement<HTMLButtonElement>('loweringStageMachine');
+const loweringStageButtons = [
+  loweringStageCore, loweringStageAnf, loweringStageClos, loweringStageFir,
+  loweringStageCfg, loweringStageAsm, loweringStageMachine
+];
 const loweringStrategyStructure = requireElement<HTMLButtonElement>('loweringStrategyStructure');
 const loweringStrategyValue = requireElement<HTMLButtonElement>('loweringStrategyValue');
 const printDerivationButton = requireElement<HTMLButtonElement>('printDerivation');
@@ -485,8 +497,9 @@ function renderLoweringToolbar(): void {
 // desugarWorkspace, which would rerun Hindley-Milner inference a second time.
 function renderLowering(report: LambdaInferenceReport): void {
   renderLoweringToolbar();
-  loweringOutput.classList.remove('is-cards');
+  loweringOutput.classList.remove('is-cards', 'is-panel');
   clearClosuresHighlight();
+  clearCfgHighlight();
 
   if (workspace.getAllBlocks(false).length === 0) {
     loweringOutput.textContent = 'The workspace has no blocks.';
@@ -494,7 +507,8 @@ function renderLowering(report: LambdaInferenceReport): void {
   }
 
   try {
-    const core = desugar(blockToTerm(pickProgramBlock(workspace)), makeTypeLookup(report));
+    const block = pickProgramBlock(workspace);
+    const core = desugar(blockToTerm(block), makeTypeLookup(report));
 
     if (activeLoweringStage === 'core') {
       loweringOutput.innerHTML = prettyPrintCore(core).html;
@@ -514,7 +528,27 @@ function renderLowering(report: LambdaInferenceReport): void {
       return;
     }
 
-    loweringOutput.innerHTML = prettyPrintFirProgram(toFir(anf)).html;
+    const fir = toFir(anf);
+    if (activeLoweringStage === 'fir') {
+      loweringOutput.innerHTML = prettyPrintFirProgram(fir).html;
+      return;
+    }
+
+    const cfg = toCfg(fir);
+    if (activeLoweringStage === 'cfg') {
+      loweringOutput.classList.add('is-panel');
+      renderCfgDiagramInto(loweringOutput, cfg);
+      return;
+    }
+
+    const vmProg = selectAndAllocate(cfg);
+    if (activeLoweringStage === 'asm') {
+      loweringOutput.innerHTML = prettyPrintVmProgram(vmProg).html;
+      return;
+    }
+
+    loweringOutput.classList.add('is-panel');
+    renderMachineCodeInto(loweringOutput, vmProg, block, activeLoweringStrategy);
   } catch (error) {
     loweringOutput.textContent = `Could not lower the program: ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -1290,6 +1324,7 @@ autosaveInterval.addEventListener('input', () => {
 installCurrentWorkspaceInferenceDriver();
 installCurrentWorkspaceInspector();
 initClosuresPanel(() => workspace);
+initCfgPanel(() => workspace);
 
 window.addEventListener('block-lambda:refresh-code', () => {
   const report = runLambdaInferenceToFixpoint(workspace, 'external-refresh');

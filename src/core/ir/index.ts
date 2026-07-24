@@ -21,6 +21,7 @@ export * from './liftFunctions';
 export * from './toCfg';
 export * from './ssa';
 export * from './toAsm';
+export * from './encode';
 export * from './closureCards';
 export * from './desugar';
 export * from './toAnf';

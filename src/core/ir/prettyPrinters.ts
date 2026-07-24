@@ -10,6 +10,8 @@ import type { CoreTerm } from './core';
 import type { AnfAtom, AnfBinding, AnfComp, AnfExpr, AnfProgram } from './anf';
 import type { ClosAtom, ClosBinding, ClosCode, ClosComp, ClosExpr, ClosProgram } from './clos';
 import type { FirAtom, FirBinding, FirComp, FirExpr, FirFunc, FirProgram } from './fir';
+import type { BasicBlock, CfgFunc, CfgInstr, CfgProgram, Terminator, VReg } from './lir';
+import type { Instr, Reg, VmProgram, VmValue } from './isa';
 import type { IRType } from './types';
 
 export interface IRFormalization {
@@ -363,6 +365,161 @@ export function prettyPrintFirProgram(prog: FirProgram): IRFormalization {
   const functionsText = prog.functions.map(firFuncText).join('\n\n');
   const mainText = `main =\n  ${firExprText(prog.main)}`;
   const text = header + (functionsText ? `${functionsText}\n\n` : '') + mainText;
+  const html = `<code class="ir-listing">${escapeHtml(text)}</code>`;
+  return { html, text };
+}
+
+/* ============================================================================
+   Low IR / CFG pretty-printer (step 3.6)
+   ============================================================================ */
+
+export function vregText(reg: VReg): string {
+  return reg.hint ? `%${reg.id}<${reg.hint}>` : `%${reg.id}`;
+}
+
+/** One straight-line instruction, register-machine mnemonic style — also the
+ *  per-block content the CFG diagram (cfgPanel.ts) renders inside each box. */
+export function cfgInstrText(ins: CfgInstr): string {
+  switch (ins.kind) {
+    case 'const':
+      return `${vregText(ins.dst)} = const ${ins.value === null ? 'null' : ins.value}`;
+    case 'bin':
+      return `${vregText(ins.dst)} = ${vregText(ins.left)} ${ins.op} ${vregText(ins.right)}`;
+    case 'move':
+      return `${vregText(ins.dst)} = ${vregText(ins.src)}`;
+    case 'alloc':
+      return `${vregText(ins.dst)} = alloc ${ins.size}`;
+    case 'load':
+      return `${vregText(ins.dst)} = load ${vregText(ins.base)}[${ins.index}]`;
+    case 'store':
+      return `store ${vregText(ins.base)}[${ins.index}] = ${vregText(ins.src)}`;
+    case 'loadcode':
+      return `${vregText(ins.dst)} = loadcode ${ins.label}`;
+    case 'callclos':
+      return `${vregText(ins.dst)} = callclos ${vregText(ins.clos)} ${vregText(ins.arg)}`;
+    case 'force':
+      return `${vregText(ins.dst)} = force ${vregText(ins.src)}`;
+  }
+}
+
+/** A block's one control transfer — also used by the CFG diagram to label
+ *  each edge (`condbr` splits into a "T"/"F" pair). */
+export function cfgTerminatorText(term: Terminator): string {
+  switch (term.kind) {
+    case 'ret':
+      return `ret ${vregText(term.value)}`;
+    case 'br':
+      return term.args.length === 0 ? `br ${term.target}` : `br ${term.target}(${term.args.map(vregText).join(', ')})`;
+    case 'condbr':
+      return `condbr ${vregText(term.cond)} ? ${term.then} : ${term.else}`;
+    case 'tailcallclos':
+      return `tailcallclos ${vregText(term.clos)} ${vregText(term.arg)}`;
+  }
+}
+
+function cfgBlockText(block: BasicBlock): string {
+  const header = block.params.length ? `${block.id}(${block.params.map(vregText).join(', ')}):` : `${block.id}:`;
+  const lines = [header, ...block.instrs.map((i) => `  ${cfgInstrText(i)}`), `  ${cfgTerminatorText(block.terminator)}`];
+  return lines.join('\n');
+}
+
+function cfgFuncText(func: CfgFunc): string {
+  const abi = [func.env ? `env=${vregText(func.env)}` : null, func.param ? `param=${vregText(func.param)}` : null]
+    .filter((s): s is string => s !== null)
+    .join(', ');
+  const header = `${func.label} [${func.kind}]${abi ? ` (${abi})` : ''}:`;
+  return `${header}\n${func.blocks.map(cfgBlockText).join('\n')}`;
+}
+
+export function prettyPrintCfgProgram(prog: CfgProgram): IRFormalization {
+  const header = `-- Strategy: ${prog.strategy}\n\n`;
+  const text = header + [...prog.functions, prog.main].map(cfgFuncText).join('\n\n');
+  const html = `<code class="ir-listing">${escapeHtml(text)}</code>`;
+  return { html, text };
+}
+
+/* ============================================================================
+   Register bytecode (VmProgram) pretty-printer — the Assembly stage (3.6)
+   ============================================================================ */
+
+function vmConstText(v: VmValue): string {
+  switch (v.tag) {
+    case 'int':
+      return String(v.n);
+    case 'bool':
+      return v.b ? 'true' : 'false';
+    case 'code':
+      return `&code#${v.code}`;
+    case 'ptr':
+      return `ptr#${v.addr}`;
+    case 'null':
+      return 'null';
+  }
+}
+
+/** One physical-register instruction, at flat code index `index` (so a jump's
+ *  self-relative offset can print as the absolute target it lands on) —
+ *  shared by the Assembly listing and the Machine-code pane's per-word label. */
+export function asmInstrText(ins: Instr, index: number, prog: VmProgram): string {
+  const r = (reg: Reg): string => `r${reg}`;
+  switch (ins.op) {
+    case 'Const':
+      return `${r(ins.dst)} = const ${vmConstText(prog.constants[ins.k])}`;
+    case 'Move':
+      return `${r(ins.dst)} = ${r(ins.src)}`;
+    case 'Bin':
+      return `${r(ins.dst)} = ${r(ins.left)} ${ins.prim} ${r(ins.right)}`;
+    case 'Alloc':
+      return `${r(ins.dst)} = alloc ${ins.size}`;
+    case 'Load':
+      return `${r(ins.dst)} = [${r(ins.base)}+${ins.off}]`;
+    case 'Store':
+      return `[${r(ins.base)}+${ins.off}] = ${r(ins.src)}`;
+    case 'LoadCode':
+      return `${r(ins.dst)} = &${prog.functions[ins.code]?.label ?? `code#${ins.code}`}`;
+    case 'CallClos':
+      return `${r(ins.dst)} = callclos ${r(ins.clos)} ${r(ins.arg)}`;
+    case 'TailCallClos':
+      return `tailcallclos ${r(ins.clos)} ${r(ins.arg)}`;
+    case 'Force':
+      return `${r(ins.dst)} = force ${r(ins.thunk)}`;
+    case 'TailForce':
+      return `tailforce ${r(ins.thunk)}`;
+    case 'Ret':
+      return `ret ${r(ins.src)}`;
+    case 'Jmp':
+      return `jmp #${index + ins.target}`;
+    case 'JmpIf':
+      return `jmpif ${r(ins.cond)}, #${index + ins.target}`;
+    case 'Spill':
+      return `spill [${ins.slot}] = ${r(ins.src)}`;
+    case 'Reload':
+      return `${r(ins.dst)} = [${ins.slot}]`;
+  }
+}
+
+/** The kind label an `asmInstrText`-style listing shows at a function's entry
+ *  point — `CodeEntry` keeps only `arity` (0/1), not the closure/thunk/main
+ *  distinction `CfgFunc.kind` had, so `main` is recovered by its reserved
+ *  label and everything else falls out of arity. */
+export function asmFuncKind(label: string, arity: 0 | 1): 'thunk' | 'main' | 'closure' {
+  // `main` must be checked first: it is arity 0 (no param) just like a thunk, so
+  // an arity-first test would mislabel the program entry as `thunk`.
+  if (label === 'main') return 'main';
+  return arity === 0 ? 'thunk' : 'closure';
+}
+
+export function prettyPrintVmProgram(prog: VmProgram): IRFormalization {
+  const byEntry = new Map(prog.functions.map((f) => [f.entry, f]));
+  const lines: string[] = [`-- Strategy: ${prog.strategy}`, ''];
+  prog.code.forEach((ins, i) => {
+    const entry = byEntry.get(i);
+    if (entry) {
+      lines.push(`${entry.label}:  ; ${asmFuncKind(entry.label, entry.arity)}, regs=${entry.regCount}, slots=${entry.slotCount}`);
+    }
+    lines.push(`  ${String(i).padStart(3, ' ')}: ${asmInstrText(ins, i, prog)}`);
+  });
+  const text = lines.join('\n');
   const html = `<code class="ir-listing">${escapeHtml(text)}</code>`;
   return { html, text };
 }

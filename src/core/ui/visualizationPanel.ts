@@ -4,6 +4,7 @@ import { readIdeLayoutState, updateIdeLayoutState, type BottomTab } from './layo
 import {
   arrangeBlocksVertically,
   arrangeTopBlocks,
+  blockToTerm,
   computeReductionRun,
   renderLambdaReduction,
   type BlockOrder,
@@ -27,6 +28,23 @@ import {
   setCsekTabVisible
 } from './csekPanel';
 import { TUDE_RENDERER_NAME } from '../renderer/tude';
+import { inferLambdaWorkspaceTypes } from '../type-inference/lambdaTypeInference';
+import {
+  desugar,
+  makeTypeLookup,
+  toAnfProgram,
+  toFir,
+  toCfg,
+  selectAndAllocate,
+  injectVm,
+  stepVm,
+  isSalientOp,
+  formatVmValue,
+  type Frame,
+  type VmProgram,
+  type VmState,
+  type VmValue
+} from '../ir';
 
 type VizKind = ReductionKind;
 /** The reduction-trace tabs, the lockstep stepper, and the CEK machine tab. */
@@ -69,13 +87,35 @@ const views: Record<VizKind, View> = {
   value: { workspace: null, block: null, order: null, lastError: null }
 };
 
-/** The machine's catch-up state paired with substitution frame i (lockstep). */
+/**
+ * The two lower machines' catch-up states paired with substitution frame i.
+ *
+ * The CEK machine (a tree-walking environment machine) tracks the substitution
+ * per *event*: at each salient rewrite it fires its own next salient rule and
+ * the rule ids must match, in order. The register VM is one level lower — the
+ * *compiled* bytecode — and its correspondence is deliberately weaker where it
+ * has to be: it tracks per *count*. Compilation (ANF + closure conversion)
+ * fixes an evaluation order for call-by-structure thunk chains that the
+ * tree-walking machines leave open, so the VM fires exactly the same *multiset*
+ * of salient events and the same final value, but their *interleaving* can
+ * differ (only for CbS recursion; CbV and non-recursive CbS agree event for
+ * event). Matching the VM per-event would therefore raise false "diverged"
+ * alarms on programs that agree perfectly; matching per-count is the honest,
+ * still-strong invariant — a count mismatch (either direction) or a final-value
+ * mismatch is a real divergence and is still caught.
+ */
 interface LockstepEntry {
   machine: CsekState;
-  /** Salient rules matched so far, counted up to and including this frame. */
+  /** The compiled VM caught up to this frame; null when it could not compile. */
+  vm: VmState | null;
+  /** CEK salient rules matched so far (per-event), up to and including this frame. */
   syncCount: number;
-  /** First disagreement between rewrite and machine, if any. */
+  /** VM salient ops fired so far (per-count), up to and including this frame. */
+  vmSyncCount: number;
+  /** First per-event disagreement between rewrite and the CEK machine, if any. */
   diverged: string | null;
+  /** First per-count disagreement between rewrite and the VM, if any. */
+  vmDiverged: string | null;
 }
 
 interface StepperState {
@@ -84,6 +124,9 @@ interface StepperState {
   /** pair[i] is the machine state after catching up to frames[i]; empty when
       the machine could not inject (the term side still steps alone). */
   pair: LockstepEntry[];
+  /** The compiled program the VM side of `pair` steps through (for labels in
+      the VM readout); null when the program could not be compiled. */
+  vmProgram: VmProgram | null;
   index: number;
   kind: ReductionKind;
   truncated: boolean;
@@ -98,6 +141,7 @@ const stepper: StepperState = {
   workspace: null,
   frames: [],
   pair: [],
+  vmProgram: null,
   index: 0,
   kind: 'structure',
   truncated: false,
@@ -418,26 +462,64 @@ function attachStepperStaleListener(): void {
     stopStepperPlay();
     renderStepperStatus();
     renderStepperMachine();
+    renderStepperVm();
     renderStepperAgree();
     renderStepperButtons();
   });
 }
 
+/** Compile the workspace program to bytecode for the VM side of the lockstep,
+ *  through the whole lowering pipeline; null (degrading gracefully) on any
+ *  failure, so a compile hiccup never breaks the CEK lockstep. */
+function compileVmProgram(main: Blockly.WorkspaceSvg, block: Blockly.BlockSvg, kind: ReductionKind): VmProgram | null {
+  try {
+    const report = inferLambdaWorkspaceTypes(main);
+    const core = desugar(blockToTerm(block), makeTypeLookup(report));
+    return selectAndAllocate(toCfg(toFir(toAnfProgram(core, kind))));
+  } catch (error) {
+    console.error('[Block Lambda] VM compile failed', error);
+    return null;
+  }
+}
+
+/** Advance a running VM to just past its next salient op (see `isSalientOp`),
+ *  or to a halt; `fired` says whether a salient op was reached. */
+function vmToNextSalient(prog: VmProgram, from: VmState): { vm: VmState; fired: boolean } {
+  let vm = from;
+  while (vm.status === 'running') {
+    vm = stepVm(prog, vm);
+    if (isSalientOp(vm.lastOp)) return { vm, fired: true };
+  }
+  return { vm, fired: false };
+}
+
 /**
- * Pair every substitution frame with a machine state, MNL lockstep style:
- * whenever the rewrite fires a salient rule, the machine advances until it
- * fires its next salient rule — the two must match, and the running counter
- * is the operational-correspondence claim, executed. Non-salient frames keep
- * the machine where it is; when rewriting finishes, the machine drains its
- * trailing administrative steps so both sides finish together.
+ * Pair every substitution frame with the two lower machines, MNL lockstep
+ * style: whenever the rewrite fires a salient rule, each machine advances to
+ * its own next salient event — the running counters are the operational-
+ * correspondence claim, executed, now one level lower as well. The CEK machine
+ * matches per-event (rule id must equal, in order); the register VM matches
+ * per-count (see `LockstepEntry`). Non-salient frames keep both machines put;
+ * when rewriting finishes, both drain their trailing administrative steps so
+ * all three sides finish together.
  */
 function buildLockstep(main: Blockly.WorkspaceSvg, block: Blockly.BlockSvg, run: ReductionRun): LockstepEntry[] {
   const injected = injectCsekMachine(block, stepper.kind);
-  if ('injectError' in injected) return [];
+  if ('injectError' in injected) {
+    stepper.vmProgram = null;
+    return [];
+  }
   let machine = injected;
   let syncCount = 0;
   let diverged: string | null = null;
-  const entries: LockstepEntry[] = [{ machine, syncCount, diverged }];
+
+  const vmProgram = compileVmProgram(main, block, stepper.kind);
+  stepper.vmProgram = vmProgram;
+  let vm: VmState | null = vmProgram ? injectVm(vmProgram) : null;
+  let vmSyncCount = 0;
+  let vmDiverged: string | null = null;
+
+  const entries: LockstepEntry[] = [{ machine, vm, syncCount, vmSyncCount, diverged, vmDiverged }];
 
   for (let i = 1; i < run.frames.length; i++) {
     const salient = run.frames[i].salient;
@@ -452,8 +534,15 @@ function buildLockstep(main: Blockly.WorkspaceSvg, block: Blockly.BlockSvg, run:
       }
       if (fired === salient) syncCount++;
       else if (!diverged) diverged = `rewrite fired ${salient}, machine fired ${fired ?? machine.status}`;
+
+      if (vm && vmProgram) {
+        const advanced = vmToNextSalient(vmProgram, vm);
+        vm = advanced.vm;
+        if (advanced.fired) vmSyncCount++;
+        else if (!vmDiverged) vmDiverged = `rewrite fired ${salient}, VM reached ${vm.status} with no salient op left`;
+      }
     }
-    entries.push({ machine, syncCount, diverged });
+    entries.push({ machine, vm, syncCount, vmSyncCount, diverged, vmDiverged });
   }
 
   if (run.normalForm) {
@@ -463,7 +552,17 @@ function buildLockstep(main: Blockly.WorkspaceSvg, block: Blockly.BlockSvg, run:
         diverged = `machine fired extra ${machine.lastRule} after rewriting finished`;
       }
     }
-    entries[entries.length - 1] = { machine, syncCount, diverged };
+    if (vm && vmProgram) {
+      while (vm.status === 'running') {
+        vm = stepVm(vmProgram, vm);
+        // The VM's total salient-op count equals the rewrite's, so draining the
+        // administrative tail should fire none; one here is a real over-count.
+        if (isSalientOp(vm.lastOp) && !vmDiverged) {
+          vmDiverged = `VM fired extra ${vm.lastOp} after rewriting finished`;
+        }
+      }
+    }
+    entries[entries.length - 1] = { machine, vm, syncCount, vmSyncCount, diverged, vmDiverged };
   }
   return entries;
 }
@@ -475,6 +574,7 @@ function loadStepper(): void {
   if (!block) {
     stepper.frames = [];
     stepper.pair = [];
+    stepper.vmProgram = null;
     stepper.index = 0;
     stepper.stale = false;
     renderStepperFrame();
@@ -489,11 +589,17 @@ function loadStepper(): void {
     stepper.index = 0;
     stepper.stale = false;
     const main = options?.getMainWorkspace?.();
-    stepper.pair = main ? buildLockstep(main, block, run) : [];
+    if (main) {
+      stepper.pair = buildLockstep(main, block, run); // sets stepper.vmProgram
+    } else {
+      stepper.pair = [];
+      stepper.vmProgram = null;
+    }
   } catch (error) {
     console.error('[Block Lambda] stepper failed', error);
     stepper.frames = [];
     stepper.pair = [];
+    stepper.vmProgram = null;
     stepper.index = 0;
   }
   renderStepperFrame();
@@ -530,6 +636,7 @@ function renderStepperFrame(): void {
   }
   renderStepperStatus();
   renderStepperMachine();
+  renderStepperVm();
   renderStepperAgree();
   renderStepperButtons();
   updateInfo();
@@ -559,23 +666,111 @@ function renderStepperAgree(): void {
   agree.removeAttribute('data-state');
   const entry = stepper.stale ? undefined : stepper.pair[stepper.index];
   if (!entry) return;
-  if (entry.diverged) {
-    agree.textContent = `⚠ diverged: ${entry.diverged}`;
+
+  const finishing = stepper.index >= stepper.frames.length - 1 && stepper.normalForm;
+
+  // Final-value agreement, only meaningful once each machine has finished.
+  const cekValue = finishing && entry.machine.status === 'done'
+    ? (entry.machine.result ? formatMachineValue(entry.machine.result) : '—')
+    : null;
+  const vmValue = finishing && entry.vm && entry.vm.status === 'done'
+    ? (entry.vm.result ? formatVmValue(entry.vm.result) : '—')
+    : null;
+  const cekValueBad = cekValue !== null && cekValue !== stepper.finalValue;
+  const vmValueBad = vmValue !== null && vmValue !== stepper.finalValue;
+
+  const cekBad = entry.diverged ?? (cekValueBad ? `final value ${cekValue} ≠ ${stepper.finalValue}` : null);
+  const vmBad = entry.vmDiverged ?? (vmValueBad ? `final value ${vmValue} ≠ ${stepper.finalValue}` : null);
+
+  if (cekBad || vmBad) {
+    const parts: string[] = [];
+    if (cekBad) parts.push(`CEK ${cekBad}`);
+    if (vmBad) parts.push(`VM ${vmBad}`);
+    agree.textContent = `⚠ diverged — ${parts.join(' · ')}`;
     agree.dataset.state = 'diverged';
     return;
   }
-  const atEnd = stepper.index >= stepper.frames.length - 1;
-  if (atEnd && stepper.normalForm && entry.machine.status === 'done') {
-    const machineValue = entry.machine.result ? formatMachineValue(entry.machine.result) : '—';
-    const same = machineValue === stepper.finalValue;
-    agree.textContent = same
-      ? `In sync — ${entry.syncCount} salient rules matched, same value`
-      : `⚠ same rules but DIFFERENT final values (machine: ${machineValue})`;
-    agree.dataset.state = same ? 'sync' : 'diverged';
+
+  const vmBadge = entry.vm ? 'VM ✓' : 'VM —';
+  if (finishing && entry.machine.status === 'done') {
+    agree.textContent = entry.vm
+      ? `In sync — ${entry.syncCount} salient events · same value (${stepper.finalValue}): substitution ≡ CEK ≡ VM`
+      : `In sync — ${entry.syncCount} salient events · same value (${stepper.finalValue}): substitution ≡ CEK`;
+  } else {
+    agree.textContent = `In sync — ${entry.syncCount} salient events · CEK ✓ · ${vmBadge}`;
+  }
+  agree.dataset.state = 'sync';
+}
+
+/* --------------------------------------------------- the VM (one level lower) */
+
+/** A register/heap cell, compact — distinct from `formatVmValue` (which is for
+ *  final results and prints every reference as `function`); here a pointer,
+ *  code value and empty slot each read differently so live state is legible. */
+function formatVmCell(v: VmValue): string {
+  switch (v.tag) {
+    case 'int': return String(v.n);
+    case 'bool': return v.b ? 'true' : 'false';
+    case 'ptr': return `↗${v.addr}`;
+    case 'code': return `⟨code ${v.code}⟩`;
+    case 'null': return '·';
+  }
+}
+
+/** The non-empty registers of a frame, `r0=5 r1=↗3` style. */
+function liveRegs(frame: Frame): string {
+  const cells = frame.regs
+    .map((reg, i) => (reg.tag === 'null' ? null : `r${i}=${formatVmCell(reg)}`))
+    .filter((cell): cell is string => cell !== null);
+  return cells.length ? cells.join('  ') : '—';
+}
+
+function vmStatusText(prog: VmProgram, vm: VmState): string {
+  if (vm.status === 'error') return `stuck · ${vm.error ?? 'error'}`;
+  if (vm.status === 'done') {
+    return `done · ${vm.result ? formatVmValue(vm.result) : '—'} · ${vm.syncCount} salient · heap ${vm.heap.length}`;
+  }
+  const top = vm.frames[vm.frames.length - 1];
+  const label = top ? (prog.functions[top.code]?.label ?? `code#${top.code}`) : '—';
+  return `running · ${label} · last ${vm.lastOp ?? '·'} · ${vm.syncCount} salient`;
+}
+
+function renderVmFramesInto(host: HTMLElement, prog: VmProgram | null, vm: VmState | null): void {
+  host.replaceChildren();
+  if (!vm || !prog) {
+    host.textContent = '—';
     return;
   }
-  agree.textContent = `In sync — ${entry.syncCount} salient rules matched`;
-  agree.dataset.state = 'sync';
+  // Top of stack first — the frame currently executing, like the kont view.
+  for (let i = vm.frames.length - 1; i >= 0; i--) {
+    const frame = vm.frames[i];
+    const label = prog.functions[frame.code]?.label ?? `code#${frame.code}`;
+    const row = document.createElement('div');
+    row.className = 'machine-env-row';
+    const name = document.createElement('span');
+    name.className = 'machine-env-name';
+    name.textContent = i === vm.frames.length - 1 ? `▶ ${label}` : label;
+    const regs = document.createElement('span');
+    regs.textContent = liveRegs(frame);
+    row.append(name, regs);
+    host.append(row);
+  }
+}
+
+function renderStepperVm(): void {
+  const statusEl = byId<HTMLDivElement>('stepperVmStatus');
+  const framesHost = byId<HTMLDivElement>('stepperVmFrames');
+  const entry = stepper.stale ? undefined : stepper.pair[stepper.index];
+  const prog = stepper.stale ? null : stepper.vmProgram;
+  const vm = entry?.vm ?? null;
+  if (statusEl) {
+    statusEl.textContent = vm && prog
+      ? vmStatusText(prog, vm)
+      : stepper.frames.length > 0 && !stepper.stale
+        ? 'VM unavailable for this term'
+        : '';
+  }
+  if (framesHost) renderVmFramesInto(framesHost, prog, vm);
 }
 
 function renderStepperStatus(): void {

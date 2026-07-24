@@ -268,6 +268,9 @@
                 <button id="loweringStageAnf" class="type-tab" type="button" role="tab" data-lowering-stage="anf" aria-controls="loweringOutput" aria-selected="false">ANF</button>
                 <button id="loweringStageClos" class="type-tab" type="button" role="tab" data-lowering-stage="clos" aria-controls="loweringOutput" aria-selected="false">Closures</button>
                 <button id="loweringStageFir" class="type-tab" type="button" role="tab" data-lowering-stage="fir" aria-controls="loweringOutput" aria-selected="false">First-order</button>
+                <button id="loweringStageCfg" class="type-tab" type="button" role="tab" data-lowering-stage="cfg" aria-controls="loweringOutput" aria-selected="false">CFG</button>
+                <button id="loweringStageAsm" class="type-tab" type="button" role="tab" data-lowering-stage="asm" aria-controls="loweringOutput" aria-selected="false">Assembly</button>
+                <button id="loweringStageMachine" class="type-tab" type="button" role="tab" data-lowering-stage="machine" aria-controls="loweringOutput" aria-selected="false">Machine code</button>
               </div>
               <div class="lowering-strategy" role="group" aria-label="Evaluation strategy">
                 <button id="loweringStrategyStructure" class="small-button lowering-strategy-button is-active" type="button" data-lowering-strategy="structure" title="Normalize under Call-by-Structure">CbS</button>
@@ -381,6 +384,12 @@
                       <div id="stepperMachineEnv" class="machine-list"></div>
                       <div class="machine-section-title">Kontinuation stack</div>
                       <div id="stepperMachineKont" class="machine-list"></div>
+                    </aside>
+                    <aside class="stepper-machine" aria-label="Register VM in lockstep">
+                      <div class="machine-caption">Register VM</div>
+                      <div id="stepperVmStatus" class="machine-line"></div>
+                      <div class="machine-section-title">Frames · registers</div>
+                      <div id="stepperVmFrames" class="machine-list"></div>
                     </aside>
                   </div>
                 </div>
